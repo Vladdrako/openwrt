@@ -988,7 +988,7 @@ dnsmasq_start()
 	if [ "$ignore_hosts_dir" = "1" ]; then
 		xappend "--addn-hosts=$HOSTFILE"
 	else
-		xappend "--addn-hosts=$(dirname $HOSTFILE)"
+		xappend "--hostsdir=$(dirname $HOSTFILE)"
 	fi
 
 	config_get dnsmasqconfdir "$cfg" confdir "/tmp/dnsmasq.d"
