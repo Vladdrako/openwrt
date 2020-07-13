@@ -104,10 +104,6 @@ config PROCD_SHOW_BOOT
 	default n
 	prompt "Print the shutdown to the console as well as logging it to syslog"
 
-config PROCD_ZRAM_TMPFS
-	bool
-	default n
-	prompt "Mount /tmp using zram."
 endmenu
 endef
 
