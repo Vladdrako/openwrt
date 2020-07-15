@@ -129,8 +129,6 @@ define Package/block-mount/install
 
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/block $(1)/sbin/
 	$(INSTALL_DATA) $(PKG_INSTALL_DIR)/usr/lib/libblkid-tiny.so $(1)/lib/
-	$(LN) ../../sbin/block $(1)/usr/sbin/swapon
-	$(LN) ../../sbin/block $(1)/usr/sbin/swapoff
 
 endef
 
