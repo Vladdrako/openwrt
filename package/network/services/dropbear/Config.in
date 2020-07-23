@@ -64,6 +64,20 @@ config DROPBEAR_AUTOSEL_PK
 
 endmenu
 
+menu "Encryption algorithm selection"
+
+config DROPBEAR_AES128
+	bool "AES-128 support"
+	default y
+	help
+		This enables support for the 128-bit AES cipher
+
+config DROPBEAR_AES256
+	bool "AES-256 support"
+	default y
+	help
+		This enables support for the 256-bit AES cipher
+
 config DROPBEAR_CHACHA20POLY1305
 	bool "Chacha20-Poly1305 support"
 	default y
@@ -72,6 +86,13 @@ config DROPBEAR_CHACHA20POLY1305
 		  chacha20-poly1305@openssh.com
 
 		Increases binary size by about 4 kB (MIPS).
+
+config DROPBEAR_AUTOSEL_EA
+	def_bool y
+	depends on !(DROPBEAR_AES256 || DROPBEAR_CHACHA20POLY1305)
+	select DROPBEAR_AES128
+
+endmenu
 
 config DROPBEAR_CURVE25519
 	bool "Curve25519 support"
