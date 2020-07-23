@@ -94,6 +94,16 @@ config DROPBEAR_AUTOSEL_EA
 
 endmenu
 
+menu "Key exchange algorithm selection"
+
+config DROPBEAR_DH_GROUP14_SHA1
+	bool "Group 14 SHA-1"
+	default y
+
+config DROPBEAR_DH_GROUP14_SHA256
+	bool "Group 14 SHA-256"
+	default y
+
 config DROPBEAR_CURVE25519
 	bool "Curve25519 support"
 	default y
@@ -102,6 +112,13 @@ config DROPBEAR_CURVE25519
 		  curve25519-sha256@libssh.org
 
 		Increases binary size by about 4 kB (MIPS).
+
+config DROPBEAR_AUTOSEL_KEX
+	def_bool y
+	depends on !(DROPBEAR_DH_GROUP14_SHA1 || DROPBEAR_CURVE25519)
+	select DROPBEAR_DH_GROUP14_SHA256
+
+endmenu
 
 config DROPBEAR_ZLIB
 	bool "Enable compression"
