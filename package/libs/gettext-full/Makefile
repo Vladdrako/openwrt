@@ -65,8 +65,7 @@ HOST_CONFIGURE_ARGS += \
 	--disable-java \
 	--disable-openmp \
 	--without-emacs \
-	--without-libxml2-prefix \
-	--with-included-glib
+	--without-libxml2-prefix
 
 HOST_CONFIGURE_VARS += \
 	EMACS="no" \
