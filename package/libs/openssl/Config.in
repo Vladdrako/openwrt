@@ -6,7 +6,6 @@ config OPENSSL_OPTIMIZE_SPEED
 	bool
 	default y if x86_64 || i386
 	prompt "Enable optimization for speed instead of size"
-	select OPENSSL_WITH_ASM
 	help
 		Enabling this option increases code size (around 20%) and
 		performance.  The increase in performance and size depends on the
@@ -18,7 +17,7 @@ config OPENSSL_WITH_ASM
 	bool
 	default y if !SMALL_FLASH || !arm
 	prompt "Compile with optimized assembly code"
-	depends on !arc
+	depends on !arc && OPENSSL_OPTIMIZE_SPEED
 	help
 		Disabling this option will reduce code size and performance.
 		The increase in performance and size depends on the target
