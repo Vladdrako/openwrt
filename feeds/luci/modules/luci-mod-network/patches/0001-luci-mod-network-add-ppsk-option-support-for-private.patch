@@ -1,0 +1,56 @@
+From 1b0b910526ae3c10da29371ebc16094c73ae3131 Mon Sep 17 00:00:00 2001
+From: Manuel Giganto <mgigantoregistros@gmail.com>
+Date: Mon, 12 Oct 2020 15:35:08 +0000
+Subject: [PATCH] luci-mod-network: add ppsk option (support for private psk)
+
+This PR allows a user using luci to enable a private psk, where each
+station may have it's own psk or use a common psk if it is not defined.
+
+Depends on PR 3509: https://github.com/openwrt/openwrt/pull/3509
+
+Signed-off-by: Manuel Giganto <mgigantoregistros@gmail.com>
+---
+ .../htdocs/luci-static/resources/view/network/wireless.js | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/htdocs/luci-static/resources/view/network/wireless.js b/htdocs/luci-static/resources/view/network/wireless.js
+index bb9877217..0b7a12241 100644
+--- a/htdocs/luci-static/resources/view/network/wireless.js
++++ b/htdocs/luci-static/resources/view/network/wireless.js
+@@ -1320,18 +1320,24 @@ return view.extend({
+ 				}
+ 
+ 
++				o = ss.taboption('encryption', form.Flag, 'ppsk', _('Enable private psk key (PPSK)'), _('STAs can have a private and independent key mapped to their MAC and the shared key won`t work. If the mac is not in the radius user list, then they can optionally connect if a default entry is configured. It requires radius server to work.'));
++				add_dependency_permutations(o, { mode: ['ap', 'ap-wds'], encryption: ['psk2', 'psk-mixed'] });
++
+ 				o = ss.taboption('encryption', form.Value, 'auth_server', _('Radius-Authentication-Server'));
+ 				add_dependency_permutations(o, { mode: ['ap', 'ap-wds'], encryption: ['wpa', 'wpa2', 'wpa3', 'wpa3-mixed'] });
++				o.depends({ ppsk: '1' });
+ 				o.rmempty = true;
+ 				o.datatype = 'host(0)';
+ 
+ 				o = ss.taboption('encryption', form.Value, 'auth_port', _('Radius-Authentication-Port'), _('Default %d').format(1812));
+ 				add_dependency_permutations(o, { mode: ['ap', 'ap-wds'], encryption: ['wpa', 'wpa2', 'wpa3', 'wpa3-mixed'] });
++				o.depends({ ppsk: '1' });
+ 				o.rmempty = true;
+ 				o.datatype = 'port';
+ 
+ 				o = ss.taboption('encryption', form.Value, 'auth_secret', _('Radius-Authentication-Secret'));
+ 				add_dependency_permutations(o, { mode: ['ap', 'ap-wds'], encryption: ['wpa', 'wpa2', 'wpa3', 'wpa3-mixed'] });
++				o.depends({ ppsk: '1' });
+ 				o.rmempty = true;
+ 				o.password = true;
+ 
+@@ -1368,7 +1374,7 @@ return view.extend({
+ 
+ 				o = ss.taboption('encryption', form.Value, '_wpa_key', _('Key'));
+ 				o.depends('encryption', 'psk');
+-				o.depends('encryption', 'psk2');
++				o.depends({ encryption: 'psk2', ppsk: '0' });
+ 				o.depends('encryption', 'psk+psk2');
+ 				o.depends('encryption', 'psk-mixed');
+ 				o.depends('encryption', 'sae');
+-- 
+2.29.2.windows.2
+
