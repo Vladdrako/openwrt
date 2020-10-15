@@ -2,10 +2,9 @@ menu "Configuration"
 	depends on PACKAGE_zlib
 
 config ZLIB_OPTIMIZE_SPEED
-	bool "Optimize for speed"
+	bool "Override target optimization level (force -O3)"
 	help
-		This enables additional optimization and 
-		increases performance considerably at 
-		the expense of binary size.
+		Force compiling at -O3 instead of the current target optimization level.
+		May increase performance considerably at the expense of binary size.
 
 endmenu
