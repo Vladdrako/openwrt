@@ -13,6 +13,13 @@ config OPENSSL_OPTIMIZE_SPEED
 		increased by 20%-50% (mipsel & x86).
 		AES-GCM is supposed to be 3x faster on x86. YMMV.
 
+config OPENSSL_OVERRIDE_TARGET
+	default y
+	bool "Override target optimization level (force -O3)"
+	depends on OPENSSL_OPTIMIZE_SPEED
+	help
+		Force compiling at -O3 instead of the current target optimization level.
+
 config OPENSSL_WITH_ASM
 	bool
 	default y if !SMALL_FLASH || !arm
