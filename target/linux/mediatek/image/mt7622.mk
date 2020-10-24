@@ -1,4 +1,8 @@
-KERNEL_LOADADDR := 0x44080000
+ifdef CONFIG_LINUX_5_4
+  KERNEL_LOADADDR := 0x44080000
+else
+  KERNEL_LOADADDR := 0x44000000
+endif
 
 define Device/bpi_bananapi-r64
   DEVICE_VENDOR := Bpi
