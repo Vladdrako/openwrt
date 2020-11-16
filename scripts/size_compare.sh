@@ -36,7 +36,14 @@ BASE_URL="${BASE_URL:-https://downloads.openwrt.org/snapshots}"
 CHECK_INSTALLED="${CHECK_INSTALLED:-y}"
 
 TARGET_URL="$BASE_URL/targets/$TARGET/$SUBTARGET/packages/Packages.gz"
+CONFIG_URL="$BASE_URL/targets/$TARGET/$SUBTARGET/config.buildinfo"
 PACKAGES_URL="$BASE_URL/packages/$ARCH/base/Packages.gz"
+
+if command -v curl > /dev/null; then
+	DOWNLOAD_METHOD="curl"
+else
+	DOWNLOAD_METHOD="wget --output-document=-"
+fi
 
 help() {
     sed -rn 's/^### ?//;T;p' "$0"
@@ -79,7 +86,7 @@ compare_sizes () {
 		if [ -z "$CHECK_INSTALLED" ]; then
 			SIZE_LOCAL=$(stat -c '%s' "$PACKAGE_FILE")
 		else
-			SIZE_LOCAL=$(tar tzvf "$PACKAGE_FILE" | grep data.tar.gz | awk '{ print $3 }')
+			SIZE_LOCAL=$(tar tzvf "$PACKAGE_FILE" ./data.tar.gz | awk '{ print $3 }')
 		fi
 		SIZE_UPSTREAM=$(package_size "$TMP_INDEX" "$PACKAGE")
 		SIZE_DIFF="$((SIZE_LOCAL-SIZE_UPSTREAM))"
@@ -107,6 +114,23 @@ echo "Compare packages of $TARGET/$SUBTARGET/$ARCH":
 echo "$PACKAGES"
 echo
 
+echo "Checking configuration difference"
+TMP_CONFIG=$(mktemp /tmp/config.XXXXXX)
+sed -n 's/^	\+config \(.*\)/\1/p' config/Config-build.in config/Config-devel.in > "${TMP_CONFIG}-FOCUS"
+sort .config | grep -f "${TMP_CONFIG}-FOCUS" | grep -v "^#" | sort > "${TMP_CONFIG}-LOCAL"
+mv .config .config.bak
+"$DOWNLOAD_METHOD" "$CONFIG_URL" > .config
+make defconfig > /dev/null 2> /dev/null
+grep -f "${TMP_CONFIG}-FOCUS" .config | grep -v "^#" | sort > "${TMP_CONFIG}-UPSTREAM"
+mv .config.bak .config
+
+echo
+echo " --- start config diff ---"
+diff -u "${TMP_CONFIG}-LOCAL" "${TMP_CONFIG}-UPSTREAM"
+echo " --- end config diff ---"
+rm "${TMP_CONFIG}-FOCUS" "${TMP_CONFIG}-UPSTREAM" "${TMP_CONFIG}-LOCAL"
+echo
+
 if [ -z "$CHECK_INSTALLED" ]; then
 	echo "Checking IPK package size"
 else
@@ -116,8 +140,8 @@ echo
 
 echo "Fetching latest package indexes..."
 TMP_INDEX=$(mktemp /tmp/size_compare_package_index.XXXXXX)
-curl "$TARGET_URL" | gzip -d > "$TMP_INDEX" || exit 1
-curl "$PACKAGES_URL" | gzip -d >> "$TMP_INDEX" || exit 1
+"$DOWNLOAD_METHOD" "$TARGET_URL" | gzip -d > "$TMP_INDEX" || exit 1
+"$DOWNLOAD_METHOD" "$PACKAGES_URL" | gzip -d >> "$TMP_INDEX" || exit 1
 echo
 
 echo "Comparing package sizes..."
