@@ -1020,7 +1020,7 @@ define KernelPackage/zswap
   KCONFIG:= \
 	CONFIG_FRONTSWAP=y \
 	CONFIG_Z3FOLD \
-	CONFIG_ZBUD \
+	CONFIG_ZBUD=y \
 	CONFIG_ZPOOL \
 	CONFIG_ZSWAP=y
   FILES:= \
