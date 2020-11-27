@@ -1,13 +1,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qbittorrent
-PKG_VERSION:=4.3.0.10
+PKG_VERSION:=4.3.1.10
 PKG_RELEASE=0
 
 PKG_SOURCE:=release-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://github.com/c0re100/qBittorrent-Enhanced-Edition/archive
 PKG_BUILD_DIR:=$(BUILD_DIR)/qBittorrent-Enhanced-Edition-release-$(PKG_VERSION)
-PKG_HASH:=b8ddbfbc16602858ee1ce4dde9e0760f922dc67338f5836ae3ae9708098fa60e
+PKG_HASH:=569baa36d68a9fbe4938da80e5d73f9efe4b08e31b83d6ca25b943fae599bef8
 
 PKG_LICENSE:=GPL-2.0+
 PKG_LICENSE_FILES:=COPYING
@@ -23,7 +23,7 @@ define Package/qbittorrent
 	SECTION:=net
 	CATEGORY:=Network
 	SUBMENU:=BitTorrent
-	DEPENDS:=+qt5-network +qt5-xml +rblibtorrent $(ICONV_DEPENDS) $(INTL_DEPENDS)
+	DEPENDS:=+qt5-network +qt5-sql +qt5-xml +rblibtorrent $(ICONV_DEPENDS) $(INTL_DEPENDS)
 	TITLE:=bittorrent client programmed in C++ / Qt
 	URL:=https://www.qbittorrent.org/
 	PROVIDES:=qBittorrent
