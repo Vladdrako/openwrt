@@ -1,0 +1,64 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Project-Id-Version: PACKAGE VERSION\n"
+"Last-Translator: Automatically generated\n"
+"Language-Team: none\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Usage"
+msgstr "Usage"
+
+msgid "Details"
+msgstr "Details"
+
+msgid "Configuration"
+msgstr "Configuration"
+
+msgid "User file"
+msgstr "User file"
+
+msgid "Usage - Configuration"
+msgstr "Usage - Configuration"
+
+msgid "General settings"
+msgstr "General settings"
+
+msgid "Persist database"
+msgstr "Persist database"
+
+msgid "Check this to persist the database file"
+msgstr "Check /etc/config to persist the database file"
+
+msgid "Usage - Custom User File"
+msgstr "Usage - Custom User File"
+
+msgid "This file is used to match users with MAC addresses and it must have the following format: 00:aa:bb:cc:ee:ff,username"
+msgstr "This file is used to match users with MAC addresses and it must have the following format: 00:aa:bb:cc:ee:ff,username"
+
+msgid "Reset Database"
+msgstr "Reset Database"
+
+msgid "Auto Refresh Interval"
+msgstr "Auto Refresh Interval"
+
+msgid "Disabled"
+msgstr "Disabled"
+
+msgid "Second"
+msgstr "Second"
+
+msgid "Seconds"
+msgstr "Seconds"
+
+msgid "Minutes"
+msgstr "Minutes"
+
+msgid "Per-host Totals"
+msgstr "Per-host Totals"
+
+msgid "Loading..."
+msgstr "Loading..."
