@@ -71,16 +71,6 @@ CMAKE_OPTIONS += $(if $(CONFIG_PCAP_HAS_NETFILTER) ,,-DPCAP_SUPPORT_NETFILTER=OF
 
 CMAKE_OPTIONS += $(if $(CONFIG_IPV6),-DINET6=ON,-DINET6=OFF)
 
-define install_host_pcap_config
-	$(SED) \
-		's,^\(prefix\)=.*,\1=$(STAGING_DIR)/usr,g' \
-		$(1)/usr/bin/pcap-config $(1)/usr/lib/pkgconfig/libpcap.pc
-	$(INSTALL_DIR) $(2)/bin
-	$(LN) ../../usr/bin/pcap-config $(2)/bin/
-endef
-
-Hooks/InstallDev/Post += install_host_pcap_config
-
 define Package/libpcap/install
 	$(INSTALL_DIR) $(1)/usr/lib
 	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libpcap.so.* $(1)/usr/lib/
