@@ -1,3 +1,4 @@
+## Custom OpenWrt repo for Xiaomi Mi Router 3G v1 (mir3g)
 ![OpenWrt logo](/logo.svg)
 
 OpenWrt Project is a Linux operating system targeting embedded devices. Instead
