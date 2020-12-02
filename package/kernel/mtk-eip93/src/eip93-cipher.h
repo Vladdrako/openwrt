@@ -41,9 +41,12 @@ extern struct mtk_alg_template mtk_alg_authenc_hmac_sha224_ecb_null;
 extern struct mtk_alg_template mtk_alg_authenc_hmac_sha256_ecb_null;
 extern struct mtk_alg_template mtk_alg_echainiv_authenc_hmac_sha1_cbc_aes;
 extern struct mtk_alg_template mtk_alg_echainiv_authenc_hmac_sha256_cbc_aes;
+extern struct mtk_alg_template mtk_alg_seqiv_authenc_hmac_sha1_rfc3686_aes;
+extern struct mtk_alg_template mtk_alg_seqiv_authenc_hmac_sha256_rfc3686_aes;
 
 #include <linux/version.h>
 #include <crypto/hash.h>
+#include <crypto/internal/skcipher.h>
 #include "eip93-common.h"
 
 struct sdesc {
@@ -54,15 +57,12 @@ struct sdesc {
 struct mtk_cipher_ctx {
 	struct mtk_device *mtk;
 	struct saRecord_s *sa;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
-	struct crypto_skcipher *fallback;
-#else
-	struct crypto_sync_skcipher *fallback;
-#endif
 
 	/* AEAD specific */
 	unsigned int authsize;
 	struct sdesc *sdesc;
+
+	struct crypto_skcipher *fallback;
 };
 
 struct mtk_cipher_reqctx {
@@ -85,6 +85,8 @@ struct mtk_cipher_reqctx {
 	dma_addr_t saState_base_ctr;
 	struct scatterlist ctr_src[2];
 	struct scatterlist ctr_dst[2];
+	/* request fallback, keep at the end */
+	struct skcipher_request fallback_req;
 };
 
 void mtk_skcipher_handle_result(struct mtk_device *mtk,
