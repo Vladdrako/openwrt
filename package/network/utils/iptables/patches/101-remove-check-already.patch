@@ -1,7 +1,5 @@
-Index: iptables-1.8.6/libxtables/xtables.c
-===================================================================
---- iptables-1.8.6.orig/libxtables/xtables.c
-+++ iptables-1.8.6/libxtables/xtables.c
+--- a/libxtables/xtables.c
++++ b/libxtables/xtables.c
 @@ -968,12 +968,6 @@ void xtables_register_match(struct xtabl
  	struct xtables_match **pos;
  	bool seen_myself = false;
