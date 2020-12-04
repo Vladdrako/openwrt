@@ -1,5 +1,3 @@
-/dts-v1/;
-
 #include <dt-bindings/interrupt-controller/mips-gic.h>
 #include <dt-bindings/clock/mt7621-clk.h>
 #include <dt-bindings/gpio/gpio.h>
@@ -35,10 +33,6 @@
 
 	aliases {
 		serial0 = &uartlite;
-	};
-
-	chosen {
-		bootargs = "console=ttyS0,57600";
 	};
 
 	pll: pll {
@@ -463,7 +457,7 @@
 		interrupts = <GIC_SHARED 3 IRQ_TYPE_LEVEL_HIGH>;
 
 		mediatek,ethsys = <&ethsys>;
-		
+
 		pinctrl-names = "default";
 		pinctrl-0 = <&rgmii1_pins &mdio_pins>;
 
@@ -640,3 +634,4 @@
 		interrupts = <GIC_SHARED 19 IRQ_TYPE_LEVEL_HIGH>;
 	};
 };
+
