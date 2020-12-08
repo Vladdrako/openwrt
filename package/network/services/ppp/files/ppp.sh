@@ -184,6 +184,15 @@ ppp_generic_teardown() {
 	proto_kill_command "$interface"
 }
 
+ppp_load_module() {
+	local load
+	for module in "$@"; do
+		grep -qs "^$module " /proc/modules || /sbin/insmod $module 2>&- >&-
+		load=1
+	done
+	[ "$load" = "1" ] && sleep 1
+}
+
 # PPP on serial device
 
 proto_ppp_init_config() {
@@ -220,9 +229,7 @@ proto_pppoe_setup() {
 	local config="$1"
 	local iface="$2"
 
-	for module in slhc ppp_generic pppox pppoe; do
-		/sbin/insmod $module 2>&- >&-
-	done
+	ppp_load_module slhc ppp_generic pppox pppoe
 
 	json_get_var mtu mtu
 	mtu="${mtu:-1492}"
@@ -262,9 +269,7 @@ proto_pppoa_setup() {
 	local config="$1"
 	local iface="$2"
 
-	for module in slhc ppp_generic pppox pppoatm; do
-		/sbin/insmod $module 2>&- >&-
-	done
+	ppp_load_module slhc ppp_generic pppox pppoatm
 
 	json_get_vars atmdev vci vpi encaps
 
@@ -311,13 +316,7 @@ proto_pptp_setup() {
 		exit 1
 	}
 
-	local load
-	for module in slhc ppp_generic ppp_async ppp_mppe ip_gre gre pptp; do
-		grep -q "^$module " /proc/modules && continue
-		/sbin/insmod $module 2>&- >&-
-		load=1
-	done
-	[ "$load" = "1" ] && sleep 1
+	ppp_load_module slhc ppp_generic ppp_async ppp_mppe ip_gre gre pptp
 
 	ppp_generic_setup "$config" \
 		plugin pptp.so \
@@ -335,4 +334,3 @@ proto_pptp_teardown() {
 	[ -f /usr/lib/pppd/*/pppoatm.so ] && add_protocol pppoa
 	[ -f /usr/lib/pppd/*/pptp.so ] && add_protocol pptp
 }
-
