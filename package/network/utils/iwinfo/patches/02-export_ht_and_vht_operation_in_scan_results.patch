@@ -1,0 +1,100 @@
+--- a/include/iwinfo.h
++++ b/include/iwinfo.h
+@@ -170,6 +170,38 @@  struct iwinfo_crypto_entry {
+ 	uint8_t auth_algs;
+ };
+ 
++struct iwinfo_scanlist_ht_chan_entry {
++	uint8_t primary_chan;
++	uint8_t secondary_chan_off;
++	uint8_t chan_width;
++};
++
++struct iwinfo_scanlist_vht_chan_entry {
++	uint8_t chan_width;
++	uint8_t center_chan_1;
++	uint8_t center_chan_2;
++};
++
++static const char *ht_secondary_offset[4] = {
++	"no secondary",
++	"above",
++	"[reserved!]",
++	"below",
++};
++
++
++static const char *ht_chan_width[2] = {
++	"20 MHz",
++	"any",
++};
++
++static const char *vht_chan_width[] = {
++	[0] = "20 or 40 MHz",
++	[1] = "80 MHz",
++	[3] = "80+80 MHz",
++	[2] = "160 MHz",
++};
++
+ struct iwinfo_scanlist_entry {
+ 	uint8_t mac[6];
+ 	char ssid[IWINFO_ESSID_MAX_SIZE+1];
+@@ -179,6 +211,8 @@  struct iwinfo_scanlist_entry {
+ 	uint8_t quality;
+ 	uint8_t quality_max;
+ 	struct iwinfo_crypto_entry crypto;
++	struct iwinfo_scanlist_ht_chan_entry ht_chan_info;
++	struct iwinfo_scanlist_vht_chan_entry vht_chan_info;
+ };
+ 
+ struct iwinfo_country_entry {
+--- a/iwinfo_cli.c
++++ b/iwinfo_cli.c
+@@ -612,8 +612,27 @@  static void print_scanlist(const struct iwinfo_ops *iw, const char *ifname)
+ 			format_signal(e->signal - 0x100),
+ 			format_quality(e->quality),
+ 			format_quality_max(e->quality_max));
+-		printf("          Encryption: %s\n\n",
++		printf("          Encryption: %s\n",
+ 			format_encryption(&e->crypto));
++		printf("          HT Operation:\n");
++		printf("                    Primary Channel: %d\n",
++		       e->ht_chan_info.primary_chan);
++		printf("                    Secondary Channel Offset: %s\n",
++		       ht_secondary_offset[e->ht_chan_info.secondary_chan_off]);
++		printf("                    Channel Width: %s\n",
++		       ht_chan_width[e->ht_chan_info.chan_width]);
++
++		if (e->vht_chan_info.center_chan_1) {
++		  printf("          VHT Operation:\n");
++		  printf("                    Channel Width: %s\n",
++			 vht_chan_width[e->vht_chan_info.chan_width]);
++		  printf("                    Center Frequency 1: %d\n",
++			 e->vht_chan_info.center_chan_1);
++		  printf("                    Center Frequency 2: %d\n",
++			 e->vht_chan_info.center_chan_2);
++		}
++
++		printf("\n");
+ 	}
+ }
+ 
+--- a/iwinfo_nl80211.c
++++ b/iwinfo_nl80211.c
+@@ -2306,6 +2306,16 @@  static void nl80211_get_scanlist_ie(struct nlattr **bss,
+ 				iwinfo_parse_rsn(&e->crypto, ie + 6, ie[1] - 4,
+ 				                 IWINFO_CIPHER_TKIP, IWINFO_KMGMT_PSK);
+ 			break;
++		case 61: /* HT oeration */
++			e->ht_chan_info.primary_chan = ie[2];
++			e->ht_chan_info.secondary_chan_off = ie[3] & 0x3;
++			e->ht_chan_info.chan_width = (ie[4] & 0x4)>>2;
++			break;
++		case 192: /* VHT operation */
++			e->vht_chan_info.chan_width = ie[2];
++			e->vht_chan_info.center_chan_1 = ie[3];
++			e->vht_chan_info.center_chan_2 = ie[4];
++			break;
+ 		}
+ 
+ 		ielen -= ie[1] + 2;
