@@ -77,7 +77,7 @@
  			format_quality_max(e->quality_max));
 -		printf("          Encryption: %s\n\n",
 +		printf("          Encryption: %s\n",
- 		       format_encryption(&e->crypto));
+ 			format_encryption(&e->crypto));
 +		printf("          HT Operation:\n");
 +		printf("                    Primary Channel: %d\n",
 +		       e->ht_chan_info.primary_chan);
