@@ -976,7 +976,7 @@ if KERNEL_IPV6
 		def_bool n
 
 	config KERNEL_IPV6_SEG6_LWTUNNEL
-		def_bool y
+		def_bool y if !SMALL_FLASH
 		help
 		  Using lwtunnel requires full-ip package.
 
