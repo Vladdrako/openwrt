@@ -220,9 +220,7 @@ proto_pppoe_setup() {
 	local config="$1"
 	local iface="$2"
 
-	for module in slhc ppp_generic pppox pppoe; do
-		/sbin/insmod $module 2>&- >&-
-	done
+	insmod_ignore slhc ppp_generic pppox pppoe 2>&- >&-
 
 	json_get_var mtu mtu
 	mtu="${mtu:-1492}"
@@ -262,9 +260,7 @@ proto_pppoa_setup() {
 	local config="$1"
 	local iface="$2"
 
-	for module in slhc ppp_generic pppox pppoatm; do
-		/sbin/insmod $module 2>&- >&-
-	done
+	insmod_ignore slhc ppp_generic pppox pppoatm 2>&- >&-
 
 	json_get_vars atmdev vci vpi encaps
 
@@ -311,13 +307,7 @@ proto_pptp_setup() {
 		exit 1
 	}
 
-	local load
-	for module in slhc ppp_generic ppp_async ppp_mppe ip_gre gre pptp; do
-		grep -q "^$module " /proc/modules && continue
-		/sbin/insmod $module 2>&- >&-
-		load=1
-	done
-	[ "$load" = "1" ] && sleep 1
+	insmod_ignore slhc ppp_generic ppp_async ppp_mppe ip_gre gre pptp 2>&- >&-
 
 	ppp_generic_setup "$config" \
 		plugin pptp.so \
