@@ -153,7 +153,6 @@
 	pll-data = <0x82000101 0x80000101 0x80001313>;
 
 	phy-handle = <&phy4>;
-	phy-mode = "rgmii";
 };
 
 &eth1 {
@@ -162,5 +161,4 @@
 	pll-data = <0x03000101 0x80000101 0x80001313>;
 
 	phy-handle = <&phy1>;
-	phy-mode = "sgmii";
 };
