@@ -55,10 +55,11 @@ static struct mtk_alg_template *mtk_algs[] = {
 	&mtk_alg_authenc_hmac_sha1_ecb_null,
 	&mtk_alg_authenc_hmac_sha224_ecb_null,
 	&mtk_alg_authenc_hmac_sha256_ecb_null,
+	&mtk_alg_echainiv_authenc_hmac_md5_cbc_des,
 	&mtk_alg_echainiv_authenc_hmac_sha1_cbc_aes,
 	&mtk_alg_echainiv_authenc_hmac_sha256_cbc_aes,
-	&mtk_alg_seqiv_authenc_hmac_sha1_rfc3686_aes,
-	&mtk_alg_seqiv_authenc_hmac_sha256_rfc3686_aes,
+//	&mtk_alg_seqiv_authenc_hmac_sha1_rfc3686_aes,
+//	&mtk_alg_seqiv_authenc_hmac_sha256_rfc3686_aes,
 //	&mtk_alg_prng,
 //	&mtk_alg_cprng,
 };
@@ -153,9 +154,9 @@ static inline void mtk_irq_clear(struct mtk_device *mtk, u32 mask)
 inline void mtk_push_request(struct mtk_device *mtk, int DescriptorPendingCount)
 {
 	int DescriptorCountDone = MTK_RING_SIZE - 1;
-	int DescriptorDoneTimeout = 15;
+	int DescriptorDoneTimeout = 3;
 
-	DescriptorPendingCount = min_t(int, mtk->ring->requests, 8);
+	DescriptorPendingCount = min_t(int, mtk->ring->requests, 32);
 
 	if (!DescriptorPendingCount)
 		return;
@@ -169,8 +170,6 @@ inline void mtk_push_request(struct mtk_device *mtk, int DescriptorPendingCount)
 static void mtk_handle_result_descriptor(struct mtk_device *mtk)
 {
 	struct crypto_async_request *async = NULL;
-	struct mtk_context *ctx;
-	struct eip93_descriptor_s *cdesc;
 	struct eip93_descriptor_s *rdesc;
 	int handled = 0, nreq;
 	int try, ret, err = 0;
@@ -183,32 +182,30 @@ get_more:
 	nreq = readl(mtk->base + EIP93_REG_PE_RD_COUNT) & GENMASK(10, 0);
 
 	while (nreq) {
-		rdesc = mtk_ring_next_rptr(mtk, &mtk->ring->rdr);
+		rdesc = mtk_get_descriptor(mtk);
 		if (IS_ERR(rdesc)) {
 			dev_err(mtk->dev, "Ndesc: %d nreq: %d\n", handled, nreq);
-			ret = -EIO;
-			break;
-		}
-		cdesc = mtk_ring_next_rptr(mtk, &mtk->ring->cdr);
-		if (IS_ERR(cdesc)) {
-			dev_err(mtk->dev, "Cant get Cdesc");
 			ret = -EIO;
 			break;
 		}
 		/* make sure EIP93 finished writing all data
 		 * (volatile int) used since bits will be updated via DMA
 		*/
-		try = 1000;
-		while (try--) {
+		try = 0;
+		while (try < 1000) {
 			done1 = (volatile int)rdesc->peCrtlStat.bits.peReady;
 			done2 = (volatile int)rdesc->peLength.bits.peReady;
 			if ((!done1) || (!done2)) {
+					try++;
 					cpu_relax();
 					continue;
 			}
 			break;
 		}
-
+		/*
+		if (try)
+			dev_err(mtk->dev, "EIP93 try-count: %d", try);
+		*/
 		err = rdesc->peCrtlStat.bits.errStatus;
 		if (err) {
 			dev_err(mtk->dev, "Err: %02x\n", err);
@@ -232,11 +229,16 @@ get_more:
 		if (flags & MTK_DESC_PRNG)
 			mtk_prng_done(mtk, err);
 
-		if (flags & MTK_DESC_ASYNC) {
+		if (flags & MTK_DESC_SKCIPHER) {
 			async = (struct crypto_async_request *)rdesc->arc4Addr;
-			ctx = crypto_tfm_ctx(async->tfm);
-			ctx->handle_result(mtk, async, complete, err);
+			mtk_skcipher_handle_result(mtk, async, complete, err);
 		}
+
+		if (flags & MTK_DESC_AEAD) {
+			async = (struct crypto_async_request *)rdesc->arc4Addr;
+			mtk_aead_handle_result(mtk, async, complete, err);
+		}
+
 	}
 
 	if (handled) {
@@ -252,7 +254,7 @@ get_more:
 		handled = 0;
 		goto get_more;
 	}
-push_request:
+
 	spin_lock(&mtk->ring->lock);
 	if (mtk->ring->requests)
 		mtk_push_request(mtk, mtk->ring->requests);
@@ -260,7 +262,6 @@ push_request:
 		mtk->ring->busy = false;
 
 	spin_unlock(&mtk->ring->lock);
-
 queue_done:
 	mtk_irq_enable(mtk, BIT(1));
 }
