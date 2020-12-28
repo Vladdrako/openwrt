@@ -5,8 +5,9 @@
  * Richard van Schagen <vschagen@cs.com>
  */
 
+#include <linux/dev_printk.h>
 #include "eip93-common.h"
-#include "eip93-core.h"
+#include "eip93-main.h"
 
 inline void *mtk_ring_next_wptr(struct mtk_device *mtk,
 						struct mtk_desc_ring *ring)
@@ -46,8 +47,9 @@ inline int mtk_put_descriptor(struct mtk_device *mtk,
 {
 	struct eip93_descriptor_s *cdesc;
 	struct eip93_descriptor_s *rdesc;
+	unsigned long flags;
 
-	spin_lock(&mtk->ring->write_lock);
+	spin_lock_irqsave(&mtk->ring->write_lock, flags);
 	cdesc = mtk_ring_next_wptr(mtk, &mtk->ring->cdr);
 
 	if (IS_ERR(cdesc))
@@ -63,7 +65,7 @@ inline int mtk_put_descriptor(struct mtk_device *mtk,
 	memset(rdesc, 0, sizeof(struct eip93_descriptor_s));
 	memcpy(cdesc, &desc, sizeof(struct eip93_descriptor_s));
 
-	spin_unlock(&mtk->ring->write_lock);
+	spin_unlock_irqrestore(&mtk->ring->write_lock, flags);
 
 	return 0;
 }
