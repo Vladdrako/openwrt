@@ -23,6 +23,9 @@ ramips_setup_interfaces()
 	xiaomi,mi-router-4a-gigabit)
 		ucidef_set_interfaces_lan_wan "lan1 lan2" "wan"
 		;;
+	dlink,dir-x1860)
+		ucidef_set_interfaces_lan_wan "lan1 lan2 lan3 lan4" "eth1"
+		;;
 	edimax,re23s|\
 	mikrotik,routerboard-m11g|\
 	netgear,ex6150|\
@@ -92,6 +95,11 @@ ramips_setup_macs()
 	dlink,dir-860l-b1)
 		lan_mac=$(mtd_get_mac_ascii factory lanmac)
 		wan_mac=$(mtd_get_mac_ascii factory wanmac)
+		;;
+	dlink,dir-x1860)
+		lan_mac=$(mtd_get_mac_ascii u-boot-env lanmac)
+		label_mac=$lan_mac
+		wan_mac=$(macaddr_add "$lan_mac" 1)
 		;;
 	edimax,ra21s|\
 	edimax,rg21s)
