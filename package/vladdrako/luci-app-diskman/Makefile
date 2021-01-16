@@ -7,7 +7,7 @@ PKG_MAINTAINER:=lisaac <https://github.com/lisaac/luci-app-diskman>
 PKG_LICENSE:=AGPL-3.0
 
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://github.com/vladdrako/luci-app-diskman.git
+PKG_SOURCE_URL:=https://github.com/lisaac/luci-app-diskman.git
 PKG_SOURCE_VERSION:=$(PKG_VERSION)
 
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)
