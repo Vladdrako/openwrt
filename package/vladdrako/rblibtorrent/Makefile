@@ -1,19 +1,28 @@
+#
+# Copyright (C) 2020 Krypton Lee <jun.k.lee199410@outlook.com>
+#
+# This is free software, licensed under the GNU General Public License v2.
+# See /LICENSE for more information.
+#
+
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=rblibtorrent
 PKG_VERSION:=1.2.12
 PKG_RELEASE=0
 
-PKG_SOURCE_URL:=https://github.com/arvidn/libtorrent/archive/v$(PKG_VERSION)/
-PKG_BUILD_DIR:=$(BUILD_DIR)/libtorrent-$(PKG_VERSION)
-PKG_HASH:=5bf07fccfb8c78de8120e8f5a1f39430cafe1079afad200f66cd06657a481e7e
-PKG_SOURCE:=libtorrent-$(PKG_VERSION).tar.gz
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_URL:=https://github.com/arvidn/libtorrent.git
+PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
+PKG_SOURCE_VERSION:=e3f2b016dcd37a9a6e8a94006c7befcf2cb7bfac
+PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 
+PKG_MAINTAINER:=Krypton Lee <jun.k.lee199410@outlook.com>
 PKG_LICENSE:=BSD
 PKG_LICENSE_FILES:=COPYING
 
-PKG_USE_MIPS16:=0
 PKG_BUILD_PARALLEL:=1
+PKG_USE_MIPS16:=0
 PKG_INSTALL:=1
 
 include $(INCLUDE_DIR)/package.mk
@@ -21,9 +30,9 @@ include $(INCLUDE_DIR)/package.mk
 define Package/rblibtorrent
   SECTION:=libs
   CATEGORY:=Libraries
-  TITLE:=Rasterbar BitTorrent library
+  TITLE:=Rasterbar BitTorrent Library
   URL:=https://www.libtorrent.org/
-  DEPENDS:=+libstdcpp +libopenssl +boost +boost-system +boost-chrono +boost-random
+  DEPENDS:=+boost +boost-system +boost-chrono +boost-random +libopenssl +libstdcpp
   MAINTAINER:=Arvid Norberg <arvid@libtorrent.org>
 endef
 
@@ -40,7 +49,6 @@ EXTRA_CXXFLAGS += $(if $(CONFIG_GCC_VERSION_4_8),-std=gnu++11,-std=gnu++14)
 TARGET_LDFLAGS += -lstdc++
 
 CONFIGURE_ARGS += \
-	--prefix /usr \
 	--enable-shared \
 	--enable-static \
 	--disable-debug \
@@ -64,8 +72,7 @@ endef
 
 define Package/rblibtorrent/install
 	$(INSTALL_DIR) $(1)/usr/lib
-	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libtorrent-rasterbar.so.* $(1)/usr/lib/
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/libtorrent-rasterbar.so* $(1)/usr/lib/
 endef
 
 $(eval $(call BuildPackage,rblibtorrent))
-
