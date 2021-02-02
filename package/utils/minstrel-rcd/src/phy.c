@@ -65,7 +65,7 @@ phy_event_cb(struct uloop_fd *fd, unsigned int events)
 		if (!len)
 			return;
 
-		buf[len] = 0;
+		buf[offset + len] = 0;
 		offset = phy_event_read_buf(phy, buf);
 	}
 }
@@ -218,4 +218,5 @@ void rcd_phy_init(void)
 	};
 
 	uloop_timeout_set(&t, 1);
+}
 }
