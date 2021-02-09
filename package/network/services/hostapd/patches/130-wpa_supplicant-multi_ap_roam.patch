@@ -15,11 +15,9 @@ Signed-off-by: Raphaël Mélotte <raphael.melotte@mind.be>
  wpa_supplicant/events.c | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
 
-diff --git a/wpa_supplicant/events.c b/wpa_supplicant/events.c
-index 86eef1b81..ea91e13d5 100644
 --- a/wpa_supplicant/events.c
 +++ b/wpa_supplicant/events.c
-@@ -2589,11 +2589,13 @@ static void multi_ap_set_4addr_mode(struct wpa_supplicant *wpa_s)
+@@ -2589,11 +2589,13 @@ static void multi_ap_set_4addr_mode(stru
  		goto fail;
  	}
  
@@ -37,6 +35,3 @@ index 86eef1b81..ea91e13d5 100644
  	return;
  
  fail:
--- 
-2.29.2
-
