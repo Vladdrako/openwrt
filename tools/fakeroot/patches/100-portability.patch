@@ -1,6 +1,23 @@
 --- a/libfakeroot.c
 +++ b/libfakeroot.c
-@@ -112,8 +112,16 @@
+@@ -90,6 +90,16 @@
+ #define SEND_GET_XATTR64(a,b,c) send_get_xattr64(a,b)
+ #endif
+ 
++#ifndef _STAT_VER
++ #if defined (__aarch64__)
++  #define _STAT_VER 0
++ #elif defined (__x86_64__)
++  #define _STAT_VER 1
++ #else
++  #define _STAT_VER 3
++ #endif
++#endif
++
+ /*
+    These INT_* (which stands for internal) macros should always be used when
+    the fakeroot library owns the storage of the stat variable.
+@@ -112,8 +122,16 @@
  #define INT_SEND_STAT(a,b) SEND_STAT(a,b,_STAT_VER)
  #define INT_SEND_GET_XATTR(a,b) SEND_GET_XATTR(a,b,_STAT_VER)
  #define INT_SEND_GET_STAT(a,b) SEND_GET_STAT(a,b)
@@ -17,7 +34,7 @@
  #include <stdlib.h>
  #include <sys/ipc.h>
  #include <sys/msg.h>
-@@ -125,7 +133,6 @@
+@@ -125,7 +143,6 @@
  #include <unistd.h>
  #include <dirent.h>
  #include <errno.h>
@@ -25,7 +42,7 @@
  #ifdef HAVE_SYS_ACL_H
  #include <sys/acl.h>
  #endif /* HAVE_SYS_ACL_H */
-@@ -188,6 +195,15 @@ extern int unsetenv (const char *name);
+@@ -188,6 +205,15 @@ extern int unsetenv (const char *name);
  #undef __lxstat64
  #undef _FILE_OFFSET_BITS
  
@@ -41,7 +58,7 @@
  /*
  // next_wrap_st:
  // this structure is used in next_wrap, which is defined in
-@@ -1911,7 +1927,7 @@ ssize_t fremovexattr(int fd, const char
+@@ -1911,7 +1937,7 @@ ssize_t fremovexattr(int fd, const char
  }
  #endif /* HAVE_FREMOVEXATTR */
  
@@ -50,7 +67,7 @@
    if (fakeroot_disabled)
      return next_setpriority(which, who, prio);
    next_setpriority(which, who, prio);
-@@ -2520,3 +2536,19 @@ int sysinfo(int command, char *buf, long
+@@ -2520,3 +2546,19 @@ int sysinfo(int command, char *buf, long
      }
  }
  #endif
