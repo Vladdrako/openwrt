@@ -5,6 +5,9 @@
  * Richard van Schagen <vschagen@cs.com>
  */
 
+#include <linux/dev_printk.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include "eip93-common.h"
 #include "eip93-main.h"
 #include "eip93-regs.h"
