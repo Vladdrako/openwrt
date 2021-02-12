@@ -5,6 +5,7 @@
  * Richard van Schagen <vschagen@cs.com>
  */
 #define DEBUG 1
+#include <linux/dev_printk.h>
 #include <crypto/aead.h>
 #include <crypto/aes.h>
 #include <crypto/authenc.h>
