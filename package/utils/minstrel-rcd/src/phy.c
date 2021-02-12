@@ -219,4 +219,3 @@ void rcd_phy_init(void)
 
 	uloop_timeout_set(&t, 1);
 }
-}
