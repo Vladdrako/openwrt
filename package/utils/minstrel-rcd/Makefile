@@ -23,8 +23,14 @@ define Package/minstrel-rcd
   MAINTAINER:=Felix Fietkau <nbd@nbd.name>
 endef
 
+define Package/minstrel-rcd/conffiles
+/etc/config/minstrel-rcd
+endef
+
 define Package/minstrel-rcd/install
-	$(INSTALL_DIR) $(1)/usr/sbin
+	$(INSTALL_DIR) $(1)/usr/sbin $(1)/etc/init.d $(1)/etc/config
+	$(INSTALL_DATA) ./files/minstrel-rcd.config $(1)/etc/config/minstrel-rcd
+	$(INSTALL_BIN) ./files/minstrel-rcd.init $(1)/etc/init.d/minstrel-rcd
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/minstrel-rcd $(1)/usr/sbin/
 endef
 
