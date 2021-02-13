@@ -14,7 +14,7 @@ PKG_RELEASE:=0
 
 PKG_MD5SUM:=e1447db4f06c841d8947f0a6ce83a7b5
 PKG_SOURCE:=qt-everywhere-src-$(PKG_VERSION).$(PKG_SUBVERSION).tar.xz
-PKG_SOURCE_URL:=http://download.qt.io/archive/qt/$(PKG_VERSION)/$(PKG_VERSION).$(PKG_SUBVERSION)/single
+PKG_SOURCE_URL:=https://download.qt.io/archive/qt/$(PKG_VERSION)/$(PKG_VERSION).$(PKG_SUBVERSION)/single
 PKG_BUILD_DIR=$(BUILD_DIR)/qt-everywhere-src-$(PKG_VERSION).$(PKG_SUBVERSION)
 
 PKG_MAINTAINER:=Krypton Lee <jun.k.lee199410@outlook.com>
@@ -33,7 +33,7 @@ define Package/libQt5/Default
   SUBMENU:=Qt5
   TITLE:=Qt5
   URL:=http://qt-project.org
-  DEPENDS:=+libatomic +libpthread +librt +libstdcpp +zlib @!LINUX_2_6
+  DEPENDS:=+libatomic +libzstd +libpthread +librt +libstdcpp +zlib @!LINUX_2_6
 endef
 
 define Package/libQt5
