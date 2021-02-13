@@ -32,7 +32,7 @@ define Package/qBittorrent
   CATEGORY:=Network
   TITLE:=BitTorrent Client Programmed in C++ / Qt
   URL:=https://www.qbittorrent.org/
-  DEPENDS:=+libQt5Core +libQt5Network +libQt5Xml +rblibtorrent
+  DEPENDS:=+libQt5Core +libQt5Network +libQt5Sql +libQt5Xml +rblibtorrent $(ICONV_DEPENDS) $(INTL_DEPENDS)
   USERID:=qbittorrent=227:qbittorrent=227
 endef
 
