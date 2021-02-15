@@ -505,12 +505,6 @@ $(call Package/util-linux/Default)
   SUBMENU:=Disc
 endef
 
-define Package/chrt
-$(call Package/util-linux/Default)
-  TITLE:=change real-time attributes for processes and threads
-  SUBMENU:=Terminal
-endef
-
 define Package/wipefs/description
  wipefs can erase filesystem, raid or partition table signatures (magic
  strings) from the specified device to make the signature invisible for
@@ -797,16 +791,13 @@ define Package/wipefs/install
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/wipefs $(1)/usr/sbin/
 endef
 
-define Package/chrt/install
-	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/chrt $(1)/usr/bin/
-endef
-
+# these lines need to be ordered by dependency because of ABI versioning
+$(eval $(call BuildPackage,libuuid))
 $(eval $(call BuildPackage,libblkid))
 $(eval $(call BuildPackage,libfdisk))
+
 $(eval $(call BuildPackage,libmount))
 $(eval $(call BuildPackage,libsmartcols))
-$(eval $(call BuildPackage,libuuid))
 $(eval $(call BuildPackage,agetty))
 $(eval $(call BuildPackage,blkdiscard))
 $(eval $(call BuildPackage,blkid))
@@ -844,4 +835,3 @@ $(eval $(call BuildPackage,uuidgen))
 $(eval $(call BuildPackage,wall))
 $(eval $(call BuildPackage,whereis))
 $(eval $(call BuildPackage,wipefs))
-$(eval $(call BuildPackage,chrt))
