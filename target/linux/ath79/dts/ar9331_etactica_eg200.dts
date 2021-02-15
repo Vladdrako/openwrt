@@ -78,7 +78,6 @@
 };
 
 &spi {
-	num-chipselects = <1>;
 	status = "okay";
 
 	flash@0 {

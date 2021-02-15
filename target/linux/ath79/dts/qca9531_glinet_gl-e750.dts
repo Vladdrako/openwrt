@@ -57,7 +57,6 @@
 
 &spi {
 	status = "okay";
-	num-cs = <2>;
 
 	flash@0 {
 		compatible = "jedec,spi-nor";
