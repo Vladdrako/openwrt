@@ -1,0 +1,26 @@
+From 071c0e2a486f8d9b29411598ca63293430082fb6 Mon Sep 17 00:00:00 2001
+From: "Jason A. Donenfeld" <Jason@zx2c4.com>
+Date: Sat, 20 Feb 2021 22:57:26 +0100
+Subject: wireguard: kconfig: use arm chacha even with no neon
+
+The condition here was incorrect: a non-neon fallback implementation is
+available on arm32 when NEON is not supported.
+
+Reported-by: Ilya Lipnitskiy <ilya.lipnitskiy@gmail.com>
+Fixes: e7096c131e51 ("net: WireGuard secure network tunnel")
+Signed-off-by: Jason A. Donenfeld <Jason@zx2c4.com>
+---
+ drivers/net/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/drivers/net/Kconfig
++++ b/drivers/net/Kconfig
+@@ -87,7 +87,7 @@ config WIREGUARD
+ 	select CRYPTO_CURVE25519_X86 if X86 && 64BIT
+ 	select ARM_CRYPTO if ARM
+ 	select ARM64_CRYPTO if ARM64
+-	select CRYPTO_CHACHA20_NEON if (ARM || ARM64) && KERNEL_MODE_NEON
++	select CRYPTO_CHACHA20_NEON if ARM || (ARM64 && KERNEL_MODE_NEON)
+ 	select CRYPTO_POLY1305_NEON if ARM64 && KERNEL_MODE_NEON
+ 	select CRYPTO_POLY1305_ARM if ARM
+ 	select CRYPTO_CURVE25519_NEON if ARM && KERNEL_MODE_NEON
