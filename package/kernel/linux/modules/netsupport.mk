@@ -1250,35 +1250,3 @@ define KernelPackage/netlink-diag/description
 endef
 
 $(eval $(call KernelPackage,netlink-diag))
-
-
-define KernelPackage/wireguard-it
-  HIDDEN:=1
-  SECTION:=kernel
-  CATEGORY:=Kernel modules
-  SUBMENU:=Network Support
-  TITLE:=WireGuard kernel module
-  DEPENDS:= \
-	  @LINUX_5_10 \
-	  +kmod-crypto-blake2s \
-	  +kmod-crypto-chacha20poly1305 \
-	  +kmod-crypto-curve25519 \
-	  +kmod-udptunnel4 \
-	  +IPV6:kmod-udptunnel6
-  KCONFIG:= \
-	  CONFIG_WIREGUARD \
-	  CONFIG_WIREGUARD_DEBUG=n
-  FILES:=$(LINUX_DIR)/drivers/net/wireguard/wireguard.ko
-  AUTOLOAD:=$(call AutoProbe,wireguard)
-endef
-
-define KernelPackage/wireguard-it/description
-  WireGuard is a novel VPN that runs inside the Linux Kernel and utilizes
-  state-of-the-art cryptography. It aims to be faster, simpler, leaner, and
-  more useful than IPSec, while avoiding the massive headache. It intends to
-  be considerably more performant than OpenVPN.  WireGuard is designed as a
-  general purpose VPN for running on embedded interfaces and super computers
-  alike, fit for many different circumstances. It uses UDP.
-endef
-
-$(eval $(call KernelPackage,wireguard-it))

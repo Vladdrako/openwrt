@@ -9,10 +9,10 @@
 include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
-PKG_NAME:=wireguard-oot
+PKG_NAME:=wireguard
 
 PKG_VERSION:=1.0.20201112
-PKG_RELEASE:=2
+PKG_RELEASE:=1
 
 PKG_SOURCE:=wireguard-linux-compat-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=https://git.zx2c4.com/wireguard-linux-compat/snapshot/
@@ -25,54 +25,64 @@ PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/wireguard-linux-compat-$(PKG_VERSION)
 PKG_BUILD_PARALLEL:=1
 PKG_USE_MIPS16:=0
 
-PKG_MAINTAINER:=Jason A. Donenfeld <Jason@zx2c4.com>
-
 # WireGuard's makefile needs this to know where to build the kernel module
 export KERNELDIR:=$(LINUX_DIR)
 
 include $(INCLUDE_DIR)/package.mk
 
-define KernelPackage/wireguard/Defaults
-  SECTION:=kernel
-  CATEGORY:=Kernel modules
-  SUBMENU:=Network Support
-  TITLE:=WireGuard kernel module
+define Package/wireguard/Default
+  SECTION:=net
+  CATEGORY:=Network
+  SUBMENU:=VPN
   URL:=https://www.wireguard.com
+  MAINTAINER:=Jason A. Donenfeld <Jason@zx2c4.com>
 endef
 
-define KernelPackage/wireguard
-  $(call KernelPackage/wireguard/Defaults)
-  DEPENDS:=+!LINUX_5_4:kmod-wireguard-it +LINUX_5_4:kmod-wireguard-oot
-endef
-
-define KernelPackage/wireguard/description
+define Package/wireguard/Default/description
   WireGuard is a novel VPN that runs inside the Linux Kernel and utilizes
   state-of-the-art cryptography. It aims to be faster, simpler, leaner, and
   more useful than IPSec, while avoiding the massive headache. It intends to
   be considerably more performant than OpenVPN.  WireGuard is designed as a
   general purpose VPN for running on embedded interfaces and super computers
   alike, fit for many different circumstances. It uses UDP.
-
-  This package provides the kernel module for WireGuard.
 endef
 
-define KernelPackage/wireguard-oot
-  $(call KernelPackage/wireguard/Defaults)
-  HIDDEN:=1
-  DEPENDS:=+IPV6:kmod-udptunnel6 +kmod-udptunnel4 @LINUX_5_4
+define Package/wireguard
+  $(call Package/wireguard/Default)
+  TITLE:=WireGuard meta-package
+  DEPENDS:=+wireguard-tools +kmod-wireguard
+endef
+
+include $(INCLUDE_DIR)/kernel-defaults.mk
+include $(INCLUDE_DIR)/package-defaults.mk
+
+define Build/Compile
+	$(MAKE) $(KERNEL_MAKEOPTS) M="$(PKG_BUILD_DIR)/src" modules
+endef
+
+define Package/wireguard/install
+  true
+endef
+
+define Package/wireguard/description
+  $(call Package/wireguard/Default/description)
+endef
+
+define KernelPackage/wireguard
+  SECTION:=kernel
+  CATEGORY:=Kernel modules
+  SUBMENU:=Network Support
+  TITLE:=WireGuard kernel module
+  DEPENDS:=+IPV6:kmod-udptunnel6 +kmod-udptunnel4
   FILES:= $(PKG_BUILD_DIR)/src/wireguard.$(LINUX_KMOD_SUFFIX)
   AUTOLOAD:=$(call AutoProbe,wireguard)
 endef
 
-define KernelPackage/wireguard-oot/description
-  $(call KernelPackage/wireguard/description)
+define KernelPackage/wireguard/description
+  $(call Package/wireguard/Default/description)
+
+  This package provides the kernel module for WireGuard.
 endef
 
-include $(INCLUDE_DIR)/kernel-defaults.mk
-
-define Build/Compile
-	$(if $(CONFIG_LINUX_5_4),$(KERNEL_MAKE) M="$(PKG_BUILD_DIR)/src" modules)
-endef
-
-$(eval $(call KernelPackage,wireguard-oot))
+$(eval $(call BuildPackage,wireguard))
 $(eval $(call KernelPackage,wireguard))
