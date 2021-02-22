@@ -1,0 +1,20 @@
+--- a/drivers/staging/mt7621-dma/Makefile
++++ b/drivers/staging/mt7621-dma/Makefile
+@@ -1,4 +1,5 @@
+ # SPDX-License-Identifier: GPL-2.0
+-obj-$(CONFIG_MTK_HSDMA) += mtk-hsdma.o
++obj-$(CONFIG_MTK_HSDMA) += hsdma-mt7621.o
++hsdma-mt7621-y = mtk-hsdma.o
+ 
+ ccflags-y += -I$(srctree)/drivers/dma
+--- a/drivers/staging/mt7621-dma/mtk-hsdma.c
++++ b/drivers/staging/mt7621-dma/mtk-hsdma.c
+@@ -749,7 +749,7 @@ static struct platform_driver mtk_hsdma_
+ 	.probe = mtk_hsdma_probe,
+ 	.remove = mtk_hsdma_remove,
+ 	.driver = {
+-		.name = "hsdma-mt7621",
++		.name = KBUILD_MODNAME,
+ 		.of_match_table = mtk_hsdma_of_match,
+ 	},
+ };
