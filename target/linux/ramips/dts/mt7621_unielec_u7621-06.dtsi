@@ -65,10 +65,6 @@
 	};
 };
 
-&gpio {
-	status = "okay";
-};
-
 &sdhci {
 	status = "okay";
 };

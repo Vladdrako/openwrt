@@ -287,4 +287,3 @@ struct wan_tx_mib_table {
 
 #endif  //  IFXMIPS_PTM_FW_REGS_VDSL_H
 
-
