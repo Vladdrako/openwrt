@@ -384,13 +384,4 @@ board_name() {
 	[ -e /tmp/sysinfo/board_name ] && cat /tmp/sysinfo/board_name || echo "generic"
 }
 
-insmod_ignore() {
-	local load
-	for mod in "$@"; do
-		grep -qs "^$mod " /proc/modules && continue
-		/sbin/insmod "$mod" && load=1
-	done
-	[ "$load" = "1" ] && sleep 1
-}
-
 [ -z "$IPKG_INSTROOT" ] && [ -f /lib/config/uci.sh ] && . /lib/config/uci.sh
