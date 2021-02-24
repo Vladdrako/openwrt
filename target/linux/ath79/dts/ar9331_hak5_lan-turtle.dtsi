@@ -6,10 +6,6 @@
 #include <dt-bindings/input/input.h>
 
 / {
-	aliases {
-		serial0 = &uart;
-	};
-
 	keys: keys {
 		compatible = "gpio-keys";
 
@@ -87,10 +83,6 @@
 			};
 		};
 	};
-};
-
-&uart {
-	status = "okay";
 };
 
 &usb {

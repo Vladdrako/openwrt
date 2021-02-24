@@ -183,7 +183,3 @@
 		pinctrl-single,bits = <0x0 0x0 0xf8>;
 	};
 };
-
-&uart {
-	status = "okay";
-};

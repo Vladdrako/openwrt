@@ -120,10 +120,6 @@
 	};
 };
 
-&uart {
-	status = "okay";
-};
-
 &usb {
 	status = "okay";
 	#address-cells = <1>;
