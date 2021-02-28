@@ -1,0 +1,27 @@
+From 8145dcb07d0c8bdb1e8e76a5df18779431f7af8e Mon Sep 17 00:00:00 2001
+From: Sergio Paracuellos <sergio.paracuellos@gmail.com>
+Date: Tue, 1 Dec 2020 12:20:51 +0100
+Subject: [PATCH 13/26] phy: ralink: phy-mt7621-pci: set correct name in
+ MODULE_DEVICE_TABLE macro
+
+Correct name passed into 'MODULE_DEVICE_TABLE' which was wrong and
+was showing a warning when the driver is enabled for 'COMPILE_TEST'.
+
+Signed-off-by: Sergio Paracuellos <sergio.paracuellos@gmail.com>
+Link: https://lore.kernel.org/r/20201201112051.17463-3-sergio.paracuellos@gmail.com
+Signed-off-by: Vinod Koul <vkoul@kernel.org>
+---
+ drivers/phy/ralink/phy-mt7621-pci.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/drivers/phy/ralink/phy-mt7621-pci.c
++++ b/drivers/phy/ralink/phy-mt7621-pci.c
+@@ -335,7 +335,7 @@ static const struct of_device_id mt7621_
+ 	{ .compatible = "mediatek,mt7621-pci-phy" },
+ 	{},
+ };
+-MODULE_DEVICE_TABLE(of, mt7621_pci_ids);
++MODULE_DEVICE_TABLE(of, mt7621_pci_phy_ids);
+ 
+ static struct platform_driver mt7621_pci_phy_driver = {
+ 	.probe = mt7621_pci_phy_probe,
