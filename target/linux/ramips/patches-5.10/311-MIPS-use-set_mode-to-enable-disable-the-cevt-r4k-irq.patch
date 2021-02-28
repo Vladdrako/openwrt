@@ -63,7 +63,17 @@ Signed-off-by: John Crispin <blogic@openwrt.org>
  static int mips_next_event(unsigned long delta,
  			   struct clock_event_device *evt)
  {
-@@ -326,11 +351,16 @@ int r4k_clockevent_init(void)
+@@ -296,7 +321,9 @@ core_initcall(r4k_register_cpufreq_notif
+ 
+ int r4k_clockevent_init(void)
+ {
++#ifndef CONFIG_CEVT_SYSTICK_QUIRK
+ 	unsigned long flags = IRQF_PERCPU | IRQF_TIMER | IRQF_SHARED;
++#endif
+ 	unsigned int cpu = smp_processor_id();
+ 	struct clock_event_device *cd;
+ 	unsigned int irq, min_delta;
+@@ -326,11 +353,16 @@ int r4k_clockevent_init(void)
  	cd->rating		= 300;
  	cd->irq			= irq;
  	cd->cpumask		= cpumask_of(cpu);
@@ -80,7 +90,7 @@ Signed-off-by: John Crispin <blogic@openwrt.org>
  	if (cp0_timer_irq_installed)
  		return 0;
  
-@@ -339,6 +369,7 @@ int r4k_clockevent_init(void)
+@@ -339,6 +371,7 @@ int r4k_clockevent_init(void)
  	if (request_irq(irq, c0_compare_interrupt, flags, "timer",
  			c0_compare_interrupt))
  		pr_err("Failed to request irq %d (timer)\n", irq);

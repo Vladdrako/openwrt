@@ -132,7 +132,7 @@ Signed-off-by: John Crispin <blogic@openwrt.org>
  
  	return 0;
  }
-@@ -116,33 +163,47 @@ static int systick_set_oneshot(struct cl
+@@ -116,33 +163,46 @@ static int systick_set_oneshot(struct cl
  	return 0;
  }
  
@@ -143,9 +143,9 @@ Signed-off-by: John Crispin <blogic@openwrt.org>
 +
  static int __init ralink_systick_init(struct device_node *np)
  {
+-	int ret;
 +	const struct of_device_id *match;
 +	int rating = 200;
- 	int ret;
  
  	systick.membase = of_iomap(np, 0);
  	if (!systick.membase)
