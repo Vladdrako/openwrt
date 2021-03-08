@@ -55,7 +55,7 @@
  
  #include <pinmux.h>
  
-@@ -108,11 +113,89 @@ static struct rt2880_pmx_group mt7621_pi
+@@ -108,11 +113,90 @@ static struct rt2880_pmx_group mt7621_pi
  	{ 0 }
  };
  
@@ -115,6 +115,7 @@
 +	case 0:
 +		cpu_clk = 500 * 1000 * 1000;
 +		break;
++
 +	case 1:
 +		pll = rt_memc_r32(MEMC_REG_CPU_PLL);
 +		fbdiv = (pll >> CPU_PLL_FBDIV_SHIFT) & CPU_PLL_FBDIV_MASK;
@@ -140,7 +141,7 @@
 +	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 +}
 +
-+CLK_OF_DECLARE(mt7621, "mediatek,mt7621-pll", mt7621_clocks_init_dt);
++CLK_OF_DECLARE(ar7100, "mediatek,mt7621-pll", mt7621_clocks_init_dt);
 +
  void __init ralink_of_remap(void)
  {
