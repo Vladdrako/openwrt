@@ -1,0 +1,48 @@
+From f4843c17ff2926388e215abbaae6c668ca6c2774 Mon Sep 17 00:00:00 2001
+From: Ilya Lipnitskiy <ilya.lipnitskiy@gmail.com>
+Date: Wed, 10 Mar 2021 10:17:16 -0800
+Subject: [PATCH 3/3] net: dsa: mt7530: disable TRGMII clock at reconfigure
+
+Disable both core and TRGMII Tx clocks prior to reconfiguring.
+Previously, only the core clock was disabled, but not TRGMII Tx clock.
+So disable both, then configure them, then re-enable both, for
+consistency.
+
+Reword the comment about core_write_mmd_indirect for clarity.
+
+Tested on Ubiquiti ER-X running the GMAC and MT7530 in TRGMII mode.
+
+Signed-off-by: Ilya Lipnitskiy <ilya.lipnitskiy@gmail.com>
+---
+ drivers/net/dsa/mt7530.c | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)
+
+--- a/drivers/net/dsa/mt7530.c
++++ b/drivers/net/dsa/mt7530.c
+@@ -426,15 +426,18 @@ mt7530_pad_clk_setup(struct dsa_switch *
+ 		mt7530_write(priv, MT7530_TRGMII_TD_ODT(i),
+ 			     TD_DM_DRVP(8) | TD_DM_DRVN(8));
+ 
+-	/* Setup core clock for MT7530 */
+-	/* Disable MT7530 core clock */
+-	core_clear(priv, CORE_TRGMII_GSW_CLK_CG, REG_GSWCK_EN);
+-
+-	/* Disable PLL, since phy_device has not yet been created
+-	 * provided for phy_[read,write]_mmd_indirect is called, we
+-	 * provide our own core_write_mmd_indirect to complete this
+-	 * function.
++	/* Since phy_device has not yet been created and
++	 * phy_[read,write]_mmd_indirect is not available, we provide our own
++	 * core_write_mmd_indirect with core_{clear,write,set} wrappers to
++	 * complete this function.
+ 	 */
++
++	/* Disable MT7530 core and TRGMII Tx clocks */
++	core_clear(priv, CORE_TRGMII_GSW_CLK_CG,
++		   REG_GSWCK_EN | REG_TRGMIICK_EN);
++
++	/* Setup core clock for MT7530 */
++	/* Disable PLL */
+ 	core_write(priv, CORE_GSWPLL_GRP1, 0);
+ 
+ 	/* Set core clock into 500Mhz */
