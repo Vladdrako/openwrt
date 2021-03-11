@@ -33,7 +33,7 @@ define Package/libQt5/Default
   SUBMENU:=Qt5
   TITLE:=Qt5
   URL:=http://qt-project.org
-  DEPENDS:=+libatomic +libzstd +libpthread +librt +libstdcpp +zlib @!LINUX_2_6
+  DEPENDS:=+libatomic +libzstd +libpthread +librt +libopenssl +libstdcpp +zlib @!LINUX_2_6
 endef
 
 define Package/libQt5
@@ -211,6 +211,7 @@ CONFIGURE_ARGS:= \
 	-make libs \
 	-shared \
 	-no-opengl \
+	-openssl \
 	-skip 3d \
 	-skip activeqt \
 	-skip androidextras \
