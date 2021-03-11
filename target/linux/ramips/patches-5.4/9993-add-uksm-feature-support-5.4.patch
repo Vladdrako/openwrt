@@ -493,15 +493,15 @@ diff --git a/lib/Makefile b/lib/Makefile
 index c5892807e06f..4b0d37da9fa0 100644
 --- a/lib/Makefile
 +++ b/lib/Makefile
-@@ -25,7 +25,7 @@ CFLAGS_string.o := $(call cc-option, -fno-stack-protector)
+@@ -35,7 +35,7 @@ CFLAGS_string.o := $(call cc-option, -fno-stack-protector)
  endif
  
  lib-y := ctype.o string.o vsprintf.o cmdline.o \
 -	 rbtree.o radix-tree.o timerqueue.o xarray.o \
 +	 rbtree.o radix-tree.o sradix-tree.o timerqueue.o xarray.o \
- 	 idr.o extable.o \
- 	 sha1.o chacha.o irq_regs.o argv_split.o \
+ 	 idr.o extable.o sha1.o irq_regs.o argv_split.o \
  	 flex_proportions.o ratelimit.o show_mem.o \
+ 	 is_single_threaded.o plist.o decompress.o kobject_uevent.o \
 diff --git a/lib/sradix-tree.c b/lib/sradix-tree.c
 new file mode 100644
 index 000000000000..ab21e6309b93
@@ -1010,7 +1010,7 @@ index a5dae9a7eb51..eda3a78226b0 100644
 +	and CPU efficiency. Since KVM is friendly to KSM, KVM can also benefit from
 +	UKSM. Now UKSM has its first stable release and first real world enterprise user.
 +	For more information, please goto its project page.
-+	(www.kerneldedup.org)
++	(github.com/dolohow/uksm)
 +
 +config KSM_LEGACY
 +	bool "Legacy KSM implementation"
@@ -1121,10 +1121,7 @@ index b1ca51a079f2..98a57e508b9b 100644
  
  			if (!PageAnon(page)) {
  				if (pte_dirty(ptent)) {
-@@ -2169,11 +2196,12 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
- 	unsigned long addr = vmf->address;
- 
- 	debug_dma_assert_idle(src);
+@@ -2199,6 +2226,7 @@ static inline void cow_user_page(struct page *dst, struct page *src, unsigned lo
  
  	if (likely(src)) {
  		copy_user_highpage(dst, src, addr, vma);
@@ -1132,8 +1129,6 @@ index b1ca51a079f2..98a57e508b9b 100644
  		return true;
  	}
  
- 	/*
- 	 * If the source page was a PFN mapping, we don't have
 @@ -2322,6 +2351,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
  							      vmf->address);
  		if (!new_page)
@@ -6945,4 +6940,3 @@ index a8222041bd44..7058e8322cbd 100644
  	/* enum writeback_stat_item counters */
  	"nr_dirty_threshold",
  	"nr_dirty_background_threshold",
-
