@@ -48,7 +48,7 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
  	/* Initialization */
 +	WARN_ON(!(table->valid_hooks & (1 << hook)));
 +	local_bh_disable();
-+	private = rcu_access_pointer(table->private);
++	private = READ_ONCE(table->private); /* Address dependency. */
 +	cpu        = smp_processor_id();
 +	table_base = private->entries;
 +
