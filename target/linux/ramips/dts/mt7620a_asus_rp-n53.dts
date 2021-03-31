@@ -153,12 +153,6 @@
 	};
 };
 
-&gsw {
-	mediatek,port4 = "ephy";
-	pinctrl-names = "default";
-	pinctrl-0 = <&ephy_pins>;
-};
-
 &pcie {
 	status = "okay";
 };
