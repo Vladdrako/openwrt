@@ -39,7 +39,7 @@ static irqreturn_t gsw_interrupt_mt7620(int irq, void *_priv)
 	struct fe_priv *priv = (struct fe_priv *)_priv;
 	struct mt7620_gsw *gsw = (struct mt7620_gsw *)priv->soc->swpriv;
 	u32 status;
-	int i, max = (gsw->port4 == PORT4_EPHY) ? (4) : (3);
+	int i, max = (gsw->port4_ephy) ? (4) : (3);
 
 	status = mtk_switch_r32(gsw, GSW_REG_ISR);
 	if (status & PORT_IRQ_ST_CHG)
@@ -96,8 +96,6 @@ static void mt7620_hw_init(struct mt7620_gsw *gsw, int mdio_mode)
 	mtk_switch_w32(gsw, mtk_switch_r32(gsw, GSW_REG_MIB_CNT_EN) | (1 << 1), GSW_REG_MIB_CNT_EN);
 
 	if (mdio_mode) {
-		u32 val;
-
 		/* turn off ephy and set phy base addr to 12 */
 		mtk_switch_w32(gsw, mtk_switch_r32(gsw, GSW_REG_GPC1) |
 			(0x1f << 24) | (0xc << 16),
@@ -114,6 +112,8 @@ static void mt7620_hw_init(struct mt7620_gsw *gsw, int mdio_mode)
 		mt7530_mdio_w32(gsw, 0x7a40, val);
 
 		mt7530_mdio_w32(gsw, 0x7a78, 0x855);
+
+		pr_info("gsw: mdio mode enabled\n");
 	} else {
 
 		if (gsw->ephy_base) {
@@ -121,7 +121,7 @@ static void mt7620_hw_init(struct mt7620_gsw *gsw, int mdio_mode)
 			mtk_switch_w32(gsw, mtk_switch_r32(gsw, GSW_REG_GPC1) |
 				(gsw->ephy_base << 16),
 				GSW_REG_GPC1);
-			fe_reset(BIT(24)); /* Resets the Ethernet PHY block. */
+			fe_reset(MT7620A_RESET_EPHY);
 		}
 
 		/* global page 4 */
@@ -168,7 +168,7 @@ static void mt7620_hw_init(struct mt7620_gsw *gsw, int mdio_mode)
 		/* turn on all PHYs */
 		for (i = 0; i <= 4; i++) {
 			val = _mt7620_mii_read(gsw, gsw->ephy_base + i, 0);
-			val &= ~BIT(11);
+			val &= ~GSW_MII_POWERDOWN;
 			_mt7620_mii_write(gsw, gsw->ephy_base + i, 0, val);
 		}
 	}
@@ -199,8 +199,8 @@ static void mt7620_hw_init(struct mt7620_gsw *gsw, int mdio_mode)
 	mtk_switch_w32(gsw, 0x7f7f7fe0, 0x0010);
 
 	/* setup port 4 */
-	if (gsw->port4 == PORT4_EPHY) {
-		u32 val = rt_sysc_r32(SYSC_REG_CFG1);
+	if (gsw->port4_ephy) {
+		val = rt_sysc_r32(SYSC_REG_CFG1);
 
 		val |= 3 << 14;
 		rt_sysc_w32(val, SYSC_REG_CFG1);
@@ -208,12 +208,6 @@ static void mt7620_hw_init(struct mt7620_gsw *gsw, int mdio_mode)
 		_mt7620_mii_write(gsw, gsw->ephy_base + 4, 4, 0x05e1);
 		_mt7620_mii_write(gsw, gsw->ephy_base + 4, 16, 0x1313);
 		pr_info("gsw: setting port4 to ephy mode\n");
-	} else if (!mdio_mode) {
-		u32 val = rt_sysc_r32(SYSC_REG_CFG1);
-
-		val &= ~(3 << 14);
-		rt_sysc_w32(val, SYSC_REG_CFG1);
-		pr_info("gsw: setting port4 to gmac mode\n");
 	}
 }
 
@@ -252,7 +246,6 @@ int mtk_gsw_init(struct fe_priv *priv)
 static int mt7620_gsw_probe(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	const char *port4 = NULL;
 	struct mt7620_gsw *gsw;
 	struct device_node *np = pdev->dev.of_node;
 	u16 val;
@@ -267,13 +260,10 @@ static int mt7620_gsw_probe(struct platform_device *pdev)
 
 	gsw->dev = &pdev->dev;
 
-	of_property_read_string(np, "mediatek,port4", &port4);
-	if (port4 && !strcmp(port4, "ephy"))
-		gsw->port4 = PORT4_EPHY;
-	else if (port4 && !strcmp(port4, "gmac"))
-		gsw->port4 = PORT4_EXT;
+	if (of_property_read_bool(np, "mediatek,port4-gmac"))
+		gsw->port4_ephy = false;
 	else
-		gsw->port4 = PORT4_EPHY;
+		gsw->port4_ephy = true;
 
 	if (of_property_read_u16(np, "mediatek,ephy-base-address", &val) == 0)
 		gsw->ephy_base = val;
