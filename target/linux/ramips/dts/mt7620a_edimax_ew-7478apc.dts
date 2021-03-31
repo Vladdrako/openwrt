@@ -170,7 +170,7 @@
 };
 
 &gsw {
-	mediatek,port4 = "gmac";
+	mediatek,port4-gmac;
 };
 
 &wmac {
