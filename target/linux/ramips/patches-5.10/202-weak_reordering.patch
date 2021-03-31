@@ -4,7 +4,7 @@
  		select CLKSRC_MIPS_GIC
  		select HAVE_PCI if PCI_MT7621
  		select SOC_BUS
-+		select GENERIC_CLOCKEVENTS_BROADCAST
++		select WEAK_REORDERING_BEYOND_LLSC
  endchoice
  
  choice
