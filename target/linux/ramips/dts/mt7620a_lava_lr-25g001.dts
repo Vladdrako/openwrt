@@ -115,7 +115,8 @@
 
 	mdio-bus {
 		status = "okay";
-		mediatek,mdio-mode = <1>;
+
+		mediatek,mdio-mode;
 
 		phy0: ethernet-phy@0 {
 			reg = <0>;
