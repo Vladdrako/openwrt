@@ -674,9 +674,9 @@ hostapd_set_bss_options() {
 			set_default request_cui 0
 
 			[ "$eap_server" -eq 0 ] && {
-					append bss_conf "auth_server_addr=$auth_server" "$N"
-					append bss_conf "auth_server_port=$auth_port" "$N"
-					append bss_conf "auth_server_shared_secret=$auth_secret" "$N"
+				append bss_conf "auth_server_addr=$auth_server" "$N"
+				append bss_conf "auth_server_port=$auth_port" "$N"
+				append bss_conf "auth_server_shared_secret=$auth_secret" "$N"
 			}
 
 			[ "$request_cui" -gt 0 ] && append bss_conf "radius_request_cui=$request_cui" "$N"
