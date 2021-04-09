@@ -1,0 +1,201 @@
+From 3573ca0eecc56ce75d5db24bab41c2fc423bf3ea Mon Sep 17 00:00:00 2001
+From: Geert Stappers <stappers@stappers.nl>
+Date: Mon, 5 Apr 2021 22:42:24 +0200
+Subject: [PATCH 04/10] Chomp file ends
+
+Removed empty lines from end of src/*.[ch] files.
+If the new last line became '#endif'
+was the condition of the '#if' added.
+---
+ src/arp.c            | 2 --
+ src/auth.c           | 3 ---
+ src/blockdata.c      | 1 -
+ src/bpf.c            | 2 --
+ src/cache.c          | 2 --
+ src/config.h         | 5 +----
+ src/conntrack.c      | 5 +----
+ src/dhcp6-protocol.h | 1 -
+ src/dhcp6.c          | 4 +---
+ src/forward.c        | 5 -----
+ src/helper.c         | 5 +----
+ src/inotify.c        | 1 -
+ src/ip6addr.h        | 1 -
+ src/lease.c          | 6 +-----
+ src/netlink.c        | 4 +---
+ src/network.c        | 5 -----
+ src/radv-protocol.h  | 3 ---
+ src/rfc2131.c        | 9 +--------
+ 18 files changed, 7 insertions(+), 57 deletions(-)
+
+--- a/src/arp.c
++++ b/src/arp.c
+@@ -230,5 +230,3 @@ int do_arp_script_run(void)
+ 
+   return 0;
+ }
+-
+-
+--- a/src/auth.c
++++ b/src/auth.c
+@@ -867,6 +867,3 @@ size_t answer_auth(struct dns_header *he
+ }
+   
+ #endif  
+-  
+-
+-
+--- a/src/blockdata.c
++++ b/src/blockdata.c
+@@ -174,4 +174,3 @@ struct blockdata *blockdata_read(int fd,
+ {
+   return blockdata_alloc_real(fd, NULL, len);
+ }
+-
+--- a/src/bpf.c
++++ b/src/bpf.c
+@@ -440,5 +440,3 @@ void route_sock(void)
+ }
+ 
+ #endif /* HAVE_BSD_NETWORK */
+-
+-
+--- a/src/cache.c
++++ b/src/cache.c
+@@ -1980,5 +1980,3 @@ void log_query(unsigned int flags, char
+   else
+     my_syslog(LOG_INFO, "%s %s %s %s", source, name, verb, dest);
+ }
+-
+- 
+--- a/src/config.h
++++ b/src/config.h
+@@ -447,7 +447,4 @@ static char *compile_opts =
+ #endif
+ "dumpfile";
+ 
+-#endif
+-
+-
+-
++#endif /* defined(HAVE_DHCP) */
+--- a/src/conntrack.c
++++ b/src/conntrack.c
+@@ -82,7 +82,4 @@ static int callback(enum nf_conntrack_ms
+   return NFCT_CB_CONTINUE;
+ }
+ 
+-#endif
+-  
+-
+-
++#endif /* HAVE_CONNTRACK */
+--- a/src/dhcp6-protocol.h
++++ b/src/dhcp6-protocol.h
+@@ -72,4 +72,3 @@
+ #define DHCP6NOBINDING   3
+ #define DHCP6NOTONLINK   4
+ #define DHCP6USEMULTI    5
+-
+--- a/src/dhcp6.c
++++ b/src/dhcp6.c
+@@ -825,6 +825,4 @@ void dhcp_construct_contexts(time_t now)
+     }
+ }
+ 
+-#endif
+-
+-
++#endif /* HAVE_DHCP6 */
+--- a/src/forward.c
++++ b/src/forward.c
+@@ -2589,8 +2589,3 @@ static unsigned short get_id(void)
+ 	return ret;
+     }
+ }
+-
+-
+-
+-
+-
+--- a/src/helper.c
++++ b/src/helper.c
+@@ -882,7 +882,4 @@ void helper_write(void)
+     }
+ }
+ 
+-#endif
+-
+-
+-
++#endif /* HAVE_SCRIPT */
+--- a/src/inotify.c
++++ b/src/inotify.c
+@@ -295,4 +295,3 @@ int inotify_check(time_t now)
+ }
+ 
+ #endif  /* INOTIFY */
+-  
+--- a/src/ip6addr.h
++++ b/src/ip6addr.h
+@@ -31,4 +31,3 @@
+          && ((__const uint32_t *) (a))[1] == 0                                \
+          && ((__const uint32_t *) (a))[2] == 0                                \
+          && ((__const uint32_t *) (a))[3] == 0)
+-
+--- a/src/lease.c
++++ b/src/lease.c
+@@ -1201,8 +1201,4 @@ void lease_add_extradata(struct dhcp_lea
+ }
+ #endif
+ 
+-#endif
+-	  
+-
+-      
+-
++#endif /* HAVE_DHCP */
+--- a/src/netlink.c
++++ b/src/netlink.c
+@@ -402,6 +402,4 @@ static unsigned nl_async(struct nlmsghdr
+     }
+   return state;
+ }
+-#endif
+-
+-      
++#endif /* HAVE_LINUX_NETWORK */
+--- a/src/network.c
++++ b/src/network.c
+@@ -1869,8 +1869,3 @@ void newaddress(time_t now)
+     lease_find_interfaces(now);
+ #endif
+ }
+-
+-
+-
+-
+-
+--- a/src/radv-protocol.h
++++ b/src/radv-protocol.h
+@@ -53,6 +53,3 @@ struct prefix_opt {
+ #define ICMP6_OPT_RT_INFO     24
+ #define ICMP6_OPT_RDNSS       25
+ #define ICMP6_OPT_DNSSL       31
+-
+-
+-
+--- a/src/rfc2131.c
++++ b/src/rfc2131.c
+@@ -2785,11 +2785,4 @@ static void apply_delay(u32 xid, time_t
+     }
+ }
+ 
+-#endif
+-  
+-
+-  
+-  
+-
+-
+-  
++#endif /* HAVE_DHCP */
