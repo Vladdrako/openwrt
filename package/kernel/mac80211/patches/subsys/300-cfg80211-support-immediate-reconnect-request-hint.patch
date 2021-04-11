@@ -1,3 +1,4 @@
+From 3bb02143ff55fec55558da4ad48425bf368eb8ed Mon Sep 17 00:00:00 2001
 From: Johannes Berg <johannes.berg@intel.com>
 Date: Sun, 6 Dec 2020 14:54:42 +0200
 Subject: [PATCH] cfg80211: support immediate reconnect request hint
@@ -11,10 +12,18 @@ Signed-off-by: Luca Coelho <luciano.coelho@intel.com>
 Link: https://lore.kernel.org/r/iwlwifi.20201206145305.58d33941fb9d.I0e7168c205c7949529c8e3b86f3c9b12c01a7017@changeid
 Signed-off-by: Johannes Berg <johannes.berg@intel.com>
 ---
+ include/net/cfg80211.h       |  4 +++-
+ include/uapi/linux/nl80211.h |  6 ++++++
+ net/mac80211/mlme.c          |  5 +++--
+ net/wireless/mlme.c          | 26 +++++++++++++++-----------
+ net/wireless/nl80211.c       | 23 +++++++++++++++--------
+ net/wireless/nl80211.h       |  8 +++++---
+ net/wireless/trace.h         | 12 ++++++++----
+ 7 files changed, 55 insertions(+), 29 deletions(-)
 
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -6410,13 +6410,15 @@ void cfg80211_abandon_assoc(struct net_d
+@@ -6419,13 +6419,15 @@ void cfg80211_abandon_assoc(struct net_d
   * @dev: network device
   * @buf: 802.11 frame (header + body)
   * @len: length of the frame data
@@ -33,9 +42,9 @@ Signed-off-by: Johannes Berg <johannes.berg@intel.com>
   * cfg80211_rx_unprot_mlme_mgmt - notification of unprotected mlme mgmt frame
 --- a/include/uapi/linux/nl80211.h
 +++ b/include/uapi/linux/nl80211.h
-@@ -2527,6 +2527,10 @@ enum nl80211_commands {
-  *	override mask. Used with NL80211_ATTR_S1G_CAPABILITY in
-  *	NL80211_CMD_ASSOCIATE or NL80211_CMD_CONNECT.
+@@ -2532,6 +2532,10 @@ enum nl80211_commands {
+  *	This is a u8 attribute that encapsulates one of the values from
+  *	&enum nl80211_sae_pwe_mechanism.
   *
 + * @NL80211_ATTR_RECONNECT_REQUESTED: flag attribute, used with deauth and
 + *	disassoc events to indicate that an immediate reconnect to the AP
@@ -44,9 +53,9 @@ Signed-off-by: Johannes Berg <johannes.berg@intel.com>
   * @NUM_NL80211_ATTR: total number of nl80211_attrs available
   * @NL80211_ATTR_MAX: highest attribute number currently defined
   * @__NL80211_ATTR_AFTER_LAST: internal use
-@@ -3016,6 +3020,8 @@ enum nl80211_attrs {
- 	NL80211_ATTR_S1G_CAPABILITY,
- 	NL80211_ATTR_S1G_CAPABILITY_MASK,
+@@ -3023,6 +3027,8 @@ enum nl80211_attrs {
+ 
+ 	NL80211_ATTR_SAE_PWE,
  
 +	NL80211_ATTR_RECONNECT_REQUESTED,
 +
@@ -166,15 +175,15 @@ Signed-off-by: Johannes Berg <johannes.berg@intel.com>
  
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -732,6 +732,7 @@ static const struct nla_policy nl80211_p
- 		NLA_POLICY_EXACT_LEN(IEEE80211_S1G_CAPABILITY_LEN),
- 	[NL80211_ATTR_S1G_CAPABILITY_MASK] =
- 		NLA_POLICY_EXACT_LEN(IEEE80211_S1G_CAPABILITY_LEN),
+@@ -735,6 +735,7 @@ static const struct nla_policy nl80211_p
+ 	[NL80211_ATTR_SAE_PWE] =
+ 		NLA_POLICY_RANGE(NLA_U8, NL80211_SAE_PWE_HUNT_AND_PECK,
+ 				 NL80211_SAE_PWE_BOTH),
 +	[NL80211_ATTR_RECONNECT_REQUESTED] = { .type = NLA_REJECT },
  };
  
  /* policy for the key attributes */
-@@ -15899,7 +15900,7 @@ static void nl80211_send_mlme_event(stru
+@@ -15908,7 +15909,7 @@ static void nl80211_send_mlme_event(stru
  				    const u8 *buf, size_t len,
  				    enum nl80211_commands cmd, gfp_t gfp,
  				    int uapsd_queues, const u8 *req_ies,
@@ -183,7 +192,7 @@ Signed-off-by: Johannes Berg <johannes.berg@intel.com>
  {
  	struct sk_buff *msg;
  	void *hdr;
-@@ -15921,6 +15922,9 @@ static void nl80211_send_mlme_event(stru
+@@ -15930,6 +15931,9 @@ static void nl80211_send_mlme_event(stru
  	     nla_put(msg, NL80211_ATTR_REQ_IE, req_ies_len, req_ies)))
  		goto nla_put_failure;
  
@@ -193,7 +202,7 @@ Signed-off-by: Johannes Berg <johannes.berg@intel.com>
  	if (uapsd_queues >= 0) {
  		struct nlattr *nla_wmm =
  			nla_nest_start_noflag(msg, NL80211_ATTR_STA_WME);
-@@ -15949,7 +15953,8 @@ void nl80211_send_rx_auth(struct cfg8021
+@@ -15958,7 +15962,8 @@ void nl80211_send_rx_auth(struct cfg8021
  			  size_t len, gfp_t gfp)
  {
  	nl80211_send_mlme_event(rdev, netdev, buf, len,
@@ -203,7 +212,7 @@ Signed-off-by: Johannes Berg <johannes.berg@intel.com>
  }
  
  void nl80211_send_rx_assoc(struct cfg80211_registered_device *rdev,
-@@ -15959,23 +15964,25 @@ void nl80211_send_rx_assoc(struct cfg802
+@@ -15968,23 +15973,25 @@ void nl80211_send_rx_assoc(struct cfg802
  {
  	nl80211_send_mlme_event(rdev, netdev, buf, len,
  				NL80211_CMD_ASSOCIATE, gfp, uapsd_queues,
@@ -234,7 +243,7 @@ Signed-off-by: Johannes Berg <johannes.berg@intel.com>
  }
  
  void cfg80211_rx_unprot_mlme_mgmt(struct net_device *dev, const u8 *buf,
-@@ -16006,7 +16013,7 @@ void cfg80211_rx_unprot_mlme_mgmt(struct
+@@ -16015,7 +16022,7 @@ void cfg80211_rx_unprot_mlme_mgmt(struct
  
  	trace_cfg80211_rx_unprot_mlme_mgmt(dev, buf, len);
  	nl80211_send_mlme_event(rdev, dev, buf, len, cmd, GFP_ATOMIC, -1,
