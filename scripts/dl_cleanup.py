@@ -13,6 +13,7 @@ import sys
 import os
 import re
 import getopt
+import shutil
 
 # Commandline options
 opt_dryrun = False
@@ -62,6 +63,13 @@ def parseVer_r(match, filepath):
 	progversion = (int(match.group(2)) << 64)
 	return (progname, progversion)
 
+def parseVer_ymd_GIT_SHASUM(match, filepath):
+	progname = match.group(1)
+	progversion = (int(match.group(2)) << 64) |\
+		      (int(match.group(3)) << 48) |\
+		      (int(match.group(4)) << 32)
+	return (progname, progversion)
+
 def parseVer_ymd(match, filepath):
 	progname = match.group(1)
 	progversion = (int(match.group(2)) << 64) |\
@@ -90,6 +98,7 @@ extensions = (
 
 versionRegex = (
 	(re.compile(r"(.+)[-_](\d+)\.(\d+)\.(\d+)\.(\d+)"), parseVer_1234),	# xxx-1.2.3.4
+	(re.compile(r"(.+)[-_](\d\d\d\d)-?(\d\d)-?(\d\d)-"), parseVer_ymd_GIT_SHASUM),	# xxx-YYYY-MM-DD-GIT_SHASUM
 	(re.compile(r"(.+)[-_](\d\d\d\d)-?(\d\d)-?(\d\d)"), parseVer_ymd),	# xxx-YYYY-MM-DD
 	(re.compile(r"(.+)[-_]([0-9a-fA-F]{40,40})"), parseVer_GIT),		# xxx-GIT_SHASUM
 	(re.compile(r"(.+)[-_](\d+)\.(\d+)\.(\d+)(\w?)"), parseVer_123),	# xxx-1.2.3a
@@ -111,15 +120,18 @@ blacklist = [
 class EntryParseError(Exception): pass
 
 class Entry:
-	def __init__(self, directory, filename):
+	def __init__(self, directory, builddir, filename):
 		self.directory = directory
 		self.filename = filename
+		self.builddir = builddir
 		self.progname = ""
 		self.fileext = ""
+		self.filenoext = ""
 
 		for ext in extensions:
 			if filename.endswith(ext):
 				filename = filename[0:0-len(ext)]
+				self.filenoext = filename
 				self.fileext = ext
 				break
 		else:
@@ -138,11 +150,20 @@ class Entry:
 	def getPath(self):
 		return (self.directory + "/" + self.filename).replace("//", "/")
 
+	def getBuildPath(self):
+		return (self.builddir + "/" + self.filenoext).replace("//", "/")
+
 	def deleteFile(self):
 		path = self.getPath()
 		print("Deleting", path)
 		if not opt_dryrun:
 			os.unlink(path)
+
+	def deleteBuildDir(self):
+		path = self.getBuildPath()
+		print("Deleting BuildDir", path)
+		if not opt_dryrun:
+			shutil.rmtree(path)
 
 	def __ge__(self, y):
 		return self.version >= y.version
@@ -154,21 +175,29 @@ def usage():
 	print(" -d|--dry-run            Do a dry-run. Don't delete any files")
 	print(" -B|--show-blacklist     Show the blacklist and exit")
 	print(" -w|--whitelist ITEM     Remove ITEM from blacklist")
+	print(" -b|--build-dir          Provide path to build dir to clean also the build directory")
 
 def main(argv):
 	global opt_dryrun
 
 	try:
 		(opts, args) = getopt.getopt(argv[1:],
-			"hdBw:",
-			[ "help", "dry-run", "show-blacklist", "whitelist=", ])
+			"hdBwb:",
+			[ "help", "dry-run", "show-blacklist", "whitelist=", "--build-dir="])
 		if len(args) != 1:
 			usage()
 			return 1
 	except getopt.GetoptError as e:
 		usage()
 		return 1
+
 	directory = args[0]
+	builddir = None
+
+	if not os.path.exists(directory):
+		print("Can't find dl path", directory)
+		return 1
+
 	for (o, v) in opts:
 		if o in ("-h", "--help"):
 			usage()
@@ -192,6 +221,12 @@ def main(argv):
 					sep = "\t"
 				print("%s%s(%s)" % (name, sep, regex.pattern))
 			return 0
+		if o in ("-b", "--build-dir"):
+			if os.path.exists(v):
+				builddir = v
+			else:
+				print("Can't find build dir path", v)
+				return 1
 
 	# Create a directory listing and parse the file names.
 	entries = []
@@ -205,7 +240,7 @@ def main(argv):
 				break
 		else:
 			try:
-				entries.append(Entry(directory, filename))
+				entries.append(Entry(directory, builddir, filename))
 			except EntryParseError as e:
 				pass
 
@@ -228,6 +263,8 @@ def main(argv):
 			for version in versions:
 				if version is not lastVersion:
 					version.deleteFile()
+					if builddir:
+						version.deleteBuildDir()
 			if opt_dryrun:
 				print("Keeping", lastVersion.getPath())
 
