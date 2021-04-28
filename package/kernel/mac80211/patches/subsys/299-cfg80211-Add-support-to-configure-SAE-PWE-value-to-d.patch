@@ -1,4 +1,8 @@
-cfg80211: Add support to configure SAE PWE value to drivers
+From 9f0ffa418483938d25a15f6ad3891389f333bc59 Mon Sep 17 00:00:00 2001
+From: Rohan Dutta <drohan@codeaurora.org>
+Date: Tue, 27 Oct 2020 12:09:10 +0200
+Subject: [PATCH] cfg80211: Add support to configure SAE PWE value to drivers
+
 Add support to configure SAE PWE preference from userspace to drivers in
 both AP and STA modes. This is needed for cases where the driver takes
 care of Authentication frame processing (SME in the driver) so that
@@ -18,10 +22,14 @@ Signed-off-by: Jouni Malinen <jouni@codeaurora.org>
 Link: https://lore.kernel.org/r/20201027100910.22283-1-jouni@codeaurora.org
 Signed-off-by: Johannes Berg <johannes.berg@intel.com>
 ---
+ include/net/cfg80211.h       |  9 +++++++++
+ include/uapi/linux/nl80211.h | 26 ++++++++++++++++++++++++++
+ net/wireless/nl80211.c       |  9 +++++++++
+ 3 files changed, 44 insertions(+)
 
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -1008,6 +1008,14 @@ struct survey_info {
+@@ -1009,6 +1009,14 @@ struct survey_info {
   * @sae_pwd: password for SAE authentication (for devices supporting SAE
   *	offload)
   * @sae_pwd_len: length of SAE password (for devices supporting SAE offload)
@@ -36,7 +44,7 @@ Signed-off-by: Johannes Berg <johannes.berg@intel.com>
   */
  struct cfg80211_crypto_settings {
  	u32 wpa_versions;
-@@ -1026,6 +1034,7 @@ struct cfg80211_crypto_settings {
+@@ -1027,6 +1035,7 @@ struct cfg80211_crypto_settings {
  	const u8 *psk;
  	const u8 *sae_pwd;
  	u8 sae_pwd_len;
@@ -67,7 +75,7 @@ Signed-off-by: Johannes Berg <johannes.berg@intel.com>
  	/* add attributes here, update the policy in nl80211.c */
  
  	__NL80211_ATTR_AFTER_LAST,
-@@ -7124,4 +7131,23 @@ enum nl80211_unsol_bcast_probe_resp_attributes {
+@@ -7124,4 +7131,23 @@ enum nl80211_unsol_bcast_probe_resp_attr
  	NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_MAX =
  		__NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_LAST - 1
  };
@@ -93,17 +101,17 @@ Signed-off-by: Johannes Berg <johannes.berg@intel.com>
  #endif /* __LINUX_NL80211_H */
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -732,6 +732,9 @@
+@@ -732,6 +732,9 @@ static const struct nla_policy nl80211_p
  		NLA_POLICY_EXACT_LEN(IEEE80211_S1G_CAPABILITY_LEN),
  	[NL80211_ATTR_S1G_CAPABILITY_MASK] =
  		NLA_POLICY_EXACT_LEN(IEEE80211_S1G_CAPABILITY_LEN),
 +	[NL80211_ATTR_SAE_PWE] =
 +		NLA_POLICY_RANGE(NLA_U8, NL80211_SAE_PWE_HUNT_AND_PECK,
 +				 NL80211_SAE_PWE_BOTH),
- 	[NL80211_ATTR_RECONNECT_REQUESTED] = { .type = NLA_REJECT },
- 	[NL80211_ATTR_WIPHY_ANTENNA_GAIN] = { .type = NLA_U32 },
  };
-@@ -9731,6 +9734,12 @@ static int nl80211_crypto_settings(struct cfg80211_registered_device *rdev,
+ 
+ /* policy for the key attributes */
+@@ -9759,6 +9762,12 @@ static int nl80211_crypto_settings(struc
  			nla_len(info->attrs[NL80211_ATTR_SAE_PASSWORD]);
  	}
  
@@ -115,3 +123,4 @@ Signed-off-by: Johannes Berg <johannes.berg@intel.com>
 +
  	return 0;
  }
+ 
