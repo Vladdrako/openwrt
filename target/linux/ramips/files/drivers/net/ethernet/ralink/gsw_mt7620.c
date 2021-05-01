@@ -65,7 +65,10 @@ static void mt7620_hw_init(struct mt7620_gsw *gsw)
 {
 	u32 i;
 	u32 val;
-	u32 is_BGA = (rt_sysc_r32(0x0c) >> 16) & 1;
+	u32 is_BGA = (rt_sysc_r32(SYSC_REG_CHIP_REV_ID) >> 16) & 1;
+
+	/* Internal ethernet requires PCIe RC mode */
+	rt_sysc_w32(rt_sysc_r32(SYSC_REG_CFG1) | PCIE_RC_MODE, SYSC_REG_CFG1);
 
 	mtk_switch_w32(gsw, mtk_switch_r32(gsw, GSW_REG_CKGCR) & ~(0x3 << 4), GSW_REG_CKGCR);
 
@@ -82,7 +85,7 @@ static void mt7620_hw_init(struct mt7620_gsw *gsw)
 		mtk_switch_w32(gsw, mtk_switch_r32(gsw, GSW_REG_GPC1) |
 			(gsw->ephy_base << 16),
 			GSW_REG_GPC1);
-		fe_reset(BIT(24)); /* Resets the Ethernet PHY block. */
+		fe_reset(MT7620A_RESET_EPHY);
 
 		pr_info("gsw: ephy base address: %d\n", gsw->ephy_base);
 	}
