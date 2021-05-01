@@ -31,6 +31,13 @@
 #define GSW_MDIO_ADDR_SHIFT	20
 #define GSW_MDIO_REG_SHIFT	25
 
+#define GSW_MII_DUPLEX		BIT(8)
+#define GSW_MII_AUTONEG_RE	BIT(9)
+#define GSW_MII_POWERDOWN	BIT(11)
+#define GSW_MII_AUTONEG_EN	BIT(12)
+#define GSW_MII_SPEED		BIT(13)
+#define GSW_MII_RESET		BIT(15)
+
 #define GSW_REG_MIB_CNT_EN	0x4000
 
 #define GSW_REG_PORT_PMCR(x)	(0x3000 + (x * 0x100))
@@ -55,7 +62,7 @@
 
 #define SYSC_REG_CHIP_REV_ID	0x0c
 #define SYSC_REG_CFG1		0x14
-#define RST_CTRL_MCM		BIT(2)
+#define PCIE_RC_MODE		BIT(8)
 #define SYSC_PAD_RGMII2_MDIO	0x58
 #define SYSC_GPIO_MODE		0x60
 
