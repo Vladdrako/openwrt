@@ -90,7 +90,6 @@ static void mt7620_hw_init(struct mt7620_gsw *gsw, int mdio_mode)
 	u32 val;
 	u32 is_BGA = (rt_sysc_r32(0x0c) >> 16) & 1;
 
-	rt_sysc_w32(rt_sysc_r32(SYSC_REG_CFG1) | BIT(8), SYSC_REG_CFG1);
 	mtk_switch_w32(gsw, mtk_switch_r32(gsw, GSW_REG_CKGCR) & ~(0x3 << 4), GSW_REG_CKGCR);
 
 	/* Enable MIB stats */
