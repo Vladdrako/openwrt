@@ -49,7 +49,7 @@ enum fe_work_flag {
 	FE_FLAG_MAX
 };
 
-#define MTK_FE_DRV_VERSION		"0.1.2"
+#define MTK_FE_DRV_VERSION		"0.2"
 
 /* power of 2 to let NEXT_TX_DESP_IDX work */
 #define NUM_DMA_DESC		BIT(10)
