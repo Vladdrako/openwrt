@@ -128,7 +128,7 @@
  
 @@ -4166,7 +4178,7 @@ static void handle_assoc(struct hostapd_
  	int resp = WLAN_STATUS_SUCCESS;
- 	u16 reply_res = WLAN_STATUS_UNSPECIFIED_FAILURE;
+ 	u16 reply_res;
  	const u8 *pos;
 -	int left, i;
 +	int left, i, ubus_resp;
@@ -160,7 +160,7 @@
 +	}
 +
  	/*
- 	 * Remove the station in case transmission of a success response fails
+ 	 * Remove the station in case tranmission of a success response fails
  	 * (the STA was added associated to the driver) or if the station was
 @@ -4570,6 +4595,7 @@ static void handle_disassoc(struct hosta
  	wpa_printf(MSG_DEBUG, "disassocation: STA=" MACSTR " reason_code=%d",
@@ -171,8 +171,8 @@
  	sta = ap_get_sta(hapd, mgmt->sa);
  	if (sta == NULL) {
 @@ -4636,6 +4662,8 @@ static void handle_deauth(struct hostapd
- 	/* Clear the PTKSA cache entries for PASN */
- 	ptksa_cache_flush(hapd->ptksa, mgmt->sa, WPA_CIPHER_NONE);
+ 		" reason_code=%d",
+ 		MAC2STR(mgmt->sa), le_to_host16(mgmt->u.deauth.reason_code));
  
 +	hostapd_ubus_notify(hapd, "deauth", mgmt->sa);
 +
@@ -192,8 +192,8 @@
 +		.elems = &elems,
 +	};
  
- 	if (hapd->iconf->rssi_ignore_probe_request && ssi_signal &&
- 	    ssi_signal < hapd->iconf->rssi_ignore_probe_request)
+ 	if (len < IEEE80211_HDRLEN)
+ 		return;
 @@ -996,6 +1002,12 @@ void handle_probe_req(struct hostapd_dat
  	}
  #endif /* CONFIG_P2P */

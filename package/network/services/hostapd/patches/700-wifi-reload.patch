@@ -43,17 +43,17 @@
  	u8 mka_psk_set;
  #endif /* CONFIG_MACSEC */
 +	char *config_id;
+ };
  
- #ifdef CONFIG_PASN
- #ifdef CONFIG_TESTING_OPTIONS
+ /**
 @@ -1062,6 +1063,7 @@ struct hostapd_config {
  	unsigned int airtime_update_interval;
  #define AIRTIME_MODE_MAX (__AIRTIME_MODE_MAX - 1)
  #endif /* CONFIG_AIRTIME_POLICY */
 +	char *config_id;
+ 
+ 	u8 notify_mgmt_frames;
  };
- 
- 
 --- a/src/ap/hostapd.c
 +++ b/src/ap/hostapd.c
 @@ -218,6 +218,10 @@ static int hostapd_iface_conf_changed(st

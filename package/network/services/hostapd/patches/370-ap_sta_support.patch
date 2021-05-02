@@ -1,6 +1,6 @@
 --- a/wpa_supplicant/Makefile
 +++ b/wpa_supplicant/Makefile
-@@ -39,6 +39,10 @@ CFLAGS += $(EXTRA_CFLAGS)
+@@ -26,6 +26,10 @@ CFLAGS += $(EXTRA_CFLAGS)
  CFLAGS += -I$(abspath ../src)
  CFLAGS += -I$(abspath ../src/utils)
  
@@ -8,9 +8,9 @@
 +CFLAGS += -DMULTICALL
 +endif
 +
+ -include .config
  -include $(if $(MULTICALL),../hostapd/.config)
  
- ifndef CONFIG_NO_GITVER
 @@ -118,6 +122,8 @@ OBJS_c += ../src/utils/common.o
  OBJS_c += ../src/common/cli.o
  OBJS += wmm_ac.o
@@ -218,9 +218,9 @@
 +		wpa_s->hostapd = NULL;
 +	}
 +
- 	wpa_supplicant_ctrl_iface_deinit(wpa_s, wpa_s->ctrl_iface);
- 	wpa_s->ctrl_iface = NULL;
- 
+ 	if (wpa_s->ctrl_iface) {
+ 		wpa_supplicant_ctrl_iface_deinit(wpa_s->ctrl_iface);
+ 		wpa_s->ctrl_iface = NULL;
 --- a/wpa_supplicant/wpa_supplicant_i.h
 +++ b/wpa_supplicant/wpa_supplicant_i.h
 @@ -104,6 +104,11 @@ struct wpa_interface {
@@ -257,7 +257,7 @@
 +
  	for (i = 0; i < iface->num_bss; i++) {
  
- 		/* Save CHAN_SWITCH VHT and HE config */
+ 		/* Save CHAN_SWITCH VHT config */
 --- a/src/ap/beacon.c
 +++ b/src/ap/beacon.c
 @@ -1468,11 +1468,6 @@ int ieee802_11_set_beacon(struct hostapd
