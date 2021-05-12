@@ -182,6 +182,7 @@
 
 &gmac0 {
 	mtd-mac-address = <&factory 0xe006>;
+	phy-mode = "trgmii";
 };
 
 &gmac1 {
@@ -233,6 +234,10 @@
 				full-duplex;
 				pause;
 			};
+		};
+
+		dsa_cpu0: port@6 {
+			phy-mode = "trgmii";
 		};
 	};
 };
