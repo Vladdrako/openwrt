@@ -114,6 +114,10 @@
 	status = "okay";
 };
 
+&gsw {
+	mediatek,port4 = "ephy";
+};
+
 &ohci {
 	status = "okay";
 };
