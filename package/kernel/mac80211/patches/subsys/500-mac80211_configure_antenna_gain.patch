@@ -129,14 +129,14 @@
  	local->hw.max_mtu = IEEE80211_MAX_DATA_LEN;
 --- a/net/wireless/nl80211.c
 +++ b/net/wireless/nl80211.c
-@@ -737,6 +737,7 @@
+@@ -737,6 +737,7 @@ static const struct nla_policy nl80211_p
  	[NL80211_ATTR_S1G_CAPABILITY_MASK] =
  		NLA_POLICY_EXACT_LEN(IEEE80211_S1G_CAPABILITY_LEN),
-     [NL80211_ATTR_RECONNECT_REQUESTED] = { .type = NLA_REJECT },
-+    [NL80211_ATTR_WIPHY_ANTENNA_GAIN] = { .type = NLA_U32 },
- 	[NL80211_ATTR_SAE_PWE] =
- 		NLA_POLICY_RANGE(NLA_U8, NL80211_SAE_PWE_HUNT_AND_PECK,
- 				 NL80211_SAE_PWE_BOTH),
+ 	[NL80211_ATTR_RECONNECT_REQUESTED] = { .type = NLA_REJECT },
++	[NL80211_ATTR_WIPHY_ANTENNA_GAIN] = { .type = NLA_U32 },
+ };
+ 
+ /* policy for the key attributes */
 @@ -3245,6 +3246,20 @@ static int nl80211_set_wiphy(struct sk_b
  		if (result)
  			return result;
