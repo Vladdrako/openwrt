@@ -101,9 +101,26 @@
 	};
 };
 
+&ethernet {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii1_pins &rgmii2_pins &mdio_pins>;
+};
+
 &gmac0 {
 	mtd-mac-address = <&factory 0xe006>;
 	phy-mode = "trgmii";
+};
+
+&gmac1 {
+	status = "okay";
+	phy-mode = "rgmii";
+	mtd-mac-address = <&factory 0xe000>;
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+		pause;
+	};
 };
 
 &switch0 {
@@ -114,20 +131,35 @@
 		port@1 {
 			status = "okay";
 			label = "wan";
-			mtd-mac-address = <&factory 0xe000>;
+			default_cpu = <&dsa_cpu1>;
 		};
 
 		port@2 {
 			status = "okay";
 			label = "lan2";
+			default_cpu = <&dsa_cpu0>;
 		};
 
 		port@3 {
 			status = "okay";
 			label = "lan1";
+			default_cpu = <&dsa_cpu0>;
 		};
 
-		port@6 {
+		dsa_cpu1: port@5 {
+			reg = <5>;
+			label = "cpu";
+			ethernet = <&gmac1>;
+			phy-mode = "rgmii";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+				pause;
+			};
+		};
+
+		dsa_cpu0: port@6 {
 			phy-mode = "trgmii";
 		};
 	};
