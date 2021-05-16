@@ -152,13 +152,6 @@
 	mtd-mac-address = <&factory 0xe000>;
 };
 
-&gmac1 {
-	/* GMAC1 is intentionally disabled by C48 capacitor on the PCB.
-	 * Remove the capacitor to make it work.
-	 */
-	status = "disabled";
-};
-
 &switch0 {
 	ports {
 		port@0 {
