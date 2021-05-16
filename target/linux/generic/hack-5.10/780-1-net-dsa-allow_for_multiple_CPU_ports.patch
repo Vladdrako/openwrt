@@ -76,7 +76,7 @@ Signed-off-by: Marek Behún <marek.behun@nic.cz>
 
 diff --git a/net/dsa/dsa2.c b/net/dsa/dsa2.c
 index 8c4eccb0cfe6..c5af89079a6b 100644
-@@ -211,36 +212,43 @@ static bool dsa_tree_setup_routing_table(struct dsa_switch_tree *dst)
+@@ -211,36 +212,51 @@ static bool dsa_tree_setup_routing_table(struct dsa_switch_tree *dst)
  	return complete;
  }
  
@@ -118,6 +118,14 @@ index 8c4eccb0cfe6..c5af89079a6b 100644
  	list_for_each_entry(dp, &dst->ports, list)
 -		if (dsa_port_is_user(dp) || dsa_port_is_dsa(dp))
 +		if (dsa_port_is_user(dp) || dsa_port_is_dsa(dp)) {
++			struct device_node *dn;
++
++			if (dn = of_parse_phandle(dp->dn, "default-cpu", 0)) {
++				dp->cpu_dp = dsa_tree_find_port_by_node(dst, dn);
++				if (dp->cpu_dp && dsa_port_is_cpu(dp->cpu_dp))
++					continue;
++			}
++
  			dp->cpu_dp = cpu_dp;
  
 +			if (cpu_dp == last_cpu_dp)

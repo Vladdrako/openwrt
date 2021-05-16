@@ -546,7 +546,7 @@
 						label = "lan4";
 					};
 
-					port@6 {
+					dsa_cpu0: port@6 {
 						reg = <6>;
 						label = "cpu";
 						ethernet = <&gmac0>;
