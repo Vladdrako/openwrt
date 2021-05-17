@@ -97,12 +97,9 @@ static void mt7620_hw_init(struct mt7620_gsw *gsw, int mdio_mode)
 	mtk_switch_w32(gsw, mtk_switch_r32(gsw, GSW_REG_MIB_CNT_EN) | (1 << 1), GSW_REG_MIB_CNT_EN);
 
 	if (mdio_mode) {
-		/* turn off ephy and set phy base address to 0b01000 unless specified */
-		if (!gsw->ephy_base)
-			gsw->ephy_base = 8;
-
+		/* turn off ephy and set phy base addr to 12 */
 		mtk_switch_w32(gsw, mtk_switch_r32(gsw, GSW_REG_GPC1) |
-			(0x1f << 24) | (gsw->ephy_base << 16),
+			(0x1f << 24) | (0xc << 16),
 			GSW_REG_GPC1);
 
 		/* set MT7530 central align */
@@ -126,8 +123,6 @@ static void mt7620_hw_init(struct mt7620_gsw *gsw, int mdio_mode)
 				(gsw->ephy_base << 16),
 				GSW_REG_GPC1);
 			fe_reset(MT7620A_RESET_EPHY);
-
-			pr_info("gsw: ephy base address: %d\n", gsw->ephy_base);
 		}
 
 		/* global page 4 */
