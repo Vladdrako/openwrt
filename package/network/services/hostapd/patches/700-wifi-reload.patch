@@ -244,7 +244,7 @@ diff --git a/src/drivers/driver_nl80211.c b/src/drivers/driver_nl80211.c
 index 500ccddcc..db1cf9835 100644
 --- a/src/drivers/driver_nl80211.c
 +++ b/src/drivers/driver_nl80211.c
-@@ -4820,6 +4820,9 @@ static int wpa_driver_nl80211_set_ap(void *priv,
+@@ -4511,6 +4511,9 @@ static int wpa_driver_nl80211_set_ap(voi
  	if (ret) {
  		wpa_printf(MSG_DEBUG, "nl80211: Beacon set failed: %d (%s)",
  			   ret, strerror(-ret));
