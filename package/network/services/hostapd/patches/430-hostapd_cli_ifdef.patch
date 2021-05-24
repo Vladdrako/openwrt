@@ -1,17 +1,6 @@
-From b92bebab5cb9df0f53ed6cf2f224c907804ac21d Mon Sep 17 00:00:00 2001
-From: Manuel Giganto <mgigantoregistros@gmail.com>
-Date: Sat, 1 May 2021 16:27:24 +0000
-Subject: [PATCH] 430-hostapd_cli_ifdef.patch
-
----
- hostapd/hostapd_cli.c | 8 --------
- 1 file changed, 8 deletions(-)
-
-diff --git a/hostapd/hostapd_cli.c b/hostapd/hostapd_cli.c
-index 437c87d84..e7c60b254 100644
 --- a/hostapd/hostapd_cli.c
 +++ b/hostapd/hostapd_cli.c
-@@ -388,7 +388,6 @@ static int hostapd_cli_cmd_disassociate(struct wpa_ctrl *ctrl, int argc,
+@@ -388,7 +388,6 @@ static int hostapd_cli_cmd_disassociate(
  }
  
  
@@ -19,7 +8,7 @@ index 437c87d84..e7c60b254 100644
  static int hostapd_cli_cmd_signature(struct wpa_ctrl *ctrl, int argc,
  				     char *argv[])
  {
-@@ -401,7 +400,6 @@ static int hostapd_cli_cmd_signature(struct wpa_ctrl *ctrl, int argc,
+@@ -401,7 +400,6 @@ static int hostapd_cli_cmd_signature(str
  	os_snprintf(buf, sizeof(buf), "SIGNATURE %s", argv[0]);
  	return wpa_ctrl_command(ctrl, buf);
  }
@@ -27,7 +16,7 @@ index 437c87d84..e7c60b254 100644
  
  
  static int hostapd_cli_cmd_sa_query(struct wpa_ctrl *ctrl, int argc,
-@@ -418,7 +416,6 @@ static int hostapd_cli_cmd_sa_query(struct wpa_ctrl *ctrl, int argc,
+@@ -418,7 +416,6 @@ static int hostapd_cli_cmd_sa_query(stru
  }
  
  
@@ -35,7 +24,7 @@ index 437c87d84..e7c60b254 100644
  static int hostapd_cli_cmd_wps_pin(struct wpa_ctrl *ctrl, int argc,
  				   char *argv[])
  {
-@@ -644,7 +641,6 @@ static int hostapd_cli_cmd_wps_config(struct wpa_ctrl *ctrl, int argc,
+@@ -644,7 +641,6 @@ static int hostapd_cli_cmd_wps_config(st
  			 ssid_hex, argv[1]);
  	return wpa_ctrl_command(ctrl, buf);
  }
@@ -43,7 +32,7 @@ index 437c87d84..e7c60b254 100644
  
  
  static int hostapd_cli_cmd_disassoc_imminent(struct wpa_ctrl *ctrl, int argc,
-@@ -1579,13 +1575,10 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
+@@ -1532,13 +1528,10 @@ static const struct hostapd_cli_cmd host
  	{ "disassociate", hostapd_cli_cmd_disassociate,
  	  hostapd_complete_stations,
  	  "<addr> = disassociate a station" },
@@ -57,7 +46,7 @@ index 437c87d84..e7c60b254 100644
  	{ "wps_pin", hostapd_cli_cmd_wps_pin, NULL,
  	  "<uuid> <pin> [timeout] [addr] = add WPS Enrollee PIN" },
  	{ "wps_check_pin", hostapd_cli_cmd_wps_check_pin, NULL,
-@@ -1610,7 +1603,6 @@ static const struct hostapd_cli_cmd hostapd_cli_commands[] = {
+@@ -1563,7 +1556,6 @@ static const struct hostapd_cli_cmd host
  	  "<SSID> <auth> <encr> <key> = configure AP" },
  	{ "wps_get_status", hostapd_cli_cmd_wps_get_status, NULL,
  	  "= show current WPS status" },
@@ -65,6 +54,3 @@ index 437c87d84..e7c60b254 100644
  	{ "disassoc_imminent", hostapd_cli_cmd_disassoc_imminent, NULL,
  	  "= send Disassociation Imminent notification" },
  	{ "ess_disassoc", hostapd_cli_cmd_ess_disassoc, NULL,
--- 
-2.25.1
-
