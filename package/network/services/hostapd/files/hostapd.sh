@@ -1039,7 +1039,7 @@ hostapd_set_bss_options() {
 	fi
 	set_default proxy_arp 0
 	if [ "$proxy_arp" -gt 0 ]; then
-			append bss_conf "proxy_arp=$proxy_arp" "$N"
+		append bss_conf "proxy_arp=$proxy_arp" "$N"
 	fi
 
 	set_default per_sta_vif 0
