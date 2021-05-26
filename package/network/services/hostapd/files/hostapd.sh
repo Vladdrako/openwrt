@@ -120,7 +120,7 @@ hostapd_prepare_device_config() {
 
 	json_get_vars country country_ie beacon_int:100 dtim_period:2 doth require_mode legacy_rates \
 		acs_chan_bias local_pwr_constraint spectrum_mgmt_required airtime_mode cell_density vendor_vht \
-		rts_threshold beacon_rate
+		rts_threshold beacon_rate rssi_reject_assoc_rssi rssi_ignore_probe_request
 
 	hostapd_set_log_options base_cfg
 
@@ -212,6 +212,8 @@ hostapd_prepare_device_config() {
 		hostapd_add_rate brlist "$br"
 	done
 
+	[ -n "$rssi_reject_assoc_rssi" ] && append base_cfg "rssi_reject_assoc_rssi=$rssi_reject_assoc_rssi" "$N"
+	[ -n "$rssi_ignore_probe_request" ] && append base_cfg "rssi_ignore_probe_request=$rssi_ignore_probe_request" "$N"
 	[ -n "$beacon_rate" ] && append base_cfg "beacon_rate=$beacon_rate" "$N"
 	[ -n "$rlist" ] && append base_cfg "supported_rates=$rlist" "$N"
 	[ -n "$brlist" ] && append base_cfg "basic_rates=$brlist" "$N"
