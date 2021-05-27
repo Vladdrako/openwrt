@@ -1,5 +1,3 @@
-diff --git a/nl80211.h b/nl80211.h
-index 47700a2..09892ca 100644
 --- a/nl80211.h
 +++ b/nl80211.h
 @@ -655,6 +655,9 @@
@@ -34,13 +32,13 @@ index 47700a2..09892ca 100644
   * @__NL80211_CMD_AFTER_LAST: internal use
   */
 @@ -1407,6 +1415,8 @@ enum nl80211_commands {
-
+ 
  	NL80211_CMD_CONTROL_PORT_FRAME_TX_STATUS,
-
+ 
 +	NL80211_CMD_SET_SAR_SPECS,
 +
  	/* add new commands above here */
-
+ 
  	/* used to define NL80211_CMD_MAX below */
 @@ -1750,8 +1760,9 @@ enum nl80211_commands {
   *	specify just a single bitrate, which is to be used for the beacon.
@@ -99,14 +97,6 @@ index 47700a2..09892ca 100644
 + * @NL80211_ATTR_RECONNECT_REQUESTED: flag attribute, used with deauth and
 + *	disassoc events to indicate that an immediate reconnect to the AP
 + *	is desired.
-+ * @NL80211_ATTR_SAE_PWE: Indicates the mechanism(s) allowed for SAE PWE
-+ *	derivation in WPA3-Personal networks which are using SAE authentication.
-+ *	This is a u8 attribute that encapsulates one of the values from
-+ *	&enum nl80211_sae_pwe_mechanism.
-+ *
-+ * @NL80211_ATTR_RECONNECT_REQUESTED: flag attribute, used with deauth and
-+ *	disassoc events to indicate that an immediate reconnect to the AP
-+ *	is desired.
 + *
 + * @NL80211_ATTR_WIPHY_ANTENNA_GAIN: Configured antenna gain. Used to reduce
 + *	transmit power to stay within regulatory limits. u32, dBi.
@@ -159,7 +149,7 @@ index 47700a2..09892ca 100644
 +	NL80211_EXT_FEATURE_SECURE_LTF,
 +	NL80211_EXT_FEATURE_SECURE_RTT,
 +	NL80211_EXT_FEATURE_PROT_RANGE_NEGO_AND_MEASURE,
-
+ 
  	/* add new features before the definition below */
  	NUM_NL80211_EXT_FEATURES,
 @@ -6253,11 +6316,13 @@ struct nl80211_vendor_cmd_info {
@@ -174,7 +164,7 @@ index 47700a2..09892ca 100644
  	NL80211_TDLS_PEER_WMM = 1<<2,
 +	NL80211_TDLS_PEER_HE = 1<<3,
  };
-
+ 
  /**
 @@ -6849,6 +6914,9 @@ enum nl80211_peer_measurement_ftm_capa {
   *      if neither %NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED nor
@@ -191,7 +181,7 @@ index 47700a2..09892ca 100644
  	NL80211_PMSR_FTM_REQ_ATTR_TRIGGER_BASED,
  	NL80211_PMSR_FTM_REQ_ATTR_NON_TRIGGER_BASED,
 +	NL80211_PMSR_FTM_REQ_ATTR_LMR_FEEDBACK,
-
+ 
  	/* keep last */
  	NUM_NL80211_PMSR_FTM_REQ_ATTR,
 @@ -7124,4 +7193,115 @@ enum nl80211_unsol_bcast_probe_resp_attr
@@ -309,28 +299,4 @@ index 47700a2..09892ca 100644
 +	NL80211_SAR_ATTR_SPECS_MAX = __NL80211_SAR_ATTR_SPECS_LAST - 1,
 +};
 +
- #endif /* __LINUX_NL80211_H */
-@@ -7124,4 +7142,23 @@ enum nl80211_unsol_bcast_probe_resp_attributes {
- 	NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_MAX =
- 		__NL80211_UNSOL_BCAST_PROBE_RESP_ATTR_LAST - 1
- };
-+
-+/**
-+ * enum nl80211_sae_pwe_mechanism - The mechanism(s) allowed for SAE PWE
-+ *	derivation. Applicable only when WPA3-Personal SAE authentication is
-+ *	used.
-+ *
-+ * @NL80211_SAE_PWE_UNSPECIFIED: not specified, used internally to indicate that
-+ *	attribute is not present from userspace.
-+ * @NL80211_SAE_PWE_HUNT_AND_PECK: hunting-and-pecking loop only
-+ * @NL80211_SAE_PWE_HASH_TO_ELEMENT: hash-to-element only
-+ * @NL80211_SAE_PWE_BOTH: both hunting-and-pecking loop and hash-to-element
-+ *	can be used.
-+ */
-+enum nl80211_sae_pwe_mechanism {
-+	NL80211_SAE_PWE_UNSPECIFIED,
-+	NL80211_SAE_PWE_HUNT_AND_PECK,
-+	NL80211_SAE_PWE_HASH_TO_ELEMENT,
-+	NL80211_SAE_PWE_BOTH,
-+};
  #endif /* __LINUX_NL80211_H */
