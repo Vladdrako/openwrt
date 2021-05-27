@@ -597,12 +597,10 @@ hostapd_set_bss_options() {
 		sae|owe|eap192|eap-eap192)
 			set_default ieee80211w 2
 			set_default sae_require_mfp 1
-			set_default sae_pwe 0
 		;;
 		psk-sae)
 			set_default ieee80211w 1
 			set_default sae_require_mfp 1
-			set_default sae_pwe 0
 		;;
 	esac
 	[ -n "$sae_require_mfp" ] && append bss_conf "sae_require_mfp=$sae_require_mfp" "$N"
