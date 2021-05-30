@@ -167,8 +167,6 @@
 	mdio-bus {
 		status = "okay";
 
-		mediatek,mdio-mode;
-
 		phy0: ethernet-phy@0 {
 			status = "disabled";
 			reg = <0>;
