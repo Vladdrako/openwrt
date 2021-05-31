@@ -98,7 +98,7 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
  obj-$(CONFIG_NETFILTER_XT_TARGET_LED) += xt_LED.o
 --- /dev/null
 +++ b/net/netfilter/xt_FLOWOFFLOAD.c
-@@ -0,0 +1,427 @@
+@@ -0,0 +1,422 @@
 +/*
 + * Copyright (C) 2018 Felix Fietkau <nbd@nbd.name>
 + *
@@ -315,7 +315,6 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
 +		fl.u.ip4.flowi4_oif = ifindex;
 +		break;
 +	case NFPROTO_IPV6:
-+		fl.u.ip6.saddr = ct->tuplehash[dir].tuple.dst.u3.in6;
 +		fl.u.ip6.daddr = ct->tuplehash[dir].tuple.src.u3.in6;
 +		fl.u.ip6.flowi6_oif = ifindex;
 +		break;
@@ -333,13 +332,13 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
 +{
 +	struct dst_entry *this_dst, *other_dst;
 +
-+	this_dst = xt_flowoffload_dst(ct, !dir, par, xt_out(par)->ifindex);
++	this_dst = skb_dst(skb);
 +	other_dst = xt_flowoffload_dst(ct, dir, par, xt_in(par)->ifindex);
 +
 +	route->tuple[dir].dst		= this_dst;
 +	route->tuple[!dir].dst		= other_dst;
 +
-+	if (!this_dst || !other_dst)
++	if (!other_dst)
 +		return -ENOENT;
 +
 +	if (dst_xfrm(this_dst) || dst_xfrm(other_dst))
@@ -390,9 +389,6 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
 +	if (!nf_ct_is_confirmed(ct))
 +		return XT_CONTINUE;
 +
-+	if (!xt_in(par) || !xt_out(par))
-+		return XT_CONTINUE;
-+
 +	if (test_and_set_bit(IPS_OFFLOAD_BIT, &ct->status))
 +		return XT_CONTINUE;
 +
@@ -401,7 +397,6 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
 +	if (xt_flowoffload_route(skb, ct, par, &route, dir) == 0)
 +		flow = flow_offload_alloc(ct, &route);
 +
-+	dst_release(route.tuple[dir].dst);
 +	dst_release(route.tuple[!dir].dst);
 +
 +	if (!flow)
