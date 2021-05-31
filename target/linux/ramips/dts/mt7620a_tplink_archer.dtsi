@@ -105,6 +105,10 @@
 	status = "okay";
 };
 
+&gsw {
+	mediatek,port4 = "ephy";
+};
+
 &wmac {
 	ralink,mtd-eeprom = <&radio 0x0>;
 };
