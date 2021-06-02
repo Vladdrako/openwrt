@@ -1024,13 +1024,13 @@ hostapd_set_bss_options() {
 	fi
 
 	if [ "$eap_server" = "1" ]; then
-			append bss_conf "eap_server=1" "$N"
-			[ -n "$eap_user_file" ] && append bss_conf "eap_user_file=$eap_user_file" "$N"
-			[ -n "$ca_cert" ] && append bss_conf "ca_cert=$ca_cert" "$N"
-			[ -n "$server_cert" ] && append bss_conf "server_cert=$server_cert" "$N"
-			[ -n "$private_key" ] && append bss_conf "private_key=$private_key" "$N"
-			[ -n "$private_key_passwd" ] && append bss_conf "private_key_passwd=$private_key_passwd" "$N"
-			[ -n "$server_id" ] && append bss_conf "server_id=$server_id" "$N"
+		append bss_conf "eap_server=1" "$N"
+		[ -n "$eap_user_file" ] && append bss_conf "eap_user_file=$eap_user_file" "$N"
+		[ -n "$ca_cert" ] && append bss_conf "ca_cert=$ca_cert" "$N"
+		[ -n "$server_cert" ] && append bss_conf "server_cert=$server_cert" "$N"
+		[ -n "$private_key" ] && append bss_conf "private_key=$private_key" "$N"
+		[ -n "$private_key_passwd" ] && append bss_conf "private_key_passwd=$private_key_passwd" "$N"
+		[ -n "$server_id" ] && append bss_conf "server_id=$server_id" "$N"
 	fi
 
 	set_default multicast_to_unicast 0
