@@ -87,13 +87,8 @@ static void mt7620_hw_init(struct mt7620_gsw *gsw)
 		pr_info("gsw: mdio mode enabled\n");
 	}
 
-	if (gsw->ephy_disable) {
-		mtk_switch_w32(gsw, mtk_switch_r32(gsw, GSW_REG_GPC1) |
-			(gsw->ephy_base << 16) | (0x1f << 24),
-			GSW_REG_GPC1);
-
-		pr_info("gsw: internal ephy disabled\n");
-	} else if (gsw->ephy_base) {
+	if (gsw->ephy_base) {
+		/* set phy base addr to ephy_base */
 		mtk_switch_w32(gsw, mtk_switch_r32(gsw, GSW_REG_GPC1) |
 			(gsw->ephy_base << 16),
 			GSW_REG_GPC1);
@@ -213,8 +208,6 @@ int mtk_gsw_init(struct fe_priv *priv)
 	gsw = platform_get_drvdata(pdev);
 	priv->soc->swpriv = gsw;
 
-	gsw->ephy_disable = of_property_read_bool(np, "mediatek,ephy-disable");
-
 	gsw->mdio_mode = false;
 	mdiobus_node = of_get_child_by_name(eth_node, "mdio-bus");
 	if (mdiobus_node) {
@@ -224,7 +217,7 @@ int mtk_gsw_init(struct fe_priv *priv)
 		for_each_child_of_node(mdiobus_node, phy_node) {
 			id = of_get_property(phy_node, "reg", NULL);
 			if (id && (be32_to_cpu(*id) == 0x1f))
-				gsw->mdio_mode = gsw->ephy_disable = true;
+				gsw->mdio_mode = true;
 		}
 
 		of_node_put(mdiobus_node);
@@ -234,7 +227,7 @@ int mtk_gsw_init(struct fe_priv *priv)
 
 	if (of_property_read_u16(np, "mediatek,ephy-base-address", &val) == 0)
 		gsw->ephy_base = val;
-	else if (gsw->mdio_mode || gsw->ephy_disable)
+	else if (gsw->mdio_mode)
 		gsw->ephy_base = 8; /* free MDIO PHY addr 0-7 from internal EPHYs */
 	else
 		gsw->ephy_base = 0;
