@@ -120,6 +120,10 @@
 	};
 };
 
+&gsw {
+	mediatek,port4 = "ephy";
+};
+
 &state_default {
 	default {
 		groups = "i2c", "uartf";

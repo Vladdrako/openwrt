@@ -134,11 +134,6 @@
 	};
 };
 
-&ethernet {
-	pinctrl-names = "default";
-	pinctrl-0 = <&ephy_pins>;
-};
-
 &pcm {
 	status = "okay";
 };
@@ -156,6 +151,12 @@
 		groups = "mdio", "rgmii1";
 		function = "gpio";
 	};
+};
+
+&gsw {
+	mediatek,port4 = "ephy";
+	pinctrl-names = "default";
+	pinctrl-0 = <&ephy_pins>;
 };
 
 &pcie {
