@@ -115,10 +115,9 @@
 
 	mdio-bus {
 		status = "okay";
+		mediatek,mdio-mode = <1>;
 
-		mediatek,mdio-mode;
-
-		ethernet-phy@0 {
+		phy0: ethernet-phy@0 {
 			reg = <0>;
 			phy-mode = "rgmii";
 			qca,ar8327-initvals = <
@@ -128,11 +127,27 @@
 				0x94 0x00000000 /* PORT6_STATUS */
 			>;
 		};
-	};
-};
 
-&gsw {
-	mediatek,port4-gmac;
+		phy1: ethernet-phy@1 {
+			reg = <1>;
+			phy-mode = "rgmii";
+		};
+
+		phy2: ethernet-phy@2 {
+			reg = <2>;
+			phy-mode = "rgmii";
+		};
+
+		phy3: ethernet-phy@3 {
+			reg = <3>;
+			phy-mode = "rgmii";
+		};
+
+		phy4: ethernet-phy@4 {
+			reg = <4>;
+			phy-mode = "rgmii";
+		};
+	};
 };
 
 &pcie {

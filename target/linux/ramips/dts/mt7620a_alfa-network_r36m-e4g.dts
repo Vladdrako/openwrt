@@ -141,6 +141,10 @@
 	status = "okay";
 };
 
+&gsw {
+	mediatek,port4 = "ephy";
+};
+
 &i2c {
 	status = "okay";
 };
