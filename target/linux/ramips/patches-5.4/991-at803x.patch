@@ -9,8 +9,8 @@ Content-Transfer-Encoding: 8bit
 
 Signed-off-by: René van Dorst <opensource@vdorst.com>
 ---
- drivers/net/phy/at803x.c | 91 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 91 insertions(+)
+ drivers/net/phy/at803x.c | 93 +++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 92 insertions(+), 1 deletion(-)
 
 --- a/drivers/net/phy/at803x.c
 +++ b/drivers/net/phy/at803x.c
@@ -146,11 +146,18 @@ Signed-off-by: René van Dorst <opensource@vdorst.com>
  static struct phy_driver at803x_driver[] = {
  {
  	/* ATHEROS 8035 */
-@@ -461,6 +551,7 @@ static struct phy_driver at803x_driver[]
+@@ -485,12 +575,13 @@ static struct phy_driver at803x_driver[]
+ 	.name			= "Atheros 8031 ethernet",
+ 	.phy_id_mask		= AT803X_PHY_ID_MASK,
+ 	.probe			= at803x_probe,
++	.config_aneg		= at803x_config_aneg,
+ 	.config_init		= at803x_config_init,
+ 	.set_wol		= at803x_set_wol,
+ 	.get_wol		= at803x_get_wol,
  	.suspend		= at803x_suspend,
  	.resume			= at803x_resume,
- 	/* PHY_GBIT_FEATURES */
-+	.config_aneg		= at803x_config_aneg,
+-	.features               = PHY_GBIT_FEATURES,
++	.features               = PHY_GBIT_FIBRE_FEATURES,
  	.read_status		= at803x_read_status,
- 	.ack_interrupt		= at803x_ack_interrupt,
- 	.config_intr		= at803x_config_intr,
+ 	.aneg_done		= at803x_aneg_done,
+ 	.ack_interrupt		= &at803x_ack_interrupt,
