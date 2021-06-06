@@ -9,8 +9,8 @@ Content-Transfer-Encoding: 8bit
 
 Signed-off-by: René van Dorst <opensource@vdorst.com>
 ---
- drivers/net/phy/at803x.c | 86 +++++++++++++++++++++++++++++++++++++++-
- 1 file changed, 85 insertions(+), 1 deletion(-)
+ drivers/net/phy/at803x.c | 91 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 91 insertions(+)
 
 --- a/drivers/net/phy/at803x.c
 +++ b/drivers/net/phy/at803x.c
@@ -150,12 +150,3 @@ Signed-off-by: René van Dorst <opensource@vdorst.com>
  	.flags			= PHY_POLL_CABLE_TEST,
  	.probe			= at803x_probe,
  	.remove			= at803x_remove,
-@@ -1119,7 +1203,7 @@ static struct phy_driver at803x_driver[]
- 	.get_wol		= at803x_get_wol,
- 	.suspend		= at803x_suspend,
- 	.resume			= at803x_resume,
--	.features               = PHY_GBIT_FEATURES,
-+	.features               = PHY_GBIT_FIBRE_FEATURES,
- 	.read_status		= at803x_read_status,
- 	.aneg_done		= at803x_aneg_done,
- 	.ack_interrupt		= &at803x_ack_interrupt,

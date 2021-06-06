@@ -627,6 +627,14 @@ define Device/hiwifi_hc5962
 endef
 TARGET_DEVICES += hiwifi_hc5962
 
+define Device/hoelxun_yyets-le2
+  DEVICE_VENDOR := Hoelxun
+  DEVICE_MODEL := YYeTs-LE2
+  DEVICE_PACKAGES := kmod-mt7603 kmod-mt76x2 kmod-usb3 wpad-basic
+  IMAGE_SIZE := 32448k
+endef
+TARGET_DEVICES += hoelxun_yyets-le2
+
 define Device/iodata_wn-ax1167gr
   $(Device/dsa-migration)
   $(Device/uimage-lzma-loader)
@@ -780,6 +788,15 @@ define Device/jcg_y2
   DEVICE_PACKAGES := kmod-mt7615e kmod-mt7615-firmware kmod-usb3
 endef
 TARGET_DEVICES += jcg_y2
+
+define Device/jdcloud_re-sp-01b
+  SOC := mt7621
+  IMAGE_SIZE := 27328k
+  DEVICE_VENDOR := JDCloud
+  DEVICE_MODEL := RE-SP-01B
+  DEVICE_PACKAGES := kmod-fs-ext4 kmod-mt7603 kmod-mt7615e kmod-sdhci-mt7620 kmod-usb3 wpad-basic
+endef
+TARGET_DEVICES += jdcloud_re-sp-01b
 
 define Device/lenovo_newifi-d1
   $(Device/dsa-migration)
@@ -1290,6 +1307,15 @@ define Device/tplink_re650-v1
   IMAGE_SIZE := 14208k
 endef
 TARGET_DEVICES += tplink_re650-v1
+
+define Device/tplink_tl-wdr8620-v3
+  DEVICE_VENDOR := TP-Link
+  DEVICE_MODEL := TL-WDR8620
+  DEVICE_VARIANT := v3
+  DEVICE_PACKAGES := kmod-mt7615e kmod-mt7615-firmware kmod-usb3
+  IMAGE_SIZE := 16128k
+endef
+TARGET_DEVICES += tplink_tl-wdr8620-v3
 
 define Device/ubnt_edgerouter_common
   $(Device/dsa-migration)
