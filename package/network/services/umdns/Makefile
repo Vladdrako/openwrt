@@ -44,4 +44,8 @@ define Package/umdns/install
 	$(call InstallSeccomp,$(1),./files/umdns.json)
 endef
 
+ifdef CONFIG_GCC_VERSION_10
+	TARGET_CFLAGS += -Wno-error=array-bounds
+endif
+
 $(eval $(call BuildPackage,umdns))

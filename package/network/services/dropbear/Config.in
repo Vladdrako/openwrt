@@ -1,14 +1,13 @@
 menu "Configuration"
 	depends on PACKAGE_dropbear
 
-config DROPBEAR_CURVE25519
-	bool "Curve25519 support"
+menu "Public key algorithm selection"
+
+config DROPBEAR_RSA
+	bool "RSA support"
 	default y
 	help
-		This enables the following key exchange algorithm:
-		  curve25519-sha256@libssh.org
-
-		Increases binary size by about 4 kB (MIPS).
+		Enable support for the RSA public key algorithm.
 
 config DROPBEAR_ECC
 	bool "Elliptic curve cryptography (ECC)"
@@ -58,6 +57,27 @@ config DROPBEAR_ED25519
 
 		Increases binary size by about 12 kB (MIPS).
 
+config DROPBEAR_AUTOSEL_PK
+	def_bool y
+	depends on !(DROPBEAR_ECC || DROPBEAR_ED25519)
+	select DROPBEAR_RSA
+
+endmenu
+
+menu "Encryption algorithm selection"
+
+config DROPBEAR_AES128
+	bool "AES-128 support"
+	default y
+	help
+		This enables support for the 128-bit AES cipher
+
+config DROPBEAR_AES256
+	bool "AES-256 support"
+	default y
+	help
+		This enables support for the 256-bit AES cipher
+
 config DROPBEAR_CHACHA20POLY1305
 	bool "Chacha20-Poly1305 support"
 	default y
@@ -66,6 +86,39 @@ config DROPBEAR_CHACHA20POLY1305
 		  chacha20-poly1305@openssh.com
 
 		Increases binary size by about 4 kB (MIPS).
+
+config DROPBEAR_AUTOSEL_EA
+	def_bool y
+	depends on !(DROPBEAR_AES256 || DROPBEAR_CHACHA20POLY1305)
+	select DROPBEAR_AES128
+
+endmenu
+
+menu "Key exchange algorithm selection"
+
+config DROPBEAR_DH_GROUP14_SHA1
+	bool "Group 14 SHA-1"
+	default y
+
+config DROPBEAR_DH_GROUP14_SHA256
+	bool "Group 14 SHA-256"
+	default y
+
+config DROPBEAR_CURVE25519
+	bool "Curve25519 support"
+	default y
+	help
+		This enables the following key exchange algorithm:
+		  curve25519-sha256@libssh.org
+
+		Increases binary size by about 4 kB (MIPS).
+
+config DROPBEAR_AUTOSEL_KEX
+	def_bool y
+	depends on !(DROPBEAR_DH_GROUP14_SHA1 || DROPBEAR_CURVE25519)
+	select DROPBEAR_DH_GROUP14_SHA256
+
+endmenu
 
 config DROPBEAR_ZLIB
 	bool "Enable compression"
