@@ -56,7 +56,7 @@ $(call Package/iproute2/Default)
   VARIANT:=tctiny
   DEFAULT_VARIANT:=1
   PROVIDES:=tc
-  CONFLICTS:=tc-full
+  ALTERNATIVES:=200:/sbin/tc:/usr/libexec/tc-tiny
   DEPENDS:=+kmod-sched-core +libxtables +tc-mod-iptables +(PACKAGE_devlink||PACKAGE_rdma):libmnl
 endef
 
@@ -65,6 +65,7 @@ $(call Package/iproute2/Default)
   TITLE:=Traffic control utility (full)
   VARIANT:=tcfull
   PROVIDES:=tc
+  ALTERNATIVES:=300:/sbin/tc:/usr/libexec/tc-full
   DEPENDS:=+kmod-sched-core +libxtables +tc-mod-iptables +libbpf +(PACKAGE_devlink||PACKAGE_rdma):libmnl
 endef
 
@@ -185,11 +186,14 @@ define Package/ip-full/install
 endef
 
 define Package/tc-tiny/install
-	$(INSTALL_DIR) $(1)/usr/sbin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tc/tc $(1)/usr/sbin/
+	$(INSTALL_DIR) $(1)/usr/libexec
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tc/tc $(1)/usr/libexec/tc-tiny
 endef
 
-Package/tc-full/install = $(Package/tc-tiny/install)
+define Package/tc-full/install
+	$(INSTALL_DIR) $(1)/usr/libexec
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tc/tc $(1)/usr/libexec/tc-full
+endef
 
 define Package/tc-mod-iptables/install
 	$(INSTALL_DIR) $(1)/usr/lib/tc
