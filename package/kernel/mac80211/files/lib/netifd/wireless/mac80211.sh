@@ -137,6 +137,7 @@ mac80211_hostapd_setup_base() {
 		append base_cfg "acs_exclude_dfs=1" "$N"
 
 	json_get_vars noscan ht_coex vendor_vht
+	json_get_vars noscan ht_coex
 	json_get_values ht_capab_list ht_capab tx_burst
 	json_get_values channel_list channels
 
@@ -282,6 +283,7 @@ mac80211_hostapd_setup_base() {
 	[ "$hwmode" = "a" ] || enable_ac=0
 
 	if [ "$enable_ac" != "0" -o "$vendor_vht" = "1" ]; then
+	if [ "$enable_ac" != "0" ]; then
 		json_get_vars \
 			rxldpc:1 \
 			short_gi_80:1 \
@@ -395,7 +397,7 @@ mac80211_hostapd_setup_base() {
 			he_twt_required:0 \
 			he_spr_sr_control:0 \
 			he_spr_non_srg_obss_pd_max_offset:1 \
-			he_bss_color:64
+			he_bss_color
 
 		he_phy_cap=$(iw phy "$phy" info | awk -F "[()]" '/HE PHY Capabilities/ { print $2 }' | head -1)
 		he_phy_cap=${he_phy_cap:2}
@@ -403,7 +405,7 @@ mac80211_hostapd_setup_base() {
 		he_mac_cap=${he_mac_cap:2}
 
 		append base_cfg "ieee80211ax=1" "$N"
-		append base_cfg "he_bss_color=$he_bss_color" "$N"
+		[ -n "$he_bss_color" ] && append base_cfg "he_bss_color=$he_bss_color" "$N"
 		[ "$hwmode" = "a" ] && {
 			append base_cfg "he_oper_chwidth=$vht_oper_chwidth" "$N"
 			append base_cfg "he_oper_centr_freq_seg0_idx=$vht_center_seg0" "$N"
@@ -479,7 +481,7 @@ mac80211_hostapd_setup_bss() {
 		append hostapd_cfg "wds_sta=1" "$N"
 		[ -n "$wds_bridge" ] && append hostapd_cfg "wds_bridge=$wds_bridge" "$N"
 	}
-	[ "$start_disabled" -eq 1 ] && append hostapd_cfg "start_disabled=1" "$N"
+	[ "$staidx" -gt 0 -o "$start_disabled" -eq 1 ] && append hostapd_cfg "start_disabled=1" "$N"
 
 	cat >> /var/run/hostapd-$phy.conf <<EOF
 $hostapd_cfg
