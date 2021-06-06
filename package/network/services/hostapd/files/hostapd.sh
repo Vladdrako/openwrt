@@ -118,11 +118,11 @@ hostapd_prepare_device_config() {
 	local config="$1"
 	local driver="$2"
 
-	local base="${config%%.conf}"
 	local base_cfg=
 
 	json_get_vars country country_ie beacon_int:100 dtim_period:2 doth require_mode legacy_rates \
 		acs_chan_bias local_pwr_constraint spectrum_mgmt_required airtime_mode cell_density vendor_vht \
+		acs_chan_bias local_pwr_constraint spectrum_mgmt_required airtime_mode cell_density \
 		rts_threshold beacon_rate rssi_reject_assoc_rssi rssi_ignore_probe_request maxassoc
 
 	hostapd_set_log_options base_cfg
@@ -239,7 +239,7 @@ EOF
 
 hostapd_common_add_bss_config() {
 	config_add_string 'bssid:macaddr' 'ssid:string'
-	config_add_boolean wds wmm uapsd hidden utf8_ssid ppsk
+	config_add_boolean wds wmm uapsd hidden utf8_ssid
 
 	config_add_int maxassoc max_inactivity
 	config_add_boolean disassoc_low_ack isolate short_preamble skip_inactivity_poll
@@ -346,7 +346,7 @@ hostapd_common_add_bss_config() {
 
 	config_add_array airtime_sta_weight
 	config_add_int airtime_bss_weight airtime_bss_limit
-	
+
 	config_add_boolean multicast_to_unicast proxy_arp per_sta_vif
 
 	config_add_array hostapd_bss_options
@@ -525,8 +525,9 @@ hostapd_set_bss_options() {
 		iapp_interface eapol_version dynamic_vlan ieee80211w nasid \
 		acct_server acct_secret acct_port acct_interval \
 		bss_load_update_period chan_util_avg_period sae_require_mfp sae_pwe \
+		bss_load_update_period chan_util_avg_period sae_require_mfp \
 		multi_ap multi_ap_backhaul_ssid multi_ap_backhaul_key skip_inactivity_poll \
-		airtime_bss_weight airtime_bss_limit airtime_sta_weight ppsk \
+		airtime_bss_weight airtime_bss_limit airtime_sta_weight \
 		multicast_to_unicast proxy_arp per_sta_vif \
 		eap_server eap_user_file ca_cert server_cert private_key private_key_passwd server_id
 
@@ -550,7 +551,6 @@ hostapd_set_bss_options() {
 	set_default airtime_bss_weight 0
 	set_default airtime_bss_limit 0
 	set_default eap_server 0
-	set_default ppsk 0
 
 	append bss_conf "ctrl_interface=/var/run/hostapd"
 	if [ "$isolate" -gt 0 ]; then
@@ -627,15 +627,7 @@ hostapd_set_bss_options() {
 		;;
 		psk|sae|psk-sae)
 			json_get_vars key wpa_psk_file
-			if [ "$auth_type" = "psk" ] && [ "$ppsk" -ne 0 ] ; then
-				json_get_vars auth_server auth_secret auth_port
-				set_default auth_port 1812
-				append bss_conf "auth_server_addr=$auth_server" "$N"
-				append bss_conf "auth_server_port=$auth_port" "$N"
-				append bss_conf "auth_server_shared_secret=$auth_secret" "$N"
-				append bss_conf "macaddr_acl=2" "$N"
-				append bss_conf "wpa_psk_radius=2" "$N"
-			elif [ ${#key} -eq 64 ]; then
+			if [ ${#key} -eq 64 ]; then
 				append bss_conf "wpa_psk=$key" "$N"
 			elif [ ${#key} -ge 8 ] && [ ${#key} -le 63 ]; then
 				append bss_conf "wpa_passphrase=$key" "$N"
@@ -704,7 +696,7 @@ hostapd_set_bss_options() {
 		;;
 	esac
 
-	local auth_algs="$((($auth_mode_shared << 1) | $auth_mode_open))"
+	local auth_algs=$((($auth_mode_shared << 1) | $auth_mode_open))
 	append bss_conf "auth_algs=${auth_algs:-1}" "$N"
 	append bss_conf "wpa=$wpa" "$N"
 	[ -n "$wpa_pairwise" ] && append bss_conf "wpa_pairwise=$wpa_pairwise" "$N"
