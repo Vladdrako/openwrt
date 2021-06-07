@@ -1,0 +1,229 @@
+--- a/drivers/usb/core/hub.c
++++ b/drivers/usb/core/hub.c
+@@ -539,8 +539,8 @@
+ }
+ 
+ /* use a short timeout for hub/port status fetches */
+-#define	USB_STS_TIMEOUT		1000
+-#define	USB_STS_RETRIES		5
++#define	USB_STS_INITIAL_TIMEOUT	17
++#define	USB_STS_RETRIES		25
+ 
+ /*
+  * USB 2.0 spec Section 11.24.2.6
+@@ -551,10 +551,12 @@
+ 	int i, status = -ETIMEDOUT;
+ 
+ 	for (i = 0; i < USB_STS_RETRIES &&
+-			(status == -ETIMEDOUT || status == -EPIPE); i++) {
++			(status == -ETIMEDOUT || status == -EPIPE || status == -EPROTO); i++) {
+ 		status = usb_control_msg(hdev, usb_rcvctrlpipe(hdev, 0),
+ 			USB_REQ_GET_STATUS, USB_DIR_IN | USB_RT_HUB, 0, 0,
+-			data, sizeof(*data), USB_STS_TIMEOUT);
++			data, sizeof(*data), USB_STS_INITIAL_TIMEOUT + i*i);
++		if (status != -ETIMEDOUT)
++			usleep_range(17000, 20000);
+ 	}
+ 	return status;
+ }
+@@ -569,10 +571,12 @@
+ 	int i, status = -ETIMEDOUT;
+ 
+ 	for (i = 0; i < USB_STS_RETRIES &&
+-			(status == -ETIMEDOUT || status == -EPIPE); i++) {
++			(status == -ETIMEDOUT || status == -EPIPE || status == -EPROTO); i++) {
+ 		status = usb_control_msg(hdev, usb_rcvctrlpipe(hdev, 0),
+ 			USB_REQ_GET_STATUS, USB_DIR_IN | USB_RT_PORT, value,
+-			port1, data, length, USB_STS_TIMEOUT);
++			port1, data, length, USB_STS_INITIAL_TIMEOUT + i*i);
++		if (status == -ETIMEDOUT)
++			usleep_range(17000, 20000);
+ 	}
+ 	return status;
+ }
+@@ -2716,7 +2720,7 @@
+ #define PORT_RESET_TRIES	5
+ #define SET_ADDRESS_TRIES	2
+ #define GET_DESCRIPTOR_TRIES	2
+-#define GET_MAXPACKET0_TRIES	3
++#define GET_MAXPACKET0_TRIES	67
+ #define PORT_INIT_TRIES		4
+ #endif	/* CONFIG_USB_FEW_INIT_RETRIES */
+ 
+@@ -3064,7 +3068,7 @@
+ 		int status, u16 portchange, u16 portstatus)
+ {
+ 	struct usb_port *port_dev = hub->ports[port1 - 1];
+-	int retries = 3;
++	int retries = 67;
+ 
+  retry:
+ 	/* Is a warm reset needed to recover the connection? */
+@@ -3594,7 +3598,7 @@
+ 		status = hub_port_status(hub, port1, &portstatus, &portchange);
+ 
+ 		/* TRSMRCY = 10 msec */
+-		msleep(10);
++		usleep_range(17000, 20000);
+ 	}
+ 
+  SuspendCleared:
+@@ -3681,7 +3685,7 @@
+ 
+ 	if (udev) {
+ 		/* TRSMRCY = 10 msec */
+-		msleep(10);
++		usleep_range(17000, 20000);
+ 
+ 		usb_unlock_port(port_dev);
+ 		ret = usb_remote_wakeup(udev);
+@@ -4704,6 +4708,7 @@
+ 			for (operations = 0; operations < GET_MAXPACKET0_TRIES;
+ 					++operations) {
+ 				buf->bMaxPacketSize0 = 0;
++				buf->bDescriptorType = 0;
+ 				r = usb_control_msg(udev, usb_rcvaddr0pipe(),
+ 					USB_REQ_GET_DESCRIPTOR, USB_DIR_IN,
+ 					USB_DT_DEVICE << 8, 0,
+@@ -4764,12 +4769,13 @@
+ 		if (udev->wusb == 0) {
+ 			for (operations = 0; operations < SET_ADDRESS_TRIES; ++operations) {
+ 				retval = hub_set_address(udev, devnum);
+-				if (retval >= 0)
++				if (retval >= 0 || retval == -EINVAL || retval == -EPROTO)
+ 					break;
+-				msleep(200);
++				if (retval != -ETIMEDOUT)
++					msleep(1 + operations*3);
+ 			}
+ 			if (retval < 0) {
+-				if (retval != -ENODEV)
++				if (retval != -ENODEV || retval != -EINVAL)
+ 					dev_err(&udev->dev, "device not accepting address %d, error %d\n",
+ 							devnum, retval);
+ 				goto fail;
+--- a/drivers/usb/core/message.c
++++ b/drivers/usb/core/message.c
+@@ -787,7 +787,7 @@
+ 
+ 	memset(buf, 0, size);	/* Make sure we parse really received data */
+ 
+-	for (i = 0; i < 3; ++i) {
++	for (i = 0; i < 67; ++i) {
+ 		/* retry on length 0 or error; some devices are flakey */
+ 		result = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
+ 				USB_REQ_GET_DESCRIPTOR, USB_DIR_IN,
+@@ -833,7 +833,7 @@
+ 	int i;
+ 	int result;
+ 
+-	for (i = 0; i < 3; ++i) {
++	for (i = 0; i < 67; ++i) {
+ 		/* retry on length 0 or stall; some devices are flakey */
+ 		result = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
+ 			USB_REQ_GET_DESCRIPTOR, USB_DIR_IN,
+--- a/drivers/usb/host/xhci.c
++++ b/drivers/usb/host/xhci.c
+@@ -4073,6 +4073,7 @@
+ 	struct xhci_input_control_ctx *ctrl_ctx;
+ 	u64 temp_64;
+ 	struct xhci_command *command = NULL;
++	int retries = 0;
+ 
+ 	mutex_lock(&xhci->mutex);
+ 
+@@ -4144,6 +4145,7 @@
+ 	trace_xhci_address_ctx(xhci, virt_dev->in_ctx,
+ 				le32_to_cpu(slot_ctx->dev_info) >> 27);
+ 
++ retry:
+ 	trace_xhci_address_ctrl_ctx(ctrl_ctx);
+ 	spin_lock_irqsave(&xhci->lock, flags);
+ 	trace_xhci_setup_device(virt_dev);
+@@ -4178,6 +4180,10 @@
+ 		ret = -EINVAL;
+ 		break;
+ 	case COMP_USB_TRANSACTION_ERROR:
++		if (retries++ < 67) {
++			usleep_range(1000 + retries*100, 20000);
++			goto retry;
++		}
+ 		dev_warn(&udev->dev, "Device not responding to setup %s.\n", act);
+ 
+ 		mutex_unlock(&xhci->mutex);
+--- a/drivers/usb/host/ehci.h
++++ b/drivers/usb/host/ehci.h
+@@ -423,7 +423,7 @@
+ #define	QH_STATE_COMPLETING	5		/* don't touch token.HALT */
+ 
+ 	u8			xacterrs;	/* XactErr retry counter */
+-#define	QH_XACTERR_MAX		32		/* XactErr retry limit */
++#define	QH_XACTERR_MAX		67		/* XactErr retry limit */
+ 
+ 	u8			unlink_reason;
+ #define QH_UNLINK_HALTED	0x01		/* Halt flag is set */
+--- a/drivers/usb/host/fotg210.h
++++ b/drivers/usb/host/fotg210.h
+@@ -455,7 +455,7 @@
+ #define	QH_STATE_COMPLETING	5		/* don't touch token.HALT */
+ 
+ 	u8			xacterrs;	/* XactErr retry counter */
+-#define	QH_XACTERR_MAX		32		/* XactErr retry limit */
++#define	QH_XACTERR_MAX		67		/* XactErr retry limit */
+ 
+ 	/* periodic schedule info */
+ 	u8			usecs;		/* intr bandwidth */
+--- a/drivers/usb/host/xhci-hub.c
++++ b/drivers/usb/host/xhci-hub.c
+@@ -1352,7 +1352,7 @@
+ 			}
+ 
+ 			if (link_state == USB_SS_PORT_LS_U3) {
+-				int retries = 16;
++				int retries = 0;
+ 				slot_id = xhci_find_slot_id_by_port(hcd, xhci,
+ 						wIndex + 1);
+ 				if (slot_id) {
+@@ -1365,8 +1365,8 @@
+ 				}
+ 				xhci_set_link_state(xhci, ports[wIndex], USB_SS_PORT_LS_U3);
+ 				spin_unlock_irqrestore(&xhci->lock, flags);
+-				while (retries--) {
+-					usleep_range(4000, 8000);
++				while (retries++ < 67) {
++					usleep_range(2000 + retries*100, 10000);
+ 					temp = readl(ports[wIndex]->addr);
+ 					if ((temp & PORT_PLS_MASK) == XDEV_U3)
+ 						break;
+@@ -1624,7 +1624,7 @@
+ 	port_index = max_ports;
+ 	while (port_index--) {
+ 		u32 t1, t2;
+-		int retries = 10;
++		int retries = 67;
+ retry:
+ 		t1 = readl(ports[port_index]->addr);
+ 		t2 = xhci_port_state_to_neutral(t1);
+--- a/drivers/usb/host/xhci.h
++++ b/drivers/usb/host/xhci.h
+@@ -458,7 +458,7 @@
+  * so check status 10 times with 36ms sleep in places we need to wait for
+  * polling to complete.
+  */
+-#define XHCI_PORT_POLLING_LFPS_TIME  36
++#define XHCI_PORT_POLLING_LFPS_TIME  10
+ 
+ /**
+  * struct xhci_intr_reg - Interrupt Register Set
+--- a/drivers/usb/core/quirks.c
++++ b/drivers/usb/core/quirks.c
+@@ -334,6 +334,9 @@
+ 	/* Genesys Logic hub, internally used by Moshi USB to Ethernet Adapter */
+ 	{ USB_DEVICE(0x05e3, 0x0616), .driver_info = USB_QUIRK_NO_LPM },
+ 
++	/* Genesys Logic hub (GL3523), internally used by Rocketek 4 USB3.0 hub */
++	{ USB_DEVICE(0x05e3, 0x0620), .driver_info = USB_QUIRK_NO_LPM },
++
+ 	/* Avision AV600U */
+ 	{ USB_DEVICE(0x0638, 0x0a13), .driver_info =
+ 	  USB_QUIRK_STRING_FETCH_255 },

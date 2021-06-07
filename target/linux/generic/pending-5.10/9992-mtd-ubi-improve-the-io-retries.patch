@@ -1,0 +1,37 @@
+--- a/drivers/mtd/ubi/io.c
++++ b/drivers/mtd/ubi/io.c
+@@ -133,4 +133,7 @@
+ 	dbg_io("read %d bytes from PEB %d:%d", len, pnum, offset);
+ 
++	if (ubi == 0 || buf == 0)
++		return -EINVAL;
++
+ 	ubi_assert(pnum >= 0 && pnum < ubi->peb_count);
+ 	ubi_assert(offset >= 0 && offset + len <= ubi->peb_size);
+@@ -186,8 +186,7 @@
+ 			return UBI_IO_BITFLIPS;
+ 		}
+ 
+-		if (retries++ < UBI_IO_RETRIES) {
++		if (retries++ < UBI_IO_RETRIES*UBI_IO_RETRIES) {
+ 			ubi_warn(ubi, "error %d%s while reading %d bytes from PEB %d:%d, read only %zd bytes, retry",
+ 				 err, errstr, len, pnum, offset, read);
+-			yield();
+			goto retry;
+@@ -345,5 +345,4 @@
+			ubi_warn(ubi, "error %d while erasing PEB %d, retry",
+				 err, pnum);
+-			yield();
+			goto retry;
+		}
+--- a/drivers/mtd/ubi/ubi.h
++++ b/drivers/mtd/ubi/ubi.h
+@@ -63,7 +63,7 @@ void ubi_err(const struct ubi_device *ubi, const char *fmt, ...);
+  * In case of errors, UBI tries to repeat the operation several times before
+  * returning error. The below constant defines how many times UBI re-tries.
+  */
+-#define UBI_IO_RETRIES 3
++#define UBI_IO_RETRIES 13
+ 
+ /*
+  * Length of the protection queue. The length is effectively equivalent to the
