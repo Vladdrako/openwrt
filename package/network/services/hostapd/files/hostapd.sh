@@ -100,7 +100,6 @@ hostapd_common_add_device_config() {
 	config_add_string require_mode
 	config_add_boolean legacy_rates
 	config_add_int cell_density
-	config_add_boolean vendor_vht
 	config_add_int rts_threshold
 	config_add_int rssi_reject_assoc_rssi
 	config_add_int rssi_ignore_probe_request
@@ -121,7 +120,6 @@ hostapd_prepare_device_config() {
 	local base_cfg=
 
 	json_get_vars country country_ie beacon_int:100 dtim_period:2 doth require_mode legacy_rates \
-		acs_chan_bias local_pwr_constraint spectrum_mgmt_required airtime_mode cell_density vendor_vht \
 		acs_chan_bias local_pwr_constraint spectrum_mgmt_required airtime_mode cell_density \
 		rts_threshold beacon_rate rssi_reject_assoc_rssi rssi_ignore_probe_request maxassoc
 
@@ -191,7 +189,6 @@ hostapd_prepare_device_config() {
 				set_default rate_list "24000 36000 48000 54000"
 				set_default basic_rate_list "24000"
 			fi
-			[ -n "$vendor_vht" ] && append base_cfg "vendor_vht=$vendor_vht" "$N"
 		;;
 		a)
 			if [ "$cell_density" -eq 1 ]; then
@@ -322,7 +319,6 @@ hostapd_common_add_bss_config() {
 	config_add_array supported_rates
 
 	config_add_boolean sae_require_mfp
-	config_add_int sae_pwe
 
 	config_add_string 'owe_transition_bssid:macaddr' 'owe_transition_ssid:string'
 
@@ -524,7 +520,6 @@ hostapd_set_bss_options() {
 		macfilter ssid utf8_ssid wmm uapsd hidden short_preamble rsn_preauth \
 		iapp_interface eapol_version dynamic_vlan ieee80211w nasid \
 		acct_server acct_secret acct_port acct_interval \
-		bss_load_update_period chan_util_avg_period sae_require_mfp sae_pwe \
 		bss_load_update_period chan_util_avg_period sae_require_mfp \
 		multi_ap multi_ap_backhaul_ssid multi_ap_backhaul_key skip_inactivity_poll \
 		airtime_bss_weight airtime_bss_limit airtime_sta_weight \
@@ -609,7 +604,6 @@ hostapd_set_bss_options() {
 		;;
 	esac
 	[ -n "$sae_require_mfp" ] && append bss_conf "sae_require_mfp=$sae_require_mfp" "$N"
-	[ -n "$sae_pwe" ] && append bss_conf "sae_pwe=$sae_pwe" "$N"
 
 	local vlan_possible=""
 
