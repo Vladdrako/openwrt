@@ -141,6 +141,17 @@ void fe_reset(u32 reset_bits)
 	usleep_range(10, 20);
 }
 
+void fe_reset_fe(struct fe_priv *priv)
+{
+	if (!priv->rst_fe)
+		return;
+
+	reset_control_assert(priv->rst_fe);
+	usleep_range(60, 120);
+	reset_control_deassert(priv->rst_fe);
+	usleep_range(60, 120);
+}
+
 static inline void fe_int_disable(u32 mask)
 {
 	fe_reg_w32(fe_reg_r32(FE_REG_FE_INT_ENABLE) & ~mask,
@@ -1343,7 +1354,10 @@ static int __init fe_init(struct net_device *dev)
 	u32 val;
 	int err;
 
-	priv->soc->reset_fe(priv);
+	if (priv->soc->reset_fe)
+		priv->soc->reset_fe(priv);
+	else
+		fe_reset_fe(priv);
 
 	if (priv->soc->switch_init)
 		if (priv->soc->switch_init(priv)) {
@@ -1585,6 +1599,12 @@ static int fe_probe(struct platform_device *pdev)
 		goto err_free_dev;
 	}
 
+	priv = netdev_priv(netdev);
+	spin_lock_init(&priv->page_lock);
+	priv->rst_fe = devm_reset_control_get(&pdev->dev, "fe");
+	if (IS_ERR(priv->rst_fe))
+		priv->rst_fe = NULL;
+
 	if (soc->init_data)
 		soc->init_data(soc, netdev);
 	netdev->vlan_features = netdev->hw_features &
@@ -1599,8 +1619,6 @@ static int fe_probe(struct platform_device *pdev)
 	if (fe_reg_table[FE_REG_FE_DMA_VID_BASE])
 		netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
-	priv = netdev_priv(netdev);
-	spin_lock_init(&priv->page_lock);
 	if (fe_reg_table[FE_REG_FE_COUNTER_BASE]) {
 		priv->hw_stats = kzalloc(sizeof(*priv->hw_stats), GFP_KERNEL);
 		if (!priv->hw_stats) {
