@@ -133,6 +133,12 @@
 	status = "okay";
 };
 
+&ethernet {
+	port@4 {
+		status = "okay";
+	};
+};
+
 &state_default {
 	default {
 		groups = "spi refclk", "i2c", "ephy", "wled";
