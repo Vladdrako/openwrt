@@ -99,6 +99,10 @@
 	};
 };
 
+&gsw {
+	mediatek,port4 = "gmac";
+};
+
 &pcie {
 	status = "okay";
 };
