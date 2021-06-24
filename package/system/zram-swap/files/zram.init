@@ -65,8 +65,7 @@ zram_setup_dev()
 	local zram_comp_algo="$( uci -q get system.@system[0].zram_comp_algo )"
 	local zram_exp_ratio="$( uci -q get system.@system[0].zram_comp_ratio )"
 	local zram_ram_percent="$( uci -q get system.@system[0].zram_ram_percentage )"
-	local zram_priority="$( uci -q get system.@system[0].zram_priority )"
-	zram_priority=${zram_priority:+-p $zram_priority}
+	local zram_priority=`cat /proc/swaps | tail -n +2 | awk '{print $5}' | sort | tail -n 1 | { grep . || echo -1; }`
 
 	if [ -z "$zram_comp_algo" ]; then
 		# default to lzo, which is always available
@@ -95,7 +94,7 @@ zram_setup_dev()
 	echo $zram_size > "/sys/block/$( basename "$dev" )/disksize"
 
 	/sbin/mkswap "$dev"
-	/sbin/swapon -d $zram_priority "$dev"
+	/sbin/swapon -d -p "$(( $zram_priority < 0 ? 0 : $zram_priority+1 ))" "$zram_dev"
 
 }
 
