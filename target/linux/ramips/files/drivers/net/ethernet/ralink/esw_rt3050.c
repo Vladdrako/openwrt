@@ -17,11 +17,9 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <asm/mach-ralink/ralink_regs.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
 
 #include <linux/switch.h>
-#include <linux/reset.h>
 
 #include "mtk_eth_soc.h"
 
@@ -174,6 +172,7 @@
 
 #define RT5350_ESW_REG_PXTPC(_x)	(0x150 + (4 * _x))
 #define RT5350_EWS_REG_LED_POLARITY	0x168
+#define RT5350_RESET_EPHY		BIT(24)
 
 enum {
 	/* Global attributes. */
@@ -233,8 +232,6 @@ struct rt305x_esw {
 	int			led_frequency;
 	struct esw_vlan vlans[RT305X_ESW_NUM_VLANS];
 	struct esw_port ports[RT305X_ESW_NUM_PORTS];
-	struct reset_control	*rst_esw;
-	struct reset_control	*rst_ephy;
 
 };
 
@@ -255,29 +252,6 @@ static inline void esw_rmw_raw(struct rt305x_esw *esw, unsigned reg,
 
 	t = __raw_readl(esw->base + reg) & ~mask;
 	__raw_writel(t | val, esw->base + reg);
-}
-
-static void esw_reset(struct rt305x_esw *esw)
-{
-	if (!esw->rst_esw)
-		return;
-
-	reset_control_assert(esw->rst_esw);
-	usleep_range(60, 120);
-	reset_control_deassert(esw->rst_esw);
-	/* the esw takes long to reset otherwise the board hang */
-	msleep(10);
-}
-
-static void esw_reset_ephy(struct rt305x_esw *esw)
-{
-	if (!esw->rst_ephy)
-		return;
-
-	reset_control_assert(esw->rst_ephy);
-	usleep_range(60, 120);
-	reset_control_deassert(esw->rst_ephy);
-	usleep_range(60, 120);
 }
 
 static void esw_rmw(struct rt305x_esw *esw, unsigned reg,
@@ -531,7 +505,8 @@ static void esw_hw_init(struct rt305x_esw *esw)
 		esw->ports[i].disable = (port_disable & (1 << i)) != 0;
 
 	if (ralink_soc == RT305X_SOC_RT3352) {
-		esw_reset_ephy(esw);
+		/* reset EPHY */
+		fe_reset(RT5350_RESET_EPHY);
 
 		rt305x_mii_write(esw, 0, 31, 0x8000);
 		for (i = 0; i < 5; i++) {
@@ -581,7 +556,8 @@ static void esw_hw_init(struct rt305x_esw *esw)
 		/* select local register */
 		rt305x_mii_write(esw, 0, 31, 0x8000);
 	} else if (ralink_soc == RT305X_SOC_RT5350) {
-		esw_reset_ephy(esw);
+		/* reset EPHY */
+		fe_reset(RT5350_RESET_EPHY);
 
 		/* set the led polarity */
 		esw_w32(esw, esw->reg_led_polarity & 0x1F,
@@ -638,7 +614,8 @@ static void esw_hw_init(struct rt305x_esw *esw)
 	} else if (ralink_soc == MT762X_SOC_MT7628AN || ralink_soc == MT762X_SOC_MT7688) {
 		int i;
 
-		esw_reset_ephy(esw);
+		/* reset EPHY */
+		fe_reset(RT5350_RESET_EPHY);
 
 		/* set the led polarity */
 		esw_w32(esw, esw->reg_led_polarity & 0x1F,
@@ -1407,13 +1384,6 @@ static int esw_probe(struct platform_device *pdev)
 	reg_init = of_get_property(np, "mediatek,led_polarity", NULL);
 	if (reg_init)
 		esw->reg_led_polarity = be32_to_cpu(*reg_init);
-
-	esw->rst_esw = devm_reset_control_get(&pdev->dev, "esw");
-	if (IS_ERR(esw->rst_esw))
-		esw->rst_esw = NULL;
-	esw->rst_ephy = devm_reset_control_get(&pdev->dev, "ephy");
-	if (IS_ERR(esw->rst_ephy))
-		esw->rst_ephy = NULL;
 
 	swdev = &esw->swdev;
 	swdev->of_node = pdev->dev.of_node;
