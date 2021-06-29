@@ -8,13 +8,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qBittorrent
-PKG_VERSION:=4.3.5.10
+PKG_VERSION:=4.3.6.10
 PKG_RELEASE=0
 
 PKG_SOURCE:=release-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://github.com/c0re100/qBittorrent-Enhanced-Edition/archive
 PKG_BUILD_DIR:=$(BUILD_DIR)/qBittorrent-Enhanced-Edition-release-$(PKG_VERSION)
-PKG_HASH:=fad92853b0d2473153f46d27caefac2776f02218ac94e35aabe81bfdbbc43a69
+PKG_HASH:=2e490ff1ccc85b339761d3f5fbc149bb085c3664ad6be93152af4946bf310303
 
 PKG_MAINTAINER:=Krypton Lee <jun.k.lee199410@outlook.com>
 PKG_LICENSE:=GPL-2.0+
