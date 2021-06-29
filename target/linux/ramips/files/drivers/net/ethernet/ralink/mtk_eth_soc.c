@@ -1343,7 +1343,7 @@ static int __init fe_init(struct net_device *dev)
 	u32 val;
 	int err;
 
-	priv->soc->reset_fe(priv);
+	priv->soc->reset_fe();
 
 	if (priv->soc->switch_init)
 		if (priv->soc->switch_init(priv)) {
