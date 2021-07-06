@@ -58,7 +58,7 @@ define Build/Compile/kmod
 		$(PKG_MAKE_FLAGS) \
 		M="$(PKG_BUILD_DIR)" \
 		CONFIG_FAST_CLASSIFIER=m \
-		EXTRA_CFLAGS="$(EXTRA_CFLAGS) -I$(LINUX_DIR)/net/shortcut-fe" \
+		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" \
 		modules
 endef
 
