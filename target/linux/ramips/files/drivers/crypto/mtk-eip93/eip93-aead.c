@@ -5,7 +5,6 @@
  * Richard van Schagen <vschagen@cs.com>
  */
 #define DEBUG 1
-#include <linux/dev_printk.h>
 #include <crypto/aead.h>
 #include <crypto/aes.h>
 #include <crypto/authenc.h>
@@ -14,13 +13,18 @@
 #include <crypto/internal/aead.h>
 #include <crypto/md5.h>
 #include <crypto/null.h>
-#include <crypto/sha.h>
+//#include <crypto/sha.h>
+#include <crypto/hash_info.h>
 
 #ifdef CONFIG_EIP93_DES
 #include <crypto/internal/des.h>
 #endif
 
 #include <linux/types.h>
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#include <linux/dev_printk.h>
+#endif
 
 #include "eip93-common.h"
 #include "eip93-main.h"

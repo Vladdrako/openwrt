@@ -5,9 +5,12 @@
  * Richard van Schagen <vschagen@cs.com>
  */
 
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 #include <linux/dev_printk.h>
-#include <linux/device.h>
+#endif
 #include <linux/dma-mapping.h>
+
 #include "eip93-common.h"
 #include "eip93-main.h"
 #include "eip93-regs.h"

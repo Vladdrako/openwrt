@@ -7,6 +7,8 @@
 #ifndef _CIPHER_H_
 #define _CIPHER_H_
 
+#include <crypto/skcipher.h>
+
 struct mtk_cipher_ctx {
 	struct mtk_device		*mtk;
 	struct saRecord_s		*sa;

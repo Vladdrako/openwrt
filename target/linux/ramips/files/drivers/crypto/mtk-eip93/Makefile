@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-obj-m := crypto-hw-eip93.o
+obj-$(CONFIG_CRYPTO_DEV_EIP93) := crypto-hw-eip93.o
 
 crypto-hw-eip93-y := eip93-main.o eip93-ring.o eip93-common.o
 

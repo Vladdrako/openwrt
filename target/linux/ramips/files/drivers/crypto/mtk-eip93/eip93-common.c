@@ -14,7 +14,8 @@
 #include <crypto/md5.h>
 #include <crypto/null.h>
 #include <crypto/scatterwalk.h>
-#include <crypto/sha.h>
+//#include <crypto/sha.h>
+#include <crypto/hash_info.h>
 
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>

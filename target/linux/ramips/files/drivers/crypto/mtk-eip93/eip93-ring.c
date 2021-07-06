@@ -5,7 +5,10 @@
  * Richard van Schagen <vschagen@cs.com>
  */
 
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 #include <linux/dev_printk.h>
+#endif
 #include "eip93-common.h"
 #include "eip93-main.h"
 

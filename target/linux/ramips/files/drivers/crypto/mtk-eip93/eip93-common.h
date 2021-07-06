@@ -18,8 +18,10 @@
 
 #include "eip93-cipher.h"
 
-#define MTK_RING_SIZE			256
-#define MTK_RING_BUSY			224
+#define MTK_RING_SIZE			1024	// 256
+#define MTK_RING_BUSY_PART		8
+#define MTK_RING_BUSY			(MTK_RING_SIZE-(MTK_RING_SIZE/MTK_RING_BUSY_PART))
+						// 224
 #define NUM_AES_BYPASS			256
 #define MTK_QUEUE_LENGTH		128
 #define MTK_CRA_PRIORITY		1500
