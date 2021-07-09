@@ -39,10 +39,22 @@ Shortcut is an in-Linux-kernel IP packet forwarding engine.
 endef
 
 define KernelPackage/shortcut-fe/install
-	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) ./files/usr/bin/sfe_dump $(1)/usr/bin
-	$(INSTALL_BIN) ./files/etc/config/sfe $(1)/etc/config
-	$(INSTALL_BIN) ./files/etc/init.d/sfe $(1)/etc/init.d
+	$(INSTALL_DIR) \
+		$(INSTALL_DIR) $(1)/usr/bin \
+		$(INSTALL_DIR) $(1)/etc/config \
+		$(INSTALL_DIR) $(1)/etc/init.d
+
+	$(INSTALL_BIN) \
+		./files/usr/bin/sfe_dump \
+		$(1)/usr/bin
+
+	$(INSTALL_BIN) \
+		./files/etc/init.d/sfe \
+		$(1)/etc/init.d
+
+	$(INSTALL_BIN) \
+		./files/etc/config/sfe \
+		$(1)/etc/config
 endef
 
 define KernelPackage/shortcut-fe-cm
