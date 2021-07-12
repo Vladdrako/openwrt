@@ -151,6 +151,8 @@
 		port@4 {
 			status = "okay";
 			label = "wan";
+			mtd-mac-address = <&factory 0xe000>;
+			mac-address-increment = <1>;
 			default-cpu = <&dsa_cpu1>;
 		};
 
