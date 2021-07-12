@@ -17,7 +17,7 @@ index d142eb2b288b..d3b92499f006 100644
 +		list_for_each_entry_continue(dp, &dst->ports, list)
 +			if (dsa_port_is_cpu(dp))
 +				return dp;
-+ 
++
 +	/* If another CPU port can't be found, try from the start */
  	list_for_each_entry(dp, &dst->ports, list)
  		if (dsa_port_is_cpu(dp))
@@ -53,7 +53,7 @@ index d142eb2b288b..d3b92499f006 100644
  			dp->cpu_dp = cpu_dp;
 +            cpu_dp = dsa_tree_find_next_cpu_port(dst, cpu_dp);
 +		}
- 
+
  	return 0;
  }
  
