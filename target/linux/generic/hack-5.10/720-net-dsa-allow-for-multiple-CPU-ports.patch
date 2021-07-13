@@ -153,7 +153,7 @@ index d142eb2b288b..d3b92499f006 100644
  	list_for_each_entry(dp, &dst->ports, list)
  		if (dsa_port_is_cpu(dp))
  			return dp;
-@@ -222,11 +222,11 @@
+@@ -326,25 +333,26 @@ static struct dsa_port *dsa_tree_find_first_cpu(struct dsa_switch_tree *dst)
  	return NULL;
  }
  
@@ -173,17 +173,17 @@ index d142eb2b288b..d3b92499f006 100644
  	list_for_each_entry(dp, &dst->ports, list)
 -		if (dsa_port_is_user(dp) || dsa_port_is_dsa(dp))
 +		if (dsa_port_is_user(dp) || dsa_port_is_dsa(dp)) {
-++			struct device_node *dn;
-++
-++			if (dn = of_parse_phandle(dp->dn, "default-cpu", 0)) {
-++				dp->cpu_dp = dsa_tree_find_port_by_node(dst, dn);
-++				if (dp->cpu_dp && dsa_port_is_cpu(dp->cpu_dp))
-++					continue;
-++			}
++			struct device_node *dn;
++
++			if (dn = of_parse_phandle(dp->dn, "default-cpu", 0)) {
++				dp->cpu_dp = dsa_tree_find_port_by_node(dst, dn);
++				if (dp->cpu_dp && dsa_port_is_cpu(dp->cpu_dp))
++					continue;
++			}
 +
  			dp->cpu_dp = cpu_dp;
 +            cpu_dp = dsa_tree_find_next_cpu_port(dst, cpu_dp);
-++		}
++		}
  
  	return 0;
  }
