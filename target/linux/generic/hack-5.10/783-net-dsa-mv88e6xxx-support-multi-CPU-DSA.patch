@@ -1,21 +1,19 @@
-diff --git a/drivers/net/dsa/mv88e6xxx/chip.c b/drivers/net/dsa/mv88e6xxx/chip.c
-index 70ec17f3c300..3005947e53ed 100644
 --- a/drivers/net/dsa/mv88e6xxx/chip.c
 +++ b/drivers/net/dsa/mv88e6xxx/chip.c
 @@ -1210,9 +1210,12 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
  		return 0;
- 
+
  	/* Frames from DSA links and CPU ports can egress any local port */
 -	if (dp->type == DSA_PORT_TYPE_CPU || dp->type == DSA_PORT_TYPE_DSA)
 +	if (dp->type == DSA_PORT_TYPE_DSA)
  		return mv88e6xxx_port_mask(chip);
- 
+
 +	if (dp->type == DSA_PORT_TYPE_CPU)
 +		return mv88e6xxx_port_mask(chip) & ~dsa_cpu_ports(ds);
 +
  	br = dp->bridge_dev;
  	pvlan = 0;
- 
+
 @@ -1221,7 +1224,8 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
  	 */
  	list_for_each_entry(dp, &dst->ports, list)
@@ -33,11 +31,11 @@ index 70ec17f3c300..3005947e53ed 100644
 +	u16 portvec;
  	u16 fid;
  	int err;
- 
+
 @@ -1663,16 +1668,19 @@ static int mv88e6xxx_port_db_load_purge(struct mv88e6xxx_chip *chip, int port,
  		ether_addr_copy(entry.mac, addr);
  	}
- 
+
 +	portvec = dsa_is_cpu_port(chip->ds, port) ?
 +		  dsa_cpu_ports(chip->ds) : BIT(port);
 +
@@ -54,12 +52,12 @@ index 70ec17f3c300..3005947e53ed 100644
  		else
 -			entry.portvec |= BIT(port);
 +			entry.portvec |= portvec;
- 
+
  		entry.state = state;
  	}
 @@ -2533,6 +2541,7 @@ static int mv88e6xxx_setup_upstream_port(struct mv88e6xxx_chip *chip, int port)
  	}
- 
+
  	if (port == upstream_port) {
 +		dev_info(chip->dev, "Setting CPU port as port %i\n", port);
  		if (chip->info->ops->set_cpu_port) {
@@ -68,7 +66,7 @@ index 70ec17f3c300..3005947e53ed 100644
 @@ -2558,6 +2567,28 @@ static int mv88e6xxx_setup_upstream_port(struct mv88e6xxx_chip *chip, int port)
  	return 0;
  }
- 
+
 +static int mv88e6xxx_port_change_cpu_port(struct dsa_switch *ds, int port,
 +					  struct dsa_port *new_cpu_dp)
 +{
