@@ -167,6 +167,7 @@ index d142eb2b288b..d3b92499f006 100644
  	if (!cpu_dp) {
  		pr_err("DSA: tree %d has no CPU port\n", dst->index);
  		return -EINVAL;
+
 @@ -234,13 +234,23 @@
  
  	/* Assign the default CPU port to all ports of the fabric */
