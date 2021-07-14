@@ -105,10 +105,10 @@ Signed-off-by: Ansuel Smith <ansuelsmth@gmail.com>
 
 --- a/include/net/dsa.h
 +++ b/include/net/dsa.h
-@@ -545,6 +545,12 @@ struct dsa_switch_ops {
- 				 struct netdev_lag_upper_info *info);
- 	int	(*port_lag_leave)(struct dsa_switch *ds, int port,
- 				  struct net_device *lag);
+@@ -652,6 +652,12 @@
+ 	int	(*port_change_mtu)(struct dsa_switch *ds, int port,
+ 				   int new_mtu);
+ 	int	(*port_max_mtu)(struct dsa_switch *ds, int port);
 +
 +	/*
 +	 * Multi-CPU port support
@@ -117,7 +117,7 @@ Signed-off-by: Ansuel Smith <ansuelsmth@gmail.com>
 +					struct dsa_port *new_cpu_dp);
  };
  
- struct dsa_switch_driver {
+ #define DSA_DEVLINK_PARAM_DRIVER(_id, _name, _type, _cmodes)		\
 diff --git a/net/dsa/slave.c b/net/dsa/slave.c
 index 992fcab4b552..c68dbd3ab21a 100644
 --- a/net/dsa/slave.c
