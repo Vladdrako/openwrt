@@ -181,7 +181,7 @@
 };
 
 &gmac0 {
-	mem-cells = <&macaddr_factory_e006>;
+	nvmem-cells = <&macaddr_factory_e006>;
 	nvmem-cell-names = "mac-address";
 	phy-mode = "trgmii";
 };
