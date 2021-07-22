@@ -42,7 +42,7 @@ define Package/dnsmasq/Default
   CATEGORY:=Base system
   TITLE:=DNS and DHCP server
   URL:=http://www.thekelleys.org.uk/dnsmasq/
-  DEPENDS:=+libubus
+  DEPENDS:=+libubus +libidn2
   USERID:=dnsmasq=453:dnsmasq=453
 endef
 
@@ -128,10 +128,10 @@ endef
 Package/dnsmasq-dhcpv6/conffiles = $(Package/dnsmasq/conffiles)
 Package/dnsmasq-full/conffiles = $(Package/dnsmasq/conffiles)
 
-TARGET_CFLAGS += -flto
+TARGET_CFLAGS += -flto -libidn2
 TARGET_LDFLAGS += -flto=jobserver
 
-COPTS = -DHAVE_UBUS -DHAVE_POLL_H \
+COPTS = -DHAVE_UBUS -DHAVE_POLL_H -DHAVE_LIBIDN2 \
 	$(if $(CONFIG_IPV6),,-DNO_IPV6)
 
 ifeq ($(BUILD_VARIANT),nodhcpv6)
