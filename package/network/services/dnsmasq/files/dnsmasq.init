@@ -850,6 +850,7 @@ dnsmasq_start()
 	append_bool "$cfg" noresolv "--no-resolv"
 	append_bool "$cfg" localise_queries "--localise-queries"
 	append_bool "$cfg" readethers "--read-ethers"
+	append_bool "$cfg" idn2 "--libidn2"
 
 	local instance_name="dnsmasq.$cfg"
 	if [ "$cfg" = "$DEFAULT_INSTANCE" ]; then
