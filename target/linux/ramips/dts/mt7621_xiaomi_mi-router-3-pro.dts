@@ -238,7 +238,7 @@
 			};
 		};
 
-		port@6 {
+		dsa_cpu0: port@6 {
 			phy-mode = "trgmii";
 		};
 	};
