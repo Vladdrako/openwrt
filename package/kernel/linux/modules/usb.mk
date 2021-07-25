@@ -1752,8 +1752,10 @@ define KernelPackage/usb-xhci-mtk
   DEPENDS:=+kmod-usb-xhci-hcd
   KCONFIG:=CONFIG_USB_XHCI_MTK
   HIDDEN:=1
-  FILES:=$(LINUX_DIR)/drivers/usb/host/xhci-mtk.ko
-  AUTOLOAD:=$(call AutoLoad,54,xhci-mtk,1)
+  FILES:= \
+	$(LINUX_DIR)/drivers/usb/host/xhci-mtk.ko@lt5.13 \
+	$(LINUX_DIR)/drivers/usb/host/xhci-mtk-hcd.ko@ge5.13
+  AUTOLOAD:=$(call AutoLoad,54,xhci-mtk$(if $(CONFIG_LINUX_5_14),-hcd),1)
   $(call AddDepends/usb)
 endef
 
