@@ -7,6 +7,7 @@ BOARDNAME:=MT7621 based boards
 FEATURES+=nand ramdisk rtc usb minor
 CPU_TYPE:=24kc
 KERNELNAME:=vmlinux vmlinuz
+KERNEL_TESTING_PATCHVER:=5.14
 # make Kernel/CopyImage use $LINUX_DIR/vmlinuz
 IMAGES_DIR:=../../..
 
