@@ -1349,6 +1349,7 @@ static int __init fe_init(struct net_device *dev)
 {
 	struct fe_priv *priv = netdev_priv(dev);
 	struct device_node *port;
+	const char *mac_addr;
 	unsigned long flags;
 	u32 val;
 	int err;
@@ -1371,7 +1372,9 @@ static int __init fe_init(struct net_device *dev)
 
 	fe_reset_phy(priv);
 
-	of_get_mac_address(priv->dev->of_node, dev->dev_addr);;
+	mac_addr = of_get_mac_address(priv->dev->of_node);
+	if (!IS_ERR_OR_NULL(mac_addr))
+		ether_addr_copy(dev->dev_addr, mac_addr);
 
 	/* If the mac address is invalid, use random mac address  */
 	if (!is_valid_ether_addr(dev->dev_addr)) {
