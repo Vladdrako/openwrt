@@ -34,7 +34,7 @@ Signed-off-by: Ansuel Smith <ansuelsmth@gmail.com>
  {
  	struct property *pp = of_find_property(np, name, NULL);
  
-@@ -78,6 +79,57 @@ static const void *of_get_mac_addr_nvmem
+@@ -78,6 +79,56 @@ static const void *of_get_mac_addr_nvmem
  	return mac;
  }
  
@@ -83,9 +83,8 @@ Signed-off-by: Ansuel Smith <ansuelsmth@gmail.com>
 +		return ERR_PTR(-ENOMEM);
 +
 +	return addr;
-+#else
-+	return NULL;
 +#endif
++	return NULL;
 +}
 +
 +
