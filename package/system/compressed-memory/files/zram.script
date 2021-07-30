@@ -1,26 +1,27 @@
 #!/bin/sh /etc/rc.common
 #
-# Copyright (C) 2019-2020 Oever González <notengobattery@gmail.com>
+# Copyright (C) 2019-2021 Oever González <software@notengobattery.com>
 #
 # Licensed to the public under the Apache License 2.0.
+# Problems? Sugestions? Visit: https://www.notengobattery.com
+#
 
 readonly KIB=1024
 readonly MIB=1048576
 readonly CONFIG=compressed_memory
 extra_command "compact" "Compact the zram memory block"
-extra_command "initial_compact" "Trigger an initial compaction process (used during boot)"
+extra_command "initial_compact" "Trigger an initial compaction process"
 extra_command "status" "Show statistics for zram"
 
 config_load $CONFIG
 config_get ALGORITHM zram algorithm 'lzo_rle'
 config_get DRIVER $ALGORITHM driver 'lzo-rle'
-config_get EXPECTED_RATIO $ALGORITHM expected_ratio '3.500'
-config_get_bool ZSWAP_ENABLED zswap enabled '1'
+config_get EXPECTED_RATIO $ALGORITHM expected_ratio '3.000'
+config_get_bool ZSWAP_ENABLED zswap enabled '0'
 ZSWAP_SCALE=1; ZSWAP_POOL=0; ZPOOL_RATIO=1
 
 log_msg() {
-	local MESSAGE=$1
-	logger -s -t "zram" -p "user.info" "$MESSAGE"
+	logger -s -t "zram" -p "user.info" "$@"
 }
 
 _zram_mounted() {
@@ -32,14 +33,13 @@ _zram_mounted() {
 }
 
 _do_math() {
-	local decimals=$1
-	local expression=$2
-	echo | awk '{ f = "%.'"$decimals"'f"; printf f, '"$expression"' }'
+	local decimals="$1"
+	local expression="$2"
+	awk 'END{ f = "%.'"$decimals"'f"; printf f, '"$expression"' }' /dev/null
 }
 
 _do_compare() {
-	local expression=$1
-	_do_math 0 "($expression)?1:0"
+	_do_math 0 "($1)?1:0"
 }
 
 ram_getsize() {
@@ -48,19 +48,19 @@ ram_getsize() {
 }
 
 check_zswap() {
-	if [ -x '/bin/zswap' ] && /etc/init.d/zswap enabled; then
-	if [ "x$ZSWAP_OK" = "xno" ]; then return 200; fi
-	config_get_bool ZSWAP_ENABLED zswap enabled '1'; export ZSWAP_ENABLED
-	if [ "x$ZSWAP_ENABLED" = "x1" ]; then
-		config_get ALGORITHM zswap compressor_scale 'zstd'; export ALGORITHM
-		config_get ZSWAP_SCALE zswap compressor_factor '0.725'; export ZSWAP_SCALE
-		config_get ZSWAP_POOL zswap zswap_scale_pool '10.00'; export ZSWAP_POOL
-		config_get ZSWAP_ZPOOL zswap zpool 'z3fold'; export ZSWAP_ZPOOL
-		config_get ZPOOL_RATIO $ZSWAP_ZPOOL expected_ratio '2.000'; export ZPOOL_RATIO
-		config_get DRIVER $ALGORITHM driver "$ALGORITHM"; export DRIVER
-		config_get EXPECTED_RATIO $ALGORITHM expected_ratio '3.500'; export EXPECTED_RATIO
-		return 0
-	else export RUNNABLE=yes; return 201; fi
+	if [ -x '/usr/libexec/zswap' ] && /etc/init.d/zswap enabled; then
+		if [ "x$ZSWAP_OK" = "xno" ]; then return 200; fi
+		config_get_bool ZSWAP_ENABLED zswap enabled '0'; export ZSWAP_ENABLED
+		if [ "x$ZSWAP_ENABLED" = "x1" ]; then
+			config_get ALGORITHM zswap compressor_scale 'zstd'; export ALGORITHM
+			config_get ZSWAP_SCALE zswap compressor_factor '0.925'; export ZSWAP_SCALE
+			config_get ZSWAP_POOL zswap zswap_scale_pool '15.00'; export ZSWAP_POOL
+			config_get ZSWAP_ZPOOL zswap zpool 'z3fold'; export ZSWAP_ZPOOL
+			config_get ZPOOL_RATIO $ZSWAP_ZPOOL expected_ratio '3.000'; export ZPOOL_RATIO
+			config_get DRIVER $ALGORITHM driver "$ALGORITHM"; export DRIVER
+			config_get EXPECTED_RATIO $ALGORITHM expected_ratio '3.000'; export EXPECTED_RATIO
+			return 0
+		else export RUNNABLE=yes; return 201; fi
 	else export RUNNABLE=yes; return 202; fi
 }
 check_zswap
@@ -70,15 +70,15 @@ zram_getsize() {
 	log_msg "detected RAM size: $ram_size kb"
 	log_msg "compression algorithm: '$ALGORITHM', driver: '$DRIVER'"
 	log_msg "expected compression ratio for '$ALGORITHM': $EXPECTED_RATIO"
-	log_msg "zswap factor for compression ratio: $(printf '%.2f' $ZSWAP_SCALE)"
-	local zswap_scaled=$(_do_math 9 "$ZSWAP_SCALE * $EXPECTED_RATIO")
+	log_msg "zswap factor for compression ratio: $(printf '%.3f' $ZSWAP_SCALE)"
+	local zswap_scaled=$(_do_math 6 "$ZSWAP_SCALE * $EXPECTED_RATIO")
 	log_msg "scaled compression ratio': $zswap_scaled"
-	local pool_base; config_get pool_base zram pool_base '58.75'
+	local pool_base; config_get pool_base zram pool_base '50.00'
 	log_msg "memory pool base: $pool_base%"
 	local pool_base_b=$(_do_math 0 \
 	  "$ram_size * $zswap_scaled * $pool_base * 10")
 	log_msg "calculated memory pool: $pool_base_b bytes"
-	local pool_limit; config_get pool_limit zram pool_limit '210'
+	local pool_limit; config_get pool_limit zram pool_limit '200'
 	log_msg "memory pool limit for zram: $pool_limit%"
 	local worst_ratio; config_get worst_ratio zram worst_ratio '1.040'
 	log_msg "worst expected compression ratio: $worst_ratio"
@@ -89,21 +89,18 @@ zram_getsize() {
 	log_msg "maximum memory pool allowed for zram: $pool_clamp_b bytes"
 	_clamp=$(_do_compare "$pool_base_b >= $pool_clamp_b")
 	if [ "0$_clamp" -eq 1 ]; then
-		log_msg "warning: base memory pool exceeds the pool limit"
+		log_msg "info: base memory pool exceeds the pool limit"
 		printf $pool_clamp_b
 	else
 		printf $pool_base_b
 	fi
 }
 
-zram_dev() {
-	local idx=$1
-	printf "/dev/zram${idx:-0}"
-}
+zram_dev() { printf "/dev/zram${1:-0}"; }
 
 zram_getdev() {
-	local zdev=$(zram_dev)
-	if [ "x$(mount | grep $zdev)" != "x" ]; then
+	local zdev=$(zram_dev $1)
+	if /usr/sbin/swapon -s | grep -q $zdev || mount | grep -q $zdev || [[ ! -e $zdev ]]; then
 		local idx=$(cat /sys/class/zram-control/hot_add)
 		zdev=$(zram_dev $idx)
 	fi
@@ -116,31 +113,22 @@ zram_available() {
 		log_msg "error: device '$zram_dev' not found"
 		return 1
 	fi
-	local enabled; config_get_bool enabled zram enabled '1'
+	local enabled; config_get_bool enabled zram enabled '0'
 	if [ "0$enabled" -eq "0" ] && [ "x$UCI_RUN" != "xyes" ]; then
 		log_msg "warning: zram is not enabled in UCI"
 		return 100
 	fi
-	local zswap_enabled; config_get_bool zswap_enabled zswap enabled '1'
+	local zswap_enabled; config_get_bool zswap_enabled zswap enabled '0'
 	if [ "0$zswap_enabled" -eq "1" ] && [ "x$RUNNABLE" != "xyes" ]; then
-		log_msg "warning: zram was not allowed to run"
+		log_msg "warning: zram must be launched by zswap when zswap is enabled"
 		return 101
 	fi
-	if [ "x$(which awk)" = "x" ]; then
-		log_msg "error: command 'awk' not found"; return 2
-	fi
-	if [ "x$(which /sbin/mkswap)" = "x" ]; then
-		log_msg "error: command '/sbin/mkswap' not found"; return 2
-	fi
-	if [ "x$(which /sbin/swapon)" = "x" ]; then
-		log_msg "error: command '/sbin/swapon' not found"; return 2
-	fi
-	if [ "x$(which /sbin/swapoff)" = "x" ]; then
-		log_msg "error: command '/sbin/swapoff' not found"; return 2
-	fi
-	if [ "x$(which /usr/sbin/losetup)" = "x" ]; then
-		log_msg "error: command '/usr/sbin/losetup' not found"; return 2
-	fi
+	tools="awk mkswap swapon swapoff losetup /usr/sbin/swapon"
+	for tool in $tools; do
+	  if which $tool &>/dev/null; then :; else
+	    log_msg "error: command '$tool' not found"; return 2
+	  fi
+	done
 }
 
 zram_reset() {
@@ -161,12 +149,11 @@ zram_algorithm() {
 		log_msg "compression algorithm for '$base': $real_algorithm"
 	else
 		printf "deflate" > $block_entry
-		local curr=$(grep -o '\[.*\]' $block_entry | \
-		  awk -F'[' '{print $2}' | awk -F']' '{print $1}')
+		local curr=$(awk -F'\\[|\\]' '$0~/\[(.*)\]/{print $2}' $block_entry)
 		log_msg "error: compression driver '$DRIVER' not supported"
 		uci set ${CONFIG}.zram.algorithm="$curr";
 		uci set ${CONFIG}.zswap.compressor_scale="$curr"; uci commit
-		log_msg "warning: changed compression driver to '$curr'"
+		log_msg "warning: changed configured compression driver to '$curr'"
 		env - RUNNABLE=$RUNNABLE /etc/init.d/zram restart
 		return 4
 	fi
@@ -176,9 +163,7 @@ zram_streams() {
 	local dev=$1
 	local base=$(basename "$dev")
 	local block_entry=/sys/block/$base/max_comp_streams
-	local cores=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || \
-	  sysctl -n hw.ncpu || \
-	  printf "$NUMBER_OF_PROCESSORS")
+	local cores=$(grep -c ^processor /proc/cpuinfo)
 	log_msg "available cores/CPUs for compression: $cores"
 	if [ "0$cores" -le 1 ]; then return 0; fi
 	local streams_factor; config_get streams_factor $ALGORITHM streams_factor '100.00'
@@ -198,8 +183,8 @@ zram_backing_add() {
 	local backing_file; config_get backing_file zram backing_file
 	if [ -f "$backing_file" ]; then
 		/usr/sbin/losetup -f "$backing_file"
-		local lo=$(losetup | grep -wF "$backing_file" | awk '{print $1}')
-		local fi=$(losetup | grep -wF "$backing_file" | awk '{print $6}')
+		local lo=$(losetup | awk -vF="$backing_file" '$0~F{print $1}')
+		local fi=$(losetup | awk -vF="$backing_file" '$0~F{print $6}')
 		printf "$lo" > $block_entry; local _lo=$(cat $block_entry)
 		if [ "x$lo" = "x$_lo" ]; then
 			log_msg "backing device for '$base': '$_lo', file: '$fi'"
@@ -220,11 +205,12 @@ zram_backing_add() {
 	fi
 }
 
-ap_if_no_ma_in() {
-	local MATCH=$1
-	local LINE=$2
-	local FILE=$3
-	(grep -qF "$MATCH" "$FILE"  || echo "$LINE" | tee -a "$FILE") > /dev/null 2>&1
+add_or_update() {
+  local keep=${4:-1}
+  if [[ ! -f "$3" ]]; then return 1; fi
+  local result="$(gawk -vm="$1" -vr="$2" -vk="$keep" \
+	 '$0~m{if(!re){$0=r;re=(1&&k)}}{print $0}ENDFILE{if(!re&&k){print r}}' "$3")"
+  echo "$result" > "$3" # prefer echo because of the NL at the EOF
 }
 
 start() {
@@ -234,11 +220,7 @@ start() {
 	local ram_size=$(ram_getsize)
 	local zram_size=$(zram_getsize)
 	local zram_pte=$(_do_math 2 "$zram_size / ($ram_size * 10)")
-	log_msg "maximum pool size for zram: $zram_size bytes ($zram_pte%)"
-	local pool_limit; config_get pool_limit zram pool_limit '210'
-	local worst_ratio; config_get worst_ratio zram worst_ratio '1.040'
-	local zswap_pool=$(_do_math 0 "$pool_limit * $worst_ratio * $ZSWAP_POOL / ($ZPOOL_RATIO * 100)")
-	log_msg "info: total memory for compression (assuming worst case): $zram_pte% +  $(printf '%.2f' $zswap_pool)%"
+	log_msg "zram swap device size: $zram_size bytes ($zram_pte% of system RAM)"
 	zram_reset $zram_dev || exit $?
 	zram_algorithm $zram_dev || exit $?
 	zram_streams $zram_dev || exit $?
@@ -251,8 +233,9 @@ start() {
 	/sbin/swapon -d -p 1000 $zram_dev && \
 		{ log_msg "activated '$zram_dev' for swapping ($rsize MiB)"; } || \
 		{ log_msg "error: cannot enable swap inside the device '$zram_dev'"; exit 6; }
-	ap_if_no_ma_in "zram compact" "0 */2 * * *	/bin/zram compact" "/etc/crontabs/root"
-	/bin/zram initial_compact &
+	touch /etc/crontabs/root
+	add_or_update "zram compact" "0 */2 * * * /usr/libexec/zram compact" /etc/crontabs/root
+	/usr/libexec/zram initial_compact &
 }
 
 zram_backing_remove() {
@@ -260,9 +243,9 @@ zram_backing_remove() {
 	local base=$(basename "$dev")
 	local block_entry=/sys/block/$base/backing_dev
 	local backing_dev=$(cat $block_entry)
-	local fi=$(losetup | grep -wF "$backing_dev" | awk '{print $6}')
+	local fi=$(losetup | awk -vF="$backing_file" '$0~F{print $6}')
 	if [ -f "$fi" ]; then
-		local lo=$(losetup | grep -wF "$backing_dev" | awk '{print $1}')
+		local lo=$(losetup | awk -vF="$backing_file" '$0~F{print $1}')
 		losetup -d "$lo" && \
 			{ log_msg "detached loop device '$lo' for '$fi'"; } || \
 			{ log_msg "warning: could not deatach device '$lo' for '$fi'"; }
@@ -281,7 +264,7 @@ stop() {
 		log_msg "swap disabled for '$zram_dev'"
 		zram_backing_remove $zram_dev
 		zram_reset $zram_dev
-		local dev_index=$(echo $zram_dev | grep -o '[0-9]*$')
+		local dev_index=$(printf $zram_dev | grep -o '[0-9]*$')
 		if [ "0$dev_index" -ne 0 ]; then
 			log_msg  "removing zram device '$zram_dev'"
 			printf $dev_index > /sys/class/zram-control/hot_remove
@@ -321,7 +304,7 @@ zram_initial_compact() {
 	local mfk_default=$(sysctl -n vm.min_free_kbytes)
 	local mfk_temporal=$(_do_math 0 "$(ram_getsize) / 10")
 	local s_default=$(sysctl -n vm.swappiness)
-	if [ ! -f "$mfk_mark" ]; then echo $mfk_default > $mfk_mark
+	if [ ! -f "$mfk_mark" ]; then printf $mfk_default > $mfk_mark
 	else mfk_default=$(cat $mfk_mark); fi
 	mfk_default=$(_do_math 0 "$mfk_default * 1.375")
 	local lock=/var/lock/${base}_compact.lock

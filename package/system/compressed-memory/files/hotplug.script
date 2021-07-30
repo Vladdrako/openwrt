@@ -1,8 +1,5 @@
-#!/bin/sh
+# Problems? Sugestions? Visit: https://www.notengobattery.com
 #
-# Copyright (C) 2019-2020 Oever González <notengobattery@gmail.com>
-#
-# Licensed to the public under the Apache License 2.0.
 
 . /lib/functions.sh
 
@@ -14,7 +11,7 @@ config_get_bool adb_enabled global adb_enabled 0
 config_get adb_trigger global adb_trigger wan
 
 if [ "x$ACTION" = "xifup" ] || [ "x$ACTION" = "xifupdate" ]; then
-	if [ "x$adb_enabled" = "x1" ] && [ "x$INTERFACE" = "x$adb_trigger" ]; then
-		/bin/zram initial_compact
-	fi
+  if [ "x$adb_enabled" = "x1" ] && [ "x$INTERFACE" = "x$adb_trigger" ]; then
+    /usr/libexec/zram initial_compact
+  fi
 fi
