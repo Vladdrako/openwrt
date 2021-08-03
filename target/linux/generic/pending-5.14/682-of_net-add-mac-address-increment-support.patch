@@ -44,7 +44,7 @@ Signed-off-by: Ansuel Smith <ansuelsmth@gmail.com>
 +	 */
 +	if (of_property_read_u32(np, "mac-address-increment-byte", &inc_idx))
 +		inc_idx = 5;
-+	if (inc_idx < 3 || inc_idx > 5)
++	if (inc_idx > 5)
 +		return -EINVAL;
 +
  	if (!np)
