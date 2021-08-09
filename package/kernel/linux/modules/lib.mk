@@ -289,7 +289,6 @@ define KernelPackage/asn1-decoder
   SUBMENU:=$(LIB_MENU)
   TITLE:=Simple ASN1 decoder
   KCONFIG:= CONFIG_ASN1
-  HIDDEN:=1
   FILES:=$(LINUX_DIR)/lib/asn1_decoder.ko
 endef
 
