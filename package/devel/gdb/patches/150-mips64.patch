@@ -21,7 +21,7 @@ Upstream-Status: Pending
 @@ -42,6 +42,11 @@
  #define PTRACE_GET_THREAD_AREA 25
  #endif
- 
+
 +/* musl does not define and relies on compiler built-in macros for it   */
 +#ifndef _ABIO32
 +#define _ABIO32 1
