@@ -178,6 +178,7 @@
 &gmac0 {
 	nvmem-cells = <&macaddr_factory_e006>;
 	nvmem-cell-names = "mac-address";
+	phy-mode = "trgmii";
 };
 
 &switch0 {
@@ -202,6 +203,10 @@
 			label = "wan";
 			nvmem-cells = <&macaddr_factory_e000>;
 			nvmem-cell-names = "mac-address";
+		};
+		
+		port@6 {
+			phy-mode = "trgmii";
 		};
 	};
 };
