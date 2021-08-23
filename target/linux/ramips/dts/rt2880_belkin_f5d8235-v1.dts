@@ -206,8 +206,12 @@
 
 &pci {
 	status = "okay";
+};
 
-	usb@11,0 {
+&pci17 {
+	status = "okay";
+
+	usb@8800 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "pci1033,0035";
@@ -219,7 +223,7 @@
 		};
 	};
 
-	usb@11,1 {
+	usb@8900 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "pci1033,00e0";

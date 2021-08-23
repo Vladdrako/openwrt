@@ -47,6 +47,22 @@
 			gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "dsa-0.0:02:1Gbps";
 		};
+
+		wan_green {
+			label = "green:wan";
+			gpios = <&switch0 3 GPIO_ACTIVE_LOW>;
+		};
+
+		lan1_green {
+			label = "green:lan1";
+			/* Polarity of switch port 3 LED is inverted */
+			gpios = <&switch0 9 GPIO_ACTIVE_HIGH>;
+		};
+
+		lan2_green {
+			label = "green:lan2";
+			gpios = <&switch0 6 GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	reg_usb_vbus: regulator {
@@ -85,32 +101,67 @@
 	};
 };
 
+&ethernet {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgmii1_pins &rgmii2_pins &mdio_pins>;
+};
+
 &gmac0 {
 	nvmem-cells = <&macaddr_factory_e006>;
 	nvmem-cell-names = "mac-address";
 	phy-mode = "trgmii";
 };
 
+&gmac1 {
+	status = "okay";
+	phy-mode = "rgmii";
+	nvmem-cells = <&macaddr_factory_e000>;
+	nvmem-cell-names = "mac-address";
+
+	fixed-link {
+		speed = <1000>;
+		full-duplex;
+		pause;
+	};
+};
+
 &switch0 {
+	gpio-controller;
+	#gpio-cells = <2>;
+
 	ports {
 		port@1 {
 			status = "okay";
 			label = "wan";
-			nvmem-cells = <&macaddr_factory_e000>;
-			nvmem-cell-names = "mac-address";
+			default-cpu = <&dsa_cpu1>;
 		};
 
 		port@2 {
 			status = "okay";
 			label = "lan2";
+			default-cpu = <&dsa_cpu0>;
 		};
 
 		port@3 {
 			status = "okay";
 			label = "lan1";
+			default-cpu = <&dsa_cpu0>;
 		};
 
-		port@6 {
+		dsa_cpu1: port@5 {
+			reg = <5>;
+			label = "cpu";
+			ethernet = <&gmac1>;
+			phy-mode = "rgmii";
+
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+				pause;
+			};
+		};
+
+		dsa_cpu0: port@6 {
 			phy-mode = "trgmii";
 		};
 	};
