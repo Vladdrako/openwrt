@@ -51,7 +51,7 @@ Signed-off-by: Daniel Golle <daniel@makrotopia.org>
 +
 +	list_for_each_entry(tr, &blktrans_majors, list) {
 +		list_for_each_entry_safe(dev, next, &tr->devs, list) {
-+			if (dev->disk->flags & GENHD_FL_UP)
++			if (disk_live(dev->disk))
 +				continue;
 +
 +			device_add_disk(&dev->mtd->dev, dev->disk, NULL);
