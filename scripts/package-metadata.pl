@@ -585,6 +585,22 @@ sub gen_usergroup_list() {
 	}
 }
 
+sub gen_package_index_json() {
+	my $json;
+	parse_package_metadata($ARGV[0]) or exit 1;
+	foreach my $name (sort {uc($a) cmp uc($b)} keys %package) {
+		my $pkg = $package{$name};
+		$json = <<"END_JSON";
+${json}
+"$name": "$pkg->{version}",
+END_JSON
+	}
+
+	$json =~ s/[\n\r]//g;
+	$json =~ s/\,$//;
+	print "{$json}";
+}
+
 sub parse_command() {
 	GetOptions("ignore=s", \@ignore);
 	my $cmd = shift @ARGV;
@@ -594,6 +610,7 @@ sub parse_command() {
 		/^kconfig/ and return gen_kconfig_overrides();
 		/^source$/ and return gen_package_source();
 		/^pkgaux$/ and return gen_package_auxiliary();
+		/^pkgindexjson$/ and return gen_package_index_json();
 		/^license$/ and return gen_package_license(0);
 		/^licensefull$/ and return gen_package_license(1);
 		/^usergroup$/ and return gen_usergroup_list();
@@ -606,6 +623,7 @@ Available Commands:
 	$0 kconfig [file] [config] [patchver]	Kernel config overrides
 	$0 source [file] 			Package source file information
 	$0 pkgaux [file]			Package auxiliary variables in makefile format
+	$0 pkgindexjson [file]			Package name and version in JSON format
 	$0 license [file] 			Package license information
 	$0 licensefull [file] 			Package license information (full list)
 	$0 usergroup [file]			Package usergroup allocation list
