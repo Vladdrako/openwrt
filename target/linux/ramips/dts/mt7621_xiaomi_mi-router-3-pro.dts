@@ -203,6 +203,7 @@
 			label = "wan";
 			nvmem-cells = <&macaddr_factory_e000>;
 			nvmem-cell-names = "mac-address";
+		};
 		
 		port@6 {
 			phy-mode = "trgmii";
