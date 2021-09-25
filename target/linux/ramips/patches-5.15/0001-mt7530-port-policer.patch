@@ -1,0 +1,80 @@
+From da577a73e50ba78cfb3cd1f2c66b7a3c2fe00453 Mon Sep 17 00:00:00 2001
+From: DENG Qingfang <dqfext@gmail.com>
+Date: Thu, 24 Dec 2020 00:15:10 +0800
+Subject: [PATCH 1/2] mt7530 port policer
+
+---
+ drivers/net/dsa/mt7530.c | 36 ++++++++++++++++++++++++++++++++++++
+ drivers/net/dsa/mt7530.h |  9 +++++++++
+ 2 files changed, 45 insertions(+)
+
+--- a/drivers/net/dsa/mt7530.c
++++ b/drivers/net/dsa/mt7530.c
+@@ -1820,6 +1820,40 @@ static void mt753x_port_mirror_del(struc
+ 	}
+ }
+ 
++static int mt7530_port_policer_add(struct dsa_switch *ds, int port,
++				   struct dsa_mall_policer_tc_entry *policer)
++{
++	struct mt7530_priv *priv = ds->priv;
++	u32 val = IGC_RATE_EN;
++	u32 rate_32kbps;
++
++	dev_info(priv->dev, "rate: %llu, burst: %u\n", policer->rate_bytes_per_sec, policer->burst);
++
++	/* 2.5 Gbps max */
++	if (policer->rate_bytes_per_sec > 2500000000UL / 8)
++		return -EINVAL;
++
++	val |= IGC_TB_EN;
++
++	rate_32kbps = DIV_ROUND_UP((u32) policer->rate_bytes_per_sec, 4000);
++	if (rate_32kbps & BIT(16))
++		val |= IGC_RATE_CIR_16;
++	val |= IGC_RATE_CIR_15_0(rate_32kbps);
++
++	val |= IGC_TB_T(9);
++	val |= IGC_TB_CBS(DIV_ROUND_UP(policer->burst, 512));
++
++	mt7530_write(priv, MT7530_IRLCR_P(port), val);
++	return 0;
++}
++
++static void mt7530_port_policer_del(struct dsa_switch *ds, int port)
++{
++	struct mt7530_priv *priv = ds->priv;
++
++	mt7530_write(priv, MT7530_IRLCR_P(port), 0);
++}
++
+ static enum dsa_tag_protocol
+ mtk_get_tag_protocol(struct dsa_switch *ds, int port,
+ 		     enum dsa_tag_protocol mp)
+@@ -3191,6 +3225,8 @@ static const struct dsa_switch_ops mt753
+ 	.port_vlan_del		= mt7530_port_vlan_del,
+ 	.port_mirror_add	= mt753x_port_mirror_add,
+ 	.port_mirror_del	= mt753x_port_mirror_del,
++	.port_policer_add	= mt7530_port_policer_add,
++	.port_policer_del	= mt7530_port_policer_del,
+ 	.phylink_validate	= mt753x_phylink_validate,
+ 	.phylink_mac_link_state	= mt753x_phylink_mac_link_state,
+ 	.phylink_mac_config	= mt753x_phylink_mac_config,
+--- a/drivers/net/dsa/mt7530.h
++++ b/drivers/net/dsa/mt7530.h
+@@ -200,6 +200,15 @@ enum mt7530_stp_state {
+ 	MT7530_STP_FORWARDING  = 3
+ };
+ 
++/* Register for port ingress rate limit control */
++#define MT7530_IRLCR_P(x)		(0x1800 + ((x) * 0x100))
++#define  IGC_RATE_CIR_15_0(x)		(((x) & 0xffff) << 16)
++#define  IGC_RATE_EN			BIT(15)
++#define  IGC_RATE_CIR_16		BIT(12)
++#define  IGC_TB_T(x)			(((x) & 0xf) << 8)
++#define  IGC_TB_EN			BIT(7)
++#define  IGC_TB_CBS(x)			max(x, 0x7fU)
++
+ /* Register for port control */
+ #define MT7530_PCR_P(x)			(0x2004 + ((x) * 0x100))
+ #define  PORT_TX_MIR			BIT(9)
