@@ -158,6 +158,14 @@ menuconfig TOOLCHAINOPTS
 	bool "Toolchain Options"  if DEVEL
 	depends on NEED_TOOLCHAIN
 
+config BUILD_NATIVE_ARCH
+	def_bool n
+	prompt "Build the toolchain with -march=native" if TOOLCHAINOPTS
+	help
+	  When building the toolchain, optimize for the CPU in this specific machine.
+	  Only choose Y if you're not going to run the compiled toolchain on any other
+	  system.
+
 menuconfig EXTRA_TARGET_ARCH
 	bool
 	prompt "Enable an extra toolchain target architecture" if TOOLCHAINOPTS
