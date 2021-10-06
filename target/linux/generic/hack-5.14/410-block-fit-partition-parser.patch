@@ -7,9 +7,9 @@ index 8c96b0c90c48..40bf352b0a72 100644
  #define ADDPART_FLAG_RAID	1
  #define ADDPART_FLAG_WHOLEDISK	2
 +#define ADDPART_FLAG_ROOTDEV	4
- int bdev_add_partition(struct gendisk *disk, int partno, sector_t start,
- 		sector_t length);
- int bdev_del_partition(struct gendisk *disk, int partno);
+ int bdev_add_partition(struct block_device *bdev, int partno,
+ 		sector_t start, sector_t length);
+ int bdev_del_partition(struct block_device *bdev, int partno);
 diff --git a/block/partitions/Kconfig b/block/partitions/Kconfig
 index 278593b8e4e9..d4cd2f36ea95 100644
 --- a/block/partitions/Kconfig
@@ -135,15 +135,15 @@ index 7ca5c4c374d4..9ecd2b3d5674 100644
 --- a/block/partitions/efi.c
 +++ b/block/partitions/efi.c
 @@ -716,6 +716,9 @@ int efi_partition(struct parsed_partitions *state)
- 	gpt_entry *ptes = NULL;
- 	u32 i;
- 	unsigned ssz = queue_logical_block_size(state->disk->queue) / 512;
+	gpt_entry *ptes = NULL;
+	u32 i;
+	unsigned ssz = bdev_logical_block_size(state->bdev) / 512;
 +#ifdef CONFIG_FIT_PARTITION
 +	u32 extra_slot = 64;
 +#endif
  
- 	if (!find_valid_gpt(state, &gpt, &ptes) || !gpt || !ptes) {
- 		kfree(gpt);
+	if (!find_valid_gpt(state, &gpt, &ptes) || !gpt || !ptes) {
+		kfree(gpt);
 @@ -749,6 +752,11 @@ int efi_partition(struct parsed_partitions *state)
  				ARRAY_SIZE(ptes[i].partition_name));
  		utf16_le_to_7bit(ptes[i].partition_name, label_max, info->volname);
