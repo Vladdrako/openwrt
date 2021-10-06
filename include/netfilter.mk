@@ -48,9 +48,6 @@ $(eval $(call nf_add,IPT_CORE,CONFIG_NETFILTER_XT_MATCH_COMMENT, $(P_XT)xt_comme
 $(eval $(call nf_add,IPT_CLUSTER,CONFIG_NETFILTER_XT_MATCH_CLUSTER, $(P_XT)xt_cluster))
 
 $(eval $(call nf_add,IPT_CORE,CONFIG_NETFILTER_XT_TARGET_LOG, $(P_XT)xt_LOG))
-$(eval $(call nf_add,IPT_CORE,CONFIG_NETFILTER_XT_TARGET_LOG, $(P_XT)nf_log_common, lt 5.14))
-$(eval $(call nf_add,IPT_CORE,CONFIG_NETFILTER_XT_TARGET_LOG, $(P_V4)nf_log_ipv4, lt 5.14))
-$(eval $(call nf_add,IPT_CORE,CONFIG_NETFILTER_XT_TARGET_LOG, $(P_XT)nf_log_syslog, ge 5.14))
 $(eval $(call nf_add,IPT_CORE,CONFIG_NETFILTER_XT_TARGET_TCPMSS, $(P_XT)xt_TCPMSS))
 $(eval $(call nf_add,IPT_CORE,CONFIG_IP_NF_TARGET_REJECT, $(P_V4)ipt_REJECT))
 $(eval $(call nf_add,IPT_CORE,CONFIG_NETFILTER_XT_MATCH_TIME, $(P_XT)xt_time))
@@ -143,9 +140,6 @@ $(eval $(call nf_add,IPT_IPSEC,CONFIG_IP_NF_MATCH_AH, $(P_V4)ipt_ah))
 $(eval $(call nf_add,IPT_IPSEC,CONFIG_NETFILTER_XT_MATCH_ESP, $(P_XT)xt_esp))
 $(eval $(call nf_add,IPT_IPSEC,CONFIG_NETFILTER_XT_MATCH_POLICY, $(P_XT)xt_policy))
 
-# ipvs
-$(eval $(call nf_add,IPT_IPVS,CONFIG_NETFILTER_XT_MATCH_IPVS, $(P_XT)xt_ipvs))
-
 # flow offload support
 $(eval $(call nf_add,IPT_FLOW,CONFIG_NETFILTER_XT_TARGET_FLOWOFFLOAD, $(P_XT)xt_FLOWOFFLOAD))
 
@@ -160,7 +154,6 @@ $(eval $(if $(NF_KMOD),$(call nf_add,NF_CONNTRACK,CONFIG_NF_DEFRAG_IPV6, $(P_V6)
 
 $(eval $(if $(NF_KMOD),$(call nf_add,IPT_IPV6,CONFIG_IP6_NF_FILTER, $(P_V6)ip6table_filter),))
 $(eval $(if $(NF_KMOD),$(call nf_add,IPT_IPV6,CONFIG_IP6_NF_MANGLE, $(P_V6)ip6table_mangle),))
-$(eval $(if $(NF_KMOD),$(call nf_add,IPT_IPV6,CONFIG_NF_LOG_IPV6, $(P_V6)nf_log_ipv6, lt 5.14),))
 
 $(eval $(if $(NF_KMOD),,$(call nf_add,IPT_IPV6,CONFIG_IP6_NF_IPTABLES, ip6t_icmp6)))
 
@@ -261,10 +254,6 @@ $(eval $(call nf_add,IPT_TEE,CONFIG_NETFILTER_XT_TARGET_TEE, $(P_XT)xt_TEE))
 $(eval $(if $(NF_KMOD),$(call nf_add,IPT_TEE,CONFIG_NF_DUP_IPV4, $(P_V4)nf_dup_ipv4),))
 $(eval $(if $(NF_KMOD),$(call nf_add,IPT_TEE,CONFIG_NF_DUP_IPV6, $(P_V6)nf_dup_ipv6),))
 
-# tcpoptstrip
-
-$(eval $(call nf_add,IPT_TCPOPTSTRIP,CONFIG_NETFILTER_XT_TARGET_TCPOPTSTRIP, $(P_XT)xt_TCPOPTSTRIP))
-
 # u32
 
 $(eval $(call nf_add,IPT_U32,CONFIG_NETFILTER_XT_MATCH_U32, $(P_XT)xt_u32))
@@ -279,8 +268,6 @@ $(eval $(call nf_add,IPT_CHECKSUM,CONFIG_NETFILTER_XT_TARGET_CHECKSUM, $(P_XT)xt
 $(eval $(call nf_add,NFNETLINK,CONFIG_NETFILTER_NETLINK, $(P_XT)nfnetlink))
 
 # nflog
-
-$(eval $(call nf_add,NFNETLINK_LOG,CONFIG_NETFILTER_NETLINK_LOG, $(P_XT)nfnetlink_log))
 
 # nfqueue
 
