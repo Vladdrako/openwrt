@@ -1,0 +1,273 @@
+From cf5ad777e4243196e3334ad8948c02fe24091263 Mon Sep 17 00:00:00 2001
+From: Marty Jones <mj8263788@gmail.com>
+Date: Mon, 23 Aug 2021 16:05:12 -0400
+Subject: [PATCH] module: remove never implemented MODULE_SUPPORTED_DEVICE
+https://github.com/torvalds/linux/commit/6417f03132a6952cd17ddd8eaddbac92b61b17e0
+
+Signed-off-by: Marty Jones <mj8263788@gmail.com>
+---
+ drivers/net/wireless/admtek/adm8211.c                          | 1 -
+ drivers/net/wireless/ath/ath5k/base.c                          | 1 -
+ drivers/net/wireless/ath/ath9k/hw.c                            | 1 -
+ drivers/net/wireless/ath/ath9k/init.c                          | 1 -
+ drivers/net/wireless/atmel/atmel.c                             | 1 -
+ drivers/net/wireless/atmel/atmel_cs.c                          | 1 -
+ drivers/net/wireless/atmel/atmel_pci.c                         | 1 -
+ drivers/net/wireless/broadcom/brcm80211/brcmsmac/mac80211_if.c | 1 -
+ drivers/net/wireless/broadcom/brcm80211/brcmutil/utils.c       | 1 -
+ drivers/net/wireless/cisco/airo.c                              | 1 -
+ drivers/net/wireless/cisco/airo_cs.c                           | 1 -
+ drivers/net/wireless/intersil/hostap/hostap_cs.c               | 1 -
+ drivers/net/wireless/intersil/hostap/hostap_pci.c              | 1 -
+ drivers/net/wireless/intersil/hostap/hostap_plx.c              | 1 -
+ drivers/net/wireless/ralink/rt2x00/rt2400pci.c                 | 1 -
+ drivers/net/wireless/ralink/rt2x00/rt2500pci.c                 | 1 -
+ drivers/net/wireless/ralink/rt2x00/rt2500usb.c                 | 1 -
+ drivers/net/wireless/ralink/rt2x00/rt2800pci.c                 | 1 -
+ drivers/net/wireless/ralink/rt2x00/rt2800usb.c                 | 1 -
+ drivers/net/wireless/ralink/rt2x00/rt61pci.c                   | 1 -
+ drivers/net/wireless/ralink/rt2x00/rt73usb.c                   | 1 -
+ drivers/net/wireless/rsi/rsi_91x_main.c                        | 1 -
+ drivers/net/wireless/rsi/rsi_91x_sdio.c                        | 1 -
+ drivers/net/wireless/rsi/rsi_91x_usb.c                         | 1 -
+ 24 files changed, 24 deletions(-)
+
+--- a/drivers/net/wireless/admtek/adm8211.c
++++ b/drivers/net/wireless/admtek/adm8211.c
+@@ -28,7 +28,6 @@
+ MODULE_AUTHOR("Michael Wu <flamingice@sourmilk.net>");
+ MODULE_AUTHOR("Jouni Malinen <j@w1.fi>");
+ MODULE_DESCRIPTION("Driver for IEEE 802.11b wireless cards based on ADMtek ADM8211");
+-MODULE_SUPPORTED_DEVICE("ADM8211");
+ MODULE_LICENSE("GPL");
+ 
+ static unsigned int tx_ring_size __read_mostly = 16;
+--- a/drivers/net/wireless/ath/ath5k/base.c
++++ b/drivers/net/wireless/ath/ath5k/base.c
+@@ -90,7 +90,6 @@ MODULE_PARM_DESC(no_hw_rfkill_switch, "I
+ MODULE_AUTHOR("Jiri Slaby");
+ MODULE_AUTHOR("Nick Kossifidis");
+ MODULE_DESCRIPTION("Support for 5xxx series of Atheros 802.11 wireless LAN cards.");
+-MODULE_SUPPORTED_DEVICE("Atheros 5xxx WLAN cards");
+ MODULE_LICENSE("Dual BSD/GPL");
+ 
+ static int ath5k_init(struct ieee80211_hw *hw);
+--- a/drivers/net/wireless/ath/ath9k/hw.c
++++ b/drivers/net/wireless/ath/ath9k/hw.c
+@@ -34,7 +34,6 @@ static bool ath9k_hw_set_reset_reg(struc
+ 
+ MODULE_AUTHOR("Atheros Communications");
+ MODULE_DESCRIPTION("Support for Atheros 802.11n wireless LAN cards.");
+-MODULE_SUPPORTED_DEVICE("Atheros 802.11n WLAN cards");
+ MODULE_LICENSE("Dual BSD/GPL");
+ 
+ static void ath9k_hw_set_clockrate(struct ath_hw *ah)
+--- a/drivers/net/wireless/ath/ath9k/init.c
++++ b/drivers/net/wireless/ath/ath9k/init.c
+@@ -37,7 +37,6 @@ static char *dev_info = "ath9k";
+ 
+ MODULE_AUTHOR("Atheros Communications");
+ MODULE_DESCRIPTION("Support for Atheros 802.11n wireless LAN cards.");
+-MODULE_SUPPORTED_DEVICE("Atheros 802.11n WLAN cards");
+ MODULE_LICENSE("Dual BSD/GPL");
+ 
+ static unsigned int ath9k_debug = ATH_DBG_DEFAULT;
+--- a/drivers/net/wireless/atmel/atmel.c
++++ b/drivers/net/wireless/atmel/atmel.c
+@@ -75,7 +75,6 @@
+ MODULE_AUTHOR("Simon Kelley");
+ MODULE_DESCRIPTION("Support for Atmel at76c50x 802.11 wireless ethernet cards.");
+ MODULE_LICENSE("GPL");
+-MODULE_SUPPORTED_DEVICE("Atmel at76c50x wireless cards");
+ 
+ /* The name of the firmware file to be loaded
+    over-rides any automatic selection */
+--- a/drivers/net/wireless/atmel/atmel_cs.c
++++ b/drivers/net/wireless/atmel/atmel_cs.c
+@@ -57,7 +57,6 @@
+ MODULE_AUTHOR("Simon Kelley");
+ MODULE_DESCRIPTION("Support for Atmel at76c50x 802.11 wireless ethernet cards.");
+ MODULE_LICENSE("GPL");
+-MODULE_SUPPORTED_DEVICE("Atmel at76c50x PCMCIA cards");
+ 
+ /*====================================================================*/
+ 
+--- a/drivers/net/wireless/atmel/atmel_pci.c
++++ b/drivers/net/wireless/atmel/atmel_pci.c
+@@ -16,7 +16,6 @@
+ MODULE_AUTHOR("Simon Kelley");
+ MODULE_DESCRIPTION("Support for Atmel at76c50x 802.11 wireless ethernet cards.");
+ MODULE_LICENSE("GPL");
+-MODULE_SUPPORTED_DEVICE("Atmel at76c506 PCI wireless cards");
+ 
+ static const struct pci_device_id card_ids[] = {
+ 	{ 0x1114, 0x0506, PCI_ANY_ID, PCI_ANY_ID },
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmsmac/mac80211_if.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmsmac/mac80211_if.c
+@@ -87,7 +87,6 @@ static int n_adapters_found;
+ 
+ MODULE_AUTHOR("Broadcom Corporation");
+ MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver.");
+-MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN cards");
+ MODULE_LICENSE("Dual BSD/GPL");
+ /* This needs to be adjusted when brcms_firmwares changes */
+ MODULE_FIRMWARE("brcm/bcm43xx-0.fw");
+--- a/drivers/net/wireless/broadcom/brcm80211/brcmutil/utils.c
++++ b/drivers/net/wireless/broadcom/brcm80211/brcmutil/utils.c
+@@ -12,7 +12,6 @@
+ 
+ MODULE_AUTHOR("Broadcom Corporation");
+ MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN driver utilities.");
+-MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN cards");
+ MODULE_LICENSE("Dual BSD/GPL");
+ 
+ struct sk_buff *brcmu_pkt_buf_get_skb(uint len)
+--- a/drivers/net/wireless/cisco/airo.c
++++ b/drivers/net/wireless/cisco/airo.c
+@@ -251,7 +251,6 @@ MODULE_AUTHOR("Benjamin Reed");
+ MODULE_DESCRIPTION("Support for Cisco/Aironet 802.11 wireless ethernet cards.  "
+ 		   "Direct support for ISA/PCI/MPI cards and support for PCMCIA when used with airo_cs.");
+ MODULE_LICENSE("Dual BSD/GPL");
+-MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340/350");
+ module_param_hw_array(io, int, ioport, NULL, 0);
+ module_param_hw_array(irq, int, irq, NULL, 0);
+ module_param_array(rates, int, NULL, 0);
+--- a/drivers/net/wireless/cisco/airo_cs.c
++++ b/drivers/net/wireless/cisco/airo_cs.c
+@@ -47,7 +47,6 @@ MODULE_DESCRIPTION("Support for Cisco/Ai
+ 		   "cards.  This is the module that links the PCMCIA card "
+ 		   "with the airo module.");
+ MODULE_LICENSE("Dual BSD/GPL");
+-MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340 PCMCIA cards");
+ 
+ /*====================================================================*/
+ 
+--- a/drivers/net/wireless/intersil/hostap/hostap_cs.c
++++ b/drivers/net/wireless/intersil/hostap/hostap_cs.c
+@@ -26,7 +26,6 @@ static char *dev_info = "hostap_cs";
+ MODULE_AUTHOR("Jouni Malinen");
+ MODULE_DESCRIPTION("Support for Intersil Prism2-based 802.11 wireless LAN "
+ 		   "cards (PC Card).");
+-MODULE_SUPPORTED_DEVICE("Intersil Prism2-based WLAN cards (PC Card)");
+ MODULE_LICENSE("GPL");
+ 
+ 
+--- a/drivers/net/wireless/intersil/hostap/hostap_pci.c
++++ b/drivers/net/wireless/intersil/hostap/hostap_pci.c
+@@ -27,7 +27,6 @@ static char *dev_info = "hostap_pci";
+ MODULE_AUTHOR("Jouni Malinen");
+ MODULE_DESCRIPTION("Support for Intersil Prism2.5-based 802.11 wireless LAN "
+ 		   "PCI cards.");
+-MODULE_SUPPORTED_DEVICE("Intersil Prism2.5-based WLAN PCI cards");
+ MODULE_LICENSE("GPL");
+ 
+ 
+--- a/drivers/net/wireless/intersil/hostap/hostap_plx.c
++++ b/drivers/net/wireless/intersil/hostap/hostap_plx.c
+@@ -30,7 +30,6 @@ static char *dev_info = "hostap_plx";
+ MODULE_AUTHOR("Jouni Malinen");
+ MODULE_DESCRIPTION("Support for Intersil Prism2-based 802.11 wireless LAN "
+ 		   "cards (PLX).");
+-MODULE_SUPPORTED_DEVICE("Intersil Prism2-based WLAN cards (PLX)");
+ MODULE_LICENSE("GPL");
+ 
+ 
+--- a/drivers/net/wireless/ralink/rt2x00/rt2400pci.c
++++ b/drivers/net/wireless/ralink/rt2x00/rt2400pci.c
+@@ -1821,7 +1821,6 @@ static const struct pci_device_id rt2400
+ MODULE_AUTHOR(DRV_PROJECT);
+ MODULE_VERSION(DRV_VERSION);
+ MODULE_DESCRIPTION("Ralink RT2400 PCI & PCMCIA Wireless LAN driver.");
+-MODULE_SUPPORTED_DEVICE("Ralink RT2460 PCI & PCMCIA chipset based cards");
+ MODULE_DEVICE_TABLE(pci, rt2400pci_device_table);
+ MODULE_LICENSE("GPL");
+ 
+--- a/drivers/net/wireless/ralink/rt2x00/rt2500pci.c
++++ b/drivers/net/wireless/ralink/rt2x00/rt2500pci.c
+@@ -2119,7 +2119,6 @@ static const struct pci_device_id rt2500
+ MODULE_AUTHOR(DRV_PROJECT);
+ MODULE_VERSION(DRV_VERSION);
+ MODULE_DESCRIPTION("Ralink RT2500 PCI & PCMCIA Wireless LAN driver.");
+-MODULE_SUPPORTED_DEVICE("Ralink RT2560 PCI & PCMCIA chipset based cards");
+ MODULE_DEVICE_TABLE(pci, rt2500pci_device_table);
+ MODULE_LICENSE("GPL");
+ 
+--- a/drivers/net/wireless/ralink/rt2x00/rt2500usb.c
++++ b/drivers/net/wireless/ralink/rt2x00/rt2500usb.c
+@@ -1956,7 +1956,6 @@ static const struct usb_device_id rt2500
+ MODULE_AUTHOR(DRV_PROJECT);
+ MODULE_VERSION(DRV_VERSION);
+ MODULE_DESCRIPTION("Ralink RT2500 USB Wireless LAN driver.");
+-MODULE_SUPPORTED_DEVICE("Ralink RT2570 USB chipset based cards");
+ MODULE_DEVICE_TABLE(usb, rt2500usb_device_table);
+ MODULE_LICENSE("GPL");
+ 
+--- a/drivers/net/wireless/ralink/rt2x00/rt2800pci.c
++++ b/drivers/net/wireless/ralink/rt2x00/rt2800pci.c
+@@ -439,7 +439,6 @@ static const struct pci_device_id rt2800
+ MODULE_AUTHOR(DRV_PROJECT);
+ MODULE_VERSION(DRV_VERSION);
+ MODULE_DESCRIPTION("Ralink RT2800 PCI & PCMCIA Wireless LAN driver.");
+-MODULE_SUPPORTED_DEVICE("Ralink RT2860 PCI & PCMCIA chipset based cards");
+ MODULE_FIRMWARE(FIRMWARE_RT2860);
+ MODULE_DEVICE_TABLE(pci, rt2800pci_device_table);
+ MODULE_LICENSE("GPL");
+--- a/drivers/net/wireless/ralink/rt2x00/rt2800usb.c
++++ b/drivers/net/wireless/ralink/rt2x00/rt2800usb.c
+@@ -1247,7 +1247,6 @@ static const struct usb_device_id rt2800
+ MODULE_AUTHOR(DRV_PROJECT);
+ MODULE_VERSION(DRV_VERSION);
+ MODULE_DESCRIPTION("Ralink RT2800 USB Wireless LAN driver.");
+-MODULE_SUPPORTED_DEVICE("Ralink RT2870 USB chipset based cards");
+ MODULE_DEVICE_TABLE(usb, rt2800usb_device_table);
+ MODULE_FIRMWARE(FIRMWARE_RT2870);
+ MODULE_LICENSE("GPL");
+--- a/drivers/net/wireless/ralink/rt2x00/rt61pci.c
++++ b/drivers/net/wireless/ralink/rt2x00/rt61pci.c
+@@ -2993,7 +2993,6 @@ static const struct pci_device_id rt61pc
+ MODULE_AUTHOR(DRV_PROJECT);
+ MODULE_VERSION(DRV_VERSION);
+ MODULE_DESCRIPTION("Ralink RT61 PCI & PCMCIA Wireless LAN driver.");
+-MODULE_SUPPORTED_DEVICE("Ralink RT2561, RT2561s & RT2661 "
+ 			"PCI & PCMCIA chipset based cards");
+ MODULE_DEVICE_TABLE(pci, rt61pci_device_table);
+ MODULE_FIRMWARE(FIRMWARE_RT2561);
+--- a/drivers/net/wireless/ralink/rt2x00/rt73usb.c
++++ b/drivers/net/wireless/ralink/rt2x00/rt73usb.c
+@@ -2513,7 +2513,6 @@ static const struct usb_device_id rt73us
+ MODULE_AUTHOR(DRV_PROJECT);
+ MODULE_VERSION(DRV_VERSION);
+ MODULE_DESCRIPTION("Ralink RT73 USB Wireless LAN driver.");
+-MODULE_SUPPORTED_DEVICE("Ralink RT2571W & RT2671 USB chipset based cards");
+ MODULE_DEVICE_TABLE(usb, rt73usb_device_table);
+ MODULE_FIRMWARE(FIRMWARE_RT2571);
+ MODULE_LICENSE("GPL");
+--- a/drivers/net/wireless/rsi/rsi_91x_main.c
++++ b/drivers/net/wireless/rsi/rsi_91x_main.c
+@@ -441,6 +441,5 @@ module_init(rsi_91x_hal_module_init);
+ module_exit(rsi_91x_hal_module_exit);
+ MODULE_AUTHOR("Redpine Signals Inc");
+ MODULE_DESCRIPTION("Station driver for RSI 91x devices");
+-MODULE_SUPPORTED_DEVICE("RSI-91x");
+ MODULE_VERSION("0.1");
+ MODULE_LICENSE("Dual BSD/GPL");
+--- a/drivers/net/wireless/rsi/rsi_91x_sdio.c
++++ b/drivers/net/wireless/rsi/rsi_91x_sdio.c
+@@ -1571,7 +1571,6 @@ module_exit(rsi_module_exit);
+ 
+ MODULE_AUTHOR("Redpine Signals Inc");
+ MODULE_DESCRIPTION("Common SDIO layer for RSI drivers");
+-MODULE_SUPPORTED_DEVICE("RSI-91x");
+ MODULE_DEVICE_TABLE(sdio, rsi_dev_table);
+ MODULE_FIRMWARE(FIRMWARE_RSI9113);
+ MODULE_VERSION("0.1");
+--- a/drivers/net/wireless/rsi/rsi_91x_usb.c
++++ b/drivers/net/wireless/rsi/rsi_91x_usb.c
+@@ -927,7 +927,6 @@ module_usb_driver(rsi_driver);
+ 
+ MODULE_AUTHOR("Redpine Signals Inc");
+ MODULE_DESCRIPTION("Common USB layer for RSI drivers");
+-MODULE_SUPPORTED_DEVICE("RSI-91x");
+ MODULE_DEVICE_TABLE(usb, rsi_dev_table);
+ MODULE_FIRMWARE(FIRMWARE_RSI9113);
+ MODULE_VERSION("0.1");
