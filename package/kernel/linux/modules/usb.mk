@@ -1340,6 +1340,7 @@ $(eval $(call KernelPackage,usb-net-rtl8150))
 
 define KernelPackage/usb-net-rtl8152
   TITLE:=Kernel module for USB-to-Ethernet Realtek convertors
+  DEPENDS:=+r8152-firmware +kmod-crypto-sha256 +kmod-usb-net-cdc-ncm
   KCONFIG:=CONFIG_USB_RTL8152
   FILES:=$(LINUX_DIR)/drivers/$(USBNET_DIR)/r8152.ko
   AUTOLOAD:=$(call AutoProbe,r8152)
@@ -1752,10 +1753,8 @@ define KernelPackage/usb-xhci-mtk
   DEPENDS:=+kmod-usb-xhci-hcd
   KCONFIG:=CONFIG_USB_XHCI_MTK
   HIDDEN:=1
-  FILES:= \
-	$(LINUX_DIR)/drivers/usb/host/xhci-mtk.ko@lt5.13 \
-	$(LINUX_DIR)/drivers/usb/host/xhci-mtk-hcd.ko@ge5.13
-  AUTOLOAD:=$(call AutoLoad,54,xhci-mtk$(if $(CONFIG_LINUX_5_14),-hcd),1)
+  FILES:=$(LINUX_DIR)/drivers/usb/host/xhci-mtk.ko
+  AUTOLOAD:=$(call AutoLoad,54,xhci-mtk,1)
   $(call AddDepends/usb)
 endef
 

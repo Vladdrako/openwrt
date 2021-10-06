@@ -109,10 +109,9 @@ define KernelPackage/lib-lzo
   HIDDEN:=1
   FILES:= \
 	$(LINUX_DIR)/crypto/lzo.ko \
-	$(LINUX_DIR)/crypto/lzo-rle.ko \
 	$(LINUX_DIR)/lib/lzo/lzo_compress.ko \
 	$(LINUX_DIR)/lib/lzo/lzo_decompress.ko
-  AUTOLOAD:=$(call AutoProbe,lzo lzo-rle lzo_compress lzo_decompress)
+  AUTOLOAD:=$(call AutoProbe,lzo lzo_compress lzo_decompress)
 endef
 
 define KernelPackage/lib-lzo/description
@@ -294,17 +293,20 @@ endef
 
 $(eval $(call KernelPackage,asn1-decoder))
 
-
-define KernelPackage/lib-oid-registry
+define KernelPackage/asn1-encoder
   SUBMENU:=$(LIB_MENU)
-  TITLE:=OID registry support
-  KCONFIG:=CONFIG_OID_REGISTRY
-  HIDDEN:=1
+  TITLE:=Simple ASN1 encoder
+  KCONFIG:= CONFIG_ASN1
+  FILES:=$(LINUX_DIR)/lib/asn1_encoder.ko
+endef
+
+$(eval $(call KernelPackage,asn1-encoder))
+
+define KernelPackage/oid_registry
+  SUBMENU:=$(LIB_MENU)
+  TITLE:=OID registry
+  KCONFIG:= CONFIG_OID_REGISTRY
   FILES:=$(LINUX_DIR)/lib/oid_registry.ko
 endef
 
-define KernelPackage/lib-oid-registry/description
- Kernel module for OID registry support
-endef
-
-$(eval $(call KernelPackage,lib-oid-registry))
+$(eval $(call KernelPackage,oid_registry))
