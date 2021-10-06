@@ -25,13 +25,14 @@ Signed-off-by: Ansuel Smith <ansuelsmth@gmail.com>
  
  /**
   * of_get_phy_mode - Get phy mode for given device_node
-@@ -95,6 +96,51 @@ static int of_get_mac_addr_nvmem(struct
+@@ -95,6 +96,52 @@ static int of_get_mac_addr_nvmem(struct
  	return 0;
  }
  
 +static int of_get_mac_address_mtd(struct device_node *np, u8 *addr)
 +{
 +#ifdef CONFIG_MTD
++	struct platform_device *pdev = of_find_device_by_node(np);
 +	struct device_node *mtd_np = NULL;
 +	size_t retlen;
 +	int size, ret;
@@ -77,18 +78,18 @@ Signed-off-by: Ansuel Smith <ansuelsmth@gmail.com>
  /**
   * of_get_mac_address()
   * @np:		Caller's Device Node
-@@ -119,6 +165,10 @@ static int of_get_mac_addr_nvmem(struct
+@@ -119,6 +166,10 @@ static int of_get_mac_addr_nvmem(struct
   * this case, the real MAC is in 'local-mac-address', and 'mac-address' exists
   * but is all zeros.
   *
 + *
 + * If a mtd-mac-address property exists, try to fetch the MAC address from the
-+ * specified mtd device, and store it as a 'mac-address' property
++ * specified mtd device.
 + *
   * Return: 0 on success and errno in case of error.
  */
  int of_get_mac_address(struct device_node *np, u8 *addr)
-@@ -140,6 +190,10 @@ int of_get_mac_address(struct device_nod
+@@ -140,6 +191,10 @@ int of_get_mac_address(struct device_nod
  	if (!ret)
  		return 0;
  

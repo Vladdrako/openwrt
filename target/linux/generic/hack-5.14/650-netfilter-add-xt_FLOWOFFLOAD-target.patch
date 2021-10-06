@@ -767,7 +767,7 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
  #include <net/netfilter/nf_flow_table.h>
  #include <net/netfilter/nf_conntrack.h>
  #include <net/netfilter/nf_conntrack_core.h>
-@@ -398,8 +397,7 @@ flow_offload_lookup(struct nf_flowtable
+@@ -407,8 +406,7 @@ flow_offload_lookup(struct nf_flowtable
  }
  EXPORT_SYMBOL_GPL(flow_offload_lookup);
  
@@ -777,7 +777,7 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
  		      void (*iter)(struct flow_offload *flow, void *data),
  		      void *data)
  {
-@@ -431,6 +429,7 @@ nf_flow_table_iterate(struct nf_flowtabl
+@@ -440,6 +438,7 @@ nf_flow_table_iterate(struct nf_flowtabl
  
  	return err;
  }
