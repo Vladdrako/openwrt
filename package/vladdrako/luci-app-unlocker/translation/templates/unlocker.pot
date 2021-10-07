@@ -1,0 +1,169 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
+msgid "Advanced IP-List Settings"
+msgstr ""
+
+msgid "Base Setting"
+msgstr ""
+
+msgid "By ticking this box bypass rules will also be applied to router itself"
+msgstr ""
+
+msgid "Bypass Mode"
+msgstr ""
+
+msgid "Creates a simple Tor config for unlocker"
+msgstr ""
+
+msgid "Currently list is just loaded on boot."
+msgstr ""
+
+msgid "Custom Domain List"
+msgstr ""
+
+msgid "Custom IPv4"
+msgstr ""
+
+msgid "Direct edit of torrc file"
+msgstr ""
+
+msgid "Disable start on boot"
+msgstr ""
+
+msgid "Disabled"
+msgstr ""
+
+msgid "Domain Bypass Lists"
+msgstr ""
+
+msgid "ENABLED on boot"
+msgstr ""
+
+msgid ""
+"Each ip or subnet must start at the beginning of line (comments like this "
+"line are allowed)"
+msgstr ""
+
+msgid "Enable Unlocker"
+msgstr ""
+
+msgid "Enable list auto-update"
+msgstr ""
+
+msgid "Enable on router"
+msgstr ""
+
+msgid "Enable start on boot"
+msgstr ""
+
+msgid "Example of custom list:"
+msgstr ""
+
+msgid "Example:"
+msgstr ""
+
+msgid "Exclude your country exit nodes in config. And add TransPort."
+msgstr ""
+
+msgid "Great Firewall"
+msgstr ""
+
+msgid "Great Firewall IPv4 (China)"
+msgstr ""
+
+msgid "IPv4 Bypass Lists"
+msgstr ""
+
+msgid "Install Tor"
+msgstr ""
+
+msgid "Logs"
+msgstr ""
+
+msgid "Make me Tor config"
+msgstr ""
+
+msgid "More info can be found here:"
+msgstr ""
+
+msgid "Multiple selection is allowed."
+msgstr ""
+
+msgid "NOT ENABLED on boot"
+msgstr ""
+
+msgid "Not ready yet..."
+msgstr ""
+
+msgid "Requires dnsmasq-full!"
+msgstr ""
+
+msgid "Restart Tor"
+msgstr ""
+
+msgid "Roskomnadzor"
+msgstr ""
+
+msgid "Roskomnadzor (Russia)"
+msgstr ""
+
+msgid "Services Status:"
+msgstr ""
+
+msgid "Status: (TODO)"
+msgstr ""
+
+msgid "Tor Configuration"
+msgstr ""
+
+msgid "Tor is Running"
+msgstr ""
+
+msgid "Tor is not Installed"
+msgstr ""
+
+msgid "Tor is not Running"
+msgstr ""
+
+msgid "Tor is preferred and free but can't deal with UDP traffic"
+msgstr ""
+
+msgid "Tor log"
+msgstr ""
+
+msgid "Unified solution against internet censorship"
+msgstr ""
+
+msgid "Uninstall Tor"
+msgstr ""
+
+msgid "Unlocker"
+msgstr ""
+
+msgid "Unlocker log"
+msgstr ""
+
+msgid "Use ShadowSocks (TODO)"
+msgstr ""
+
+msgid "Use Tor network"
+msgstr ""
+
+msgid "Use WireGuard VPN"
+msgstr ""
+
+msgid "Use lite (low-ram) version of list"
+msgstr ""
+
+msgid "and"
+msgstr ""
+
+msgid "this is a comment"
+msgstr ""
+
+msgid "use !x.x.x.x/xx syntax to exclude ip or subnet"
+msgstr ""
+
+msgid "with PID"
+msgstr ""

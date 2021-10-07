@@ -1,0 +1,19 @@
+{
+	"luci-app-unlocker": {
+		"description": "Grant UCI luci-app-unlocker",
+		"read": {
+			"cgi-io": [
+				"exec"
+			],
+			
+			"uci": [
+			"unlocker"
+			]
+		},
+		"write": {
+			"uci": [
+				"unlocker"
+			]
+		}
+	}
+}

@@ -1,0 +1,14 @@
+{
+	"admin/services/unlocker": {
+		"title": "Unlocker",
+		"action": {
+			"type": "cbi",
+			"path": "unlocker",
+			"post": { "cbi.submit": true }
+		},
+		"depends": {
+			"acl": [ "luci-app-unlocker" ],
+			"uci": { "unlocker": true }
+		}
+	}
+}

@@ -1,0 +1,401 @@
+#!/bin/sh /etc/rc.common
+# Copyright 2018-2020 Alex D (https://gitlab.com/Nooblord/)
+# This is free software, licensed under the GNU General Public License v3.
+
+START=99
+CONFIG=unlocker
+
+. /lib/functions/network.sh
+
+# Main logic
+start()
+{
+    logger -t UNLOCKER "Starting unlocker."
+    
+    # Check if already running
+    if [ -f /tmp/unlocker_starting.pid ]; then
+        read -r unlocker_starting < /tmp/unlocker_starting.pid
+        kill -9 "$unlocker_starting" 2>/dev/null
+    fi
+    # Make pid
+    echo $$ > /tmp/unlocker_starting.pid
+
+    # Read settings
+    local enabled
+    enabled=$(uci get unlocker.@unlocker[0].enabled 2>/dev/null)
+    local proxy_mode
+    proxy_mode=$(uci get unlocker.@unlocker[0].proxy_mode 2>/dev/null)
+
+    # TODO Checks for ipset, coreutils , curl and all
+    # other needed stuff. If not present - exit
+    # Next check for check desired proxy_mode reqs
+    # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    if ! command -v ipset >/dev/null; then
+        # For safety - do not tamper with pkgs
+        # logger -t UNLOCKER "No ipset installed - trying to install and stopping."
+        # opkg update && opkg install ipset
+        logger -t UNLOCKER "No ipset installed - stopping."
+        rm -f /tmp/unlocker_starting.pid  2>/dev/null
+        exit 1
+    fi
+
+    # If unlocker is disabled - exit
+    if [ ! "$enabled" = 1 ]; then
+        logger -t UNLOCKER "Unlocker is disabled - exiting."
+        rm -f /tmp/unlocker_starting.pid  2>/dev/null
+        exit 1
+    fi
+
+    logger -t UNLOCKER "Flushing unlocker firewall chains."
+
+    firewall_flush_all
+
+if [ "$proxy_mode" = "T" ]; then
+    if ! command -v tor >/dev/null; then
+        # For safety - do not tamper with pkgs
+        # logger -t "Tor is not installed - trying to install and stopping."
+        # opkg update && opkg install tor-geoip
+        logger -t "Tor is not installed - stopping."
+        rm -f /tmp/unlocker_starting.pid 2>/dev/null
+        exit 1
+    fi
+    logger -t UNLOCKER "Tor is selected - creating chains."
+    firewall_create_tor
+
+fi
+
+if [ "$proxy_mode" = "W" ]; then
+    if ! command -v wg >/dev/null; then
+        logger -t "WireGuard is not installed - stopping."
+        rm -f /tmp/unlocker_starting.pid 2>/dev/null
+        exit 1
+    fi
+    logger -t UNLOCKER "WireGuard is selected - creating chains."
+    firewall_create_wg
+
+fi
+
+logger -t UNLOCKER "Finished starting."
+rm -f /tmp/unlocker_starting.pid  2>/dev/null
+    # Create rules based on desired IP (TODO DNS) lists
+}
+
+
+ipset_destroy_all()
+{
+    for ipset_name in $(ipset list -name | grep -e rkn -e custom -e exclude | sort); do
+        ipset destroy $ipset_name 2>/dev/null || ipset flush $ipset_name 2>/dev/null
+    done
+    logger -t UNLOCKER "Destroyed or flushed ip lists in memory"
+}
+
+ipset_create()
+{
+    local iplists
+    iplists=$(uci get unlocker.@unlocker[0].iplists 2>/dev/null)
+    if [ -z "$iplists" ]; then
+        logger -t UNLOCKER "No lists defined for bypassing - exiting."
+        exit 1
+    fi
+    for iplist in $iplists ; do
+        case $iplist in
+            RKNIPLIST )
+                update_rkniplist
+                ;;            
+            CUSTOMIPLIST )
+                update_customiplist
+                ;;
+        esac
+    done
+}
+
+
+update_rkniplist()
+{
+    local rknlistoptions
+    local ipset_download_link
+    local use_lite_list
+    rknlistoptions=$(uci get unlocker.@unlocker[0].rknListOptions 2>/dev/null)
+    
+    # determine if device supports https
+
+    if [ "$(wget -qO - https://nooblord.gitlab.io/ipset-lists/rkn_net.ipset | grep create )" != "" ]; then
+        ipset_download_link="https://nooblord.gitlab.io/ipset-lists"
+    else
+        ipset_download_link="http://lists.unlocker.xyz"
+    fi
+
+
+    if echo "$rknlistoptions" | grep -q "RKNLISTCRON"; then
+        cron_rkniplist_add
+    else
+        cron_rkniplist_del
+    fi
+
+    if echo "$rknlistoptions" | grep -q "RKNLISTLITE" ; then
+        use_lite_list=1
+    fi
+
+
+    if [ "$(ping -c 1 8.8.8.8 | grep '100% packet loss' )" != "" ]; then
+        logger -t UNLOCKER "Can not update list - internet is down."
+    elif [ "$use_lite_list" = 1 ]; then
+        logger -t UNLOCKER "Starting RKNIPLIST update (lite version)"
+        destroy_or_flush_rknlist
+        for name in $(wget -qO - $ipset_download_link/rkn_lite.sets); do
+            wget -qO - $ipset_download_link/"$name" | ipset restore || \
+            wget -qO - $ipset_download_link/"$name" | sed '1d' | ipset restore
+        done
+        logger -t UNLOCKER "Set RKNIPLIST (lite version) was updated and loaded in memory"
+    else
+        logger -t UNLOCKER "Starting RKNIPLIST update"
+        destroy_or_flush_rknlist
+
+        for name in $(wget -qO - $ipset_download_link/rkn.sets); do
+            wget -qO - $ipset_download_link/"$name" | ipset restore || \
+            wget -qO - $ipset_download_link/"$name" | sed '1d' | ipset restore
+        done
+
+        logger -t UNLOCKER "Set RKNIPLIST was updated and loaded in memory"
+    fi
+}
+
+destroy_or_flush_rknlist()
+{
+    for name in $(ipset list -name | grep rkn); do
+        ipset destroy "$name" 2>/dev/null || ipset flush "$name" 2>/dev/null
+    done
+}
+
+update_customiplist()
+{
+        ipset destroy custom_ip 2>/dev/null || ipset flush custom_ip 2>/dev/null
+        ipset destroy exclude_ip 2>/dev/null || ipset flush exclude_ip 2>/dev/null
+        ipset destroy custom_net 2>/dev/null || ipset flush custom_net 2>/dev/null
+        ipset destroy exclude_net 2>/dev/null || ipset flush exclude_net 2>/dev/null
+        if [ -f /etc/unlocker.ipv4ip ]; then
+            cat /etc/unlocker.ipv4ip | ipset restore 2>/dev/null || \
+            cat /etc/unlocker.ipv4ip | sed '1d' | ipset restore 2>/dev/null
+        fi
+
+        if [ -f /etc/unlocker.ipv4net ]; then
+            cat /etc/unlocker.ipv4net | ipset restore 2>/dev/null || \
+            cat /etc/unlocker.ipv4net | sed '1d' | ipset restore 2>/dev/null
+        fi
+
+        if [ -f /etc/unlocker.ipv4excip ]; then
+            cat /etc/unlocker.ipv4excip | ipset restore 2>/dev/null || \
+            cat /etc/unlocker.ipv4excip | sed '1d' | ipset restore 2>/dev/null
+        fi
+
+        if [ -f /etc/unlocker.ipv4excnet ]; then
+            cat /etc/unlocker.ipv4excnet | ipset restore 2>/dev/null || \
+            cat /etc/unlocker.ipv4excnet | sed '1d' | ipset restore 2>/dev/null
+        fi
+        logger -t UNLOCKER "Custom ipset was read and loaded in memory"
+}
+
+cron_rkniplist_add()
+{   
+    if ! grep -q 'update_rkniplist' /etc/crontabs/root ; then
+        mkdir -p /etc/crontabs/ 2>/dev/null
+        echo -e '0 0 * * * sh -c ". /etc/init.d/unlocker && update_rkniplist 2>/dev/null"' >> /etc/crontabs/root
+        /etc/init.d/cron restart
+        /etc/init.d/cron enable
+    fi
+}
+
+cron_rkniplist_del()
+{
+    sed -i '/update_rkniplist/d' /etc/crontabs/root
+    /etc/init.d/cron restart
+}
+
+determine_wg_l3_name()
+{
+    # TODO: interface selection (get first one for now)
+    ubus call network.interface dump | jsonfilter -e '@.interface[@.proto="wireguard"].l3_device' | head -n1
+}
+
+vpnroute_add()
+{
+    if ! grep -q 'unlockervpn' /etc/iproute2/rt_tables ; then
+        echo -e '115 unlockervpn' >> /etc/iproute2/rt_tables
+    fi
+
+    ip route add table unlockervpn default dev "$(determine_wg_l3_name)" 2>/dev/null
+    ip rule add prio 100 fwmark 115 lookup unlockervpn 2>/dev/null
+
+}
+
+vpnroute_del()
+{
+    sed -i '/unlockervpn/d' /etc/iproute2/rt_tables
+    ip route flush table unlockervpn 2>/dev/null
+}
+
+
+firewall_flush_all()
+{
+
+    # Remove vpn route
+    vpnroute_del
+
+    # Remove custom nat user chains and flush all checks
+    if iptables -t nat -F unlocker_check 2>/dev/null; then
+        while iptables -t nat -D PREROUTING -p tcp -j unlocker_check 2>/dev/null; do :; done
+        while iptables -t nat -D PREROUTING -p udp -j unlocker_check 2>/dev/null; do :; done
+        while iptables -t nat -D OUTPUT -p tcp -j unlocker_check 2>/dev/null; do :; done
+        while iptables -t nat -D OUTPUT -p udp -j unlocker_check 2>/dev/null; do :; done
+        iptables -t nat -X unlocker_check 2>/dev/null
+    fi    
+
+    # Remove custom mangle user chains and flush all checks
+    if iptables -t mangle -F unlocker_check 2>/dev/null; then
+        while iptables -t mangle -D PREROUTING -p tcp -j unlocker_check 2>/dev/null; do :; done
+        while iptables -t mangle -D PREROUTING -p udp -j unlocker_check 2>/dev/null; do :; done
+        while iptables -t mangle -D OUTPUT -p tcp -j unlocker_check 2>/dev/null; do :; done
+        while iptables -t mangle -D OUTPUT -p udp -j unlocker_check 2>/dev/null; do :; done
+        iptables -t mangle -X unlocker_check 2>/dev/null
+    fi
+
+    # Remove custom user tor chain
+    iptables -t nat -F unlocker_tor 2>/dev/null
+    iptables -t nat -X unlocker_tor 2>/dev/null
+
+    # Remove custom wireguard chain
+    iptables -t mangle -F unlocker_wg 2>/dev/null
+    iptables -t mangle -X unlocker_wg 2>/dev/null
+
+    logger -t UNLOCKER "Flushed firewall."
+}
+
+
+
+firewall_create_tor()
+{
+    local udp_proxy
+    local subnets4
+    local local_proxy
+    # network_get_subnets subnets4 lan
+    subnets4=$(get_lan_subnets)
+    local_proxy=$(uci get unlocker.@unlocker[0].local_proxy 2>/dev/null)
+    # udp_proxy=$(uci get unlocker.@unlocker[0].udp_proxy 2>/dev/null)
+    # if [ "$udp_proxy" = "1" ]; then
+    #     logger -t UNLOCKER "UDP option selected - but Tor can't do that, sorry."
+    # fi
+    
+    # Create lists for bypass
+    ipset_create
+    
+    # Create new user chains for unlocker check and tor
+    iptables -t nat -N unlocker_check 2>/dev/null
+    iptables -t nat -N unlocker_tor 2>/dev/null
+    
+    # Create integration with lists and create tcp prerouting rule for local lan
+    for subnet in $subnets4; do
+        iptables -t nat -A unlocker_tor -s "$subnet" -p tcp -j REDIRECT --to 9040 2>/dev/null
+    done
+    
+    for ipset in $(ipset list -name | grep -e rkn -e custom | sort); do
+        iptables -t nat -A unlocker_check -m set --match-set "$ipset" dst -j unlocker_tor 2>/dev/null
+    done
+
+    # Exclude ips and subnets from custom list
+    for ipset in $(ipset list -name | grep 'exclude' | sort); do
+        iptables -t nat -I unlocker_check 1 -m set --match-set "$ipset" dst -j RETURN 2>/dev/null
+    done
+
+    iptables -t nat -I PREROUTING -p tcp -j unlocker_check 2>/dev/null
+
+    # Enable local (router) rule
+    if [ "$local_proxy" = 1 ]; then
+        iptables -t nat -I OUTPUT -p tcp -j unlocker_check 2>/dev/null
+        iptables -t nat -A unlocker_tor -o eth+ -p tcp -j REDIRECT --to 9040 2>/dev/null
+    fi
+
+    logger -t UNLOCKER "Tor Chain loaded in firewall"
+}
+
+firewall_create_wg()
+{
+    local udp_proxy
+    local subnets4
+    local local_proxy
+    proxy_mode=$(uci get unlocker.@unlocker[0].proxy_mode 2>/dev/null)
+    local_proxy=$(uci get unlocker.@unlocker[0].local_proxy 2>/dev/null)
+    # network_get_subnets subnets4 lan
+    subnets4=$(get_lan_subnets)
+    #udp_proxy=$(uci get unlocker.@unlocker[0].udp_proxy 2>/dev/null)
+    
+    # Create lists for bypass
+    ipset_create
+
+    # Add vpn route
+    vpnroute_add
+    
+    # Create new user chains for unlocker check and tor
+    iptables -t mangle -N unlocker_check 2>/dev/null
+    iptables -t mangle -N unlocker_wg 2>/dev/null
+    
+    # Create integration with lists and create prerouting rule for local lan
+    for subnet in $subnets4; do
+        iptables -A unlocker_wg -s "$subnet" -t mangle -j MARK --set-mark 115 2>/dev/null
+    done
+    
+    for ipset in $(ipset list -name | grep -e rkn -e custom | sort); do
+        iptables -t mangle -A unlocker_check -m set --match-set "$ipset" dst -j unlocker_wg 2>/dev/null
+    done
+
+    # Exclude ips and subnets from custom list
+    for ipset in $(ipset list -name | grep 'exclude' | sort); do
+        iptables -t mangle -I unlocker_check 1 -m set --match-set "$ipset" dst -j RETURN 2>/dev/null
+    done
+
+    iptables -t mangle -I PREROUTING -p tcp -j unlocker_check 2>/dev/null
+    iptables -t mangle -I PREROUTING -p udp -j unlocker_check 2>/dev/null
+
+    # Enable local (router) rule
+    if [ "$local_proxy" = 1 ]; then
+        iptables -t mangle -I OUTPUT -p tcp -j unlocker_check 2>/dev/null
+        iptables -t mangle -I OUTPUT -p udp -j unlocker_check 2>/dev/null
+        iptables -A unlocker_wg -o eth+ -t mangle -j MARK --set-mark 115 2>/dev/null
+    fi
+
+    logger -t UNLOCKER "WG Chain loaded in firewall"
+}
+
+echo_lan_subnets() {
+    local zone
+    local subnets4
+    zone=$(uci get firewall."$1".name)
+    if [ "$zone" = "lan" ]; then
+        for network in $(uci get firewall."$1".network); do
+            network_get_subnets subnets4 "$network"
+            for subnet in $subnets4; do
+                echo "$subnet"
+            done
+        done
+    fi
+}
+
+get_lan_subnets()
+{
+    config_load firewall
+    config_foreach echo_lan_subnets zone
+}
+
+
+stop()
+{
+    logger -t UNLOCKER "Stopping unlocker."
+    ipset_destroy_all
+    firewall_flush_all
+    logger -t UNLOCKER "Stopped."
+}
+
+reload()
+{
+    start
+}

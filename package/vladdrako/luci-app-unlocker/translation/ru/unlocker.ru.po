@@ -1,0 +1,176 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Advanced IP-List Settings"
+msgstr "Доп. опции IP списка"
+
+msgid "Base Setting"
+msgstr "Основные настройки"
+
+msgid "By ticking this box bypass rules will also be applied to router itself"
+msgstr "Дополнительно применить все правила обхода на сам роутер, а не только для пользователей локальной сети"
+
+msgid "Bypass Mode"
+msgstr "Способ обхода"
+
+msgid "Creates a simple Tor config for unlocker"
+msgstr "Сконфигурировать Tor для использования в разблокировщике"
+
+msgid "Currently list is just loaded on boot."
+msgstr "На данный момент список обновляется при каждой загрузке."
+
+msgid "Custom Domain List"
+msgstr "Свои домены"
+
+msgid "Custom IPv4"
+msgstr "Свой IPv4"
+
+msgid "Direct edit of torrc file"
+msgstr "Редактирование torrc"
+
+msgid "Disable start on boot"
+msgstr "Отключить автозапуск"
+
+msgid "Disabled"
+msgstr "Отключено"
+
+msgid "Domain Bypass Lists"
+msgstr "Список доменов"
+
+msgid "ENABLED on boot"
+msgstr "ВКЛЮЧЕН при загрузке"
+
+msgid ""
+"Each ip or subnet must start at the beginning of line (comments like this "
+"line are allowed)"
+msgstr ""
+"IP адрес или подсеть должны идти в начале строки (можно использовать "
+"комментарии как этот)"
+
+msgid "Enable Unlocker"
+msgstr "Включить Разблокировщик"
+
+msgid "Enable list auto-update"
+msgstr "Включить авто-обновление"
+
+msgid "Enable on router"
+msgstr ""
+
+msgid "Enable start on boot"
+msgstr "Загружать при старте"
+
+msgid "Example of custom list:"
+msgstr "Пример своего списка:"
+
+msgid "Example:"
+msgstr "Пример:"
+
+msgid "Exclude your country exit nodes in config. And add TransPort."
+msgstr ""
+"Добавьте в конфигурацию Tor порт прозрачного прокси. Так же рекомендуется "
+"отключить исходящие ноды Tor своей страны."
+
+msgid "Great Firewall"
+msgstr "Великий фаервол"
+
+msgid "Great Firewall IPv4 (China)"
+msgstr "Великий фаервол IPv4 (Китай)"
+
+msgid "IPv4 Bypass Lists"
+msgstr "Списки IPv4"
+
+msgid "Install Tor"
+msgstr "Установить Tor"
+
+msgid "Logs"
+msgstr "Журнал"
+
+msgid "Make me Tor config"
+msgstr "Сконфигурировать Tor"
+
+msgid "More info can be found here:"
+msgstr "Можно почитать тут: "
+
+msgid "Multiple selection is allowed."
+msgstr "Можно выбрать несколько."
+
+msgid "NOT ENABLED on boot"
+msgstr "НЕ ВКЛЮЧЕН при загрузке"
+
+msgid "Not ready yet..."
+msgstr "Ещё не готово..."
+
+msgid "Requires dnsmasq-full!"
+msgstr "Требует установленного dnsmasq-full!"
+
+msgid "Restart Tor"
+msgstr "Перезапустить Tor"
+
+msgid "Roskomnadzor"
+msgstr "Роскомнадзор"
+
+msgid "Roskomnadzor (Russia)"
+msgstr "Роскомнадзор"
+
+msgid "Services Status:"
+msgstr "Статус сервисов:"
+
+msgid "Status: (TODO)"
+msgstr "Статус: (TODO)"
+
+msgid "Tor Configuration"
+msgstr "Настройки Tor"
+
+msgid "Tor is Running"
+msgstr "Tor запущен"
+
+msgid "Tor is not Installed"
+msgstr "Tor не установлен"
+
+msgid "Tor is not Running"
+msgstr "Tor не запущен"
+
+msgid "Tor is preferred and free but can't deal with UDP traffic"
+msgstr ""
+"Рекомендуется использовать Tor, он бесплатен, но не может проксировать UDP "
+"траффик"
+
+msgid "Tor log"
+msgstr "Журнал Tor"
+
+msgid "Unified solution against internet censorship"
+msgstr "Универсальный помощник обхода интернет-блокировок"
+
+msgid "Uninstall Tor"
+msgstr "Удалить Tor"
+
+msgid "Unlocker"
+msgstr "Разблокировщик"
+
+msgid "Unlocker log"
+msgstr "Журнал Разблокировщика"
+
+msgid "Use ShadowSocks (TODO)"
+msgstr "Использовать ShadowSocks (TODO)"
+
+msgid "Use Tor network"
+msgstr "Использовать Tor"
+
+msgid "Use WireGuard VPN"
+msgstr "Использовать WireGuard"
+
+msgid "Use lite (low-ram) version of list"
+msgstr ""
+"Использовать оптимизированный список адресов (сокращает потребление RAM)"
+
+msgid "and"
+msgstr "и"
+
+msgid "this is a comment"
+msgstr "просто комментарий"
+
+msgid "use !x.x.x.x/xx syntax to exclude ip or subnet"
+msgstr "можно использовать восклицательный знак в начале строки что бы исключить ip или подсеть"
+
+msgid "with PID"
+msgstr "c PID"
