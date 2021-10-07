@@ -1,0 +1,19 @@
+--- a/drivers/crypto/Kconfig
++++ b/drivers/crypto/Kconfig
+@@ -64,6 +64,8 @@ config CRYPTO_DEV_GEODE
+ 	  To compile this driver as a module, choose M here: the module
+ 	  will be called geode-aes.
+ 
++source "drivers/crypto/mtk-eip93/Kconfig"
++
+ config ZCRYPT
+ 	tristate "Support for s390 cryptographic adapters"
+ 	depends on S390
+--- a/drivers/crypto/Makefile
++++ b/drivers/crypto/Makefile
+@@ -16,4 +16,5 @@
+ obj-$(CONFIG_CRYPTO_DEV_FSL_CAAM_COMMON) += caam/
+ obj-$(CONFIG_CRYPTO_DEV_GEODE) += geode-aes.o
++obj-$(CONFIG_CRYPTO_DEV_EIP93) += mtk-eip93/
+ obj-$(CONFIG_CRYPTO_DEV_HIFN_795X) += hifn_795x.o
+ obj-$(CONFIG_CRYPTO_DEV_IMGTEC_HASH) += img-hash.o

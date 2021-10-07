@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <linux/mod_devicetable.h>
 
 #include <crypto/internal/aead.h>
 #include <crypto/internal/skcipher.h>
