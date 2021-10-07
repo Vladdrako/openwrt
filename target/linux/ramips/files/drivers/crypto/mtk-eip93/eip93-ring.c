@@ -9,6 +9,7 @@
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 #include <linux/dev_printk.h>
 #endif
+#include <linux/device.h>
 #include "eip93-common.h"
 #include "eip93-main.h"
 
