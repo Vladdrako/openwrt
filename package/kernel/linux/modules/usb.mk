@@ -1735,8 +1735,8 @@ define KernelPackage/usb-xhci-hcd
 	  CONFIG_USB_XHCI_HCD \
 	  CONFIG_USB_XHCI_HCD_DEBUGGING=n
   HIDDEN:=1
-  FILES:=$(LINUX_DIR)/drivers/usb/host/xhci-hcd.ko
-  AUTOLOAD:=$(call AutoLoad,54,xhci-hcd,1)
+  FILES:=$(LINUX_DIR)/drivers/usb/host/xhci-mtk-hcd.ko
+  AUTOLOAD:=$(call AutoLoad,54,xhci-mtk-hcd,1)
   $(call AddDepends/usb)
 endef
 
