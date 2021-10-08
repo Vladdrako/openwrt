@@ -110,16 +110,6 @@
 	};
 };
 
-&bdinfo {
-	compatible = "nvmem-cells";
-	#address-cells = <1>;
-	#size-cells = <1>;
-
-	macaddr_bdinfo: macaddr@18a {
-		reg = <0x18a 0x11>;
-	};
-};
-
 &pcie {
 	status = "okay";
 };
@@ -129,8 +119,7 @@
 		reg = <0x0000 0 0 0 0>;
 		mediatek,mtd-eeprom = <&factory 0x0000>;
 		ieee80211-freq-limit = <2400000 2500000>;
-		nvmem-cells = <&macaddr_bdinfo>;
-		nvmem-cell-names = "mac-address";
+		mtd-mac-address-ascii = <&bdinfo 0x18a>;
 	};
 };
 
@@ -139,16 +128,14 @@
 		reg = <0x0000 0 0 0 0>;
 		mediatek,mtd-eeprom = <&factory 0x8000>;
 		ieee80211-freq-limit = <5000000 6000000>;
-		nvmem-cells = <&macaddr_bdinfo>;
-		nvmem-cell-names = "mac-address";
+		mtd-mac-address-ascii = <&bdinfo 0x18a>;
 		mac-address-increment = <(-4)>;
 		mac-address-increment-byte = <0>;
 	};
 };
 
 &gmac0 {
-	nvmem-cells = <&macaddr_bdinfo>;
-	nvmem-cell-names = "mac-address";
+	mtd-mac-address-ascii = <&bdinfo 0x18a>;
 	phy-mode = "trgmii";
 };
 
@@ -172,8 +159,7 @@
 		port@4 {
 			status = "okay";
 			label = "wan";
-			nvmem-cells = <&macaddr_bdinfo>;
-			nvmem-cell-names = "mac-address";
+			mtd-mac-address-ascii = <&bdinfo 0x18a>;
 			mac-address-increment = <1>;
 		};
 
