@@ -92,6 +92,8 @@
 		gpio: gpio@600 {
 			#gpio-cells = <2>;
 			#interrupt-cells = <2>;
+			#address-cells = <2>;
+
 			compatible = "mediatek,mt7621-gpio";
 			gpio-controller;
 			interrupt-controller;
@@ -419,6 +421,8 @@
 	};
 
 	gic: interrupt-controller@1fbc0000 {
+		#address-cells = <2>;
+
 		compatible = "mti,gic";
 		reg = <0x1fbc0000 0x2000>;
 
@@ -565,7 +569,7 @@
 						reg = <6>;
 						label = "cpu";
 						ethernet = <&gmac0>;
-						phy-mode = "rgmii";
+						phy-mode = "trgmii";
 
 						fixed-link {
 							speed = <1000>;
