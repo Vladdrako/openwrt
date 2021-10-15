@@ -5,6 +5,6 @@ function index()
 		return
 	end
 	
-	entry({"admin", "nas"}, firstchild(), _("NAS") , 45).dependent = false
-	entry({"admin", "nas", "rclone"}, cbi("rclone"), _("Rclone"), 100).dependent = false
+	entry({"admin", "services"}, firstchild(), _("Services") , 45).dependent = false
+	entry({"admin", "services", "rclone"}, cbi("rclone"), _("Rclone"), 100).dependent = false
 end
