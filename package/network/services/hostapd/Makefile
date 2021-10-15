@@ -677,6 +677,8 @@ ifeq ($(BUILD_VARIANT),supplicant-full-wolfssl)
   endef
 endif
 
+# Build hostapd-common before its dependents, to avoid
+# spurious rebuilds when building multiple variants.
 $(eval $(call BuildPackage,hostapd-common))
 $(eval $(call BuildPackage,hostapd))
 $(eval $(call BuildPackage,hostapd-basic))
