@@ -124,4 +124,5 @@ endef
 $(eval $(call BuildPackage,libpcre))
 $(eval $(call BuildPackage,libpcre16))
 $(eval $(call BuildPackage,libpcre32))
+$(eval $(call BuildPackage,libpcrecpp))
 $(eval $(call HostBuild))
