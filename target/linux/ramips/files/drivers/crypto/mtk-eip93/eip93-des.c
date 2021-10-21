@@ -1,11 +1,12 @@
-/* SPDX-License-Identifier: GPL-2.0
- *
- * Copyright (C) 2019 - 2020
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (C) 2019 - 2021
  *
  * Richard van Schagen <vschagen@cs.com>
  */
-#define DEBUG 1
+
 #include <crypto/internal/des.h>
+#include <linux/dma-mapping.h>
 
 #include "eip93-common.h"
 #include "eip93-main.h"
@@ -15,155 +16,149 @@
 /* Crypto skcipher API functions */
 static int mtk_des_cra_init(struct crypto_tfm *tfm)
 {
-	struct mtk_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct mtk_crypto_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct mtk_alg_template *tmpl = container_of(tfm->__crt_alg,
 				struct mtk_alg_template, alg.skcipher.base);
 
+	crypto_skcipher_set_reqsize(__crypto_skcipher_cast(tfm),
+					sizeof(struct mtk_cipher_reqctx));
+
 	memset(ctx, 0, sizeof(*ctx));
 
-	ctx->fallback = NULL;
-
-	crypto_skcipher_set_reqsize(__crypto_skcipher_cast(tfm),
-			offsetof(struct mtk_cipher_reqctx, fallback_req));
-
 	ctx->mtk = tmpl->mtk;
-	ctx->aead = false;
-	ctx->sa = kzalloc(sizeof(struct saRecord_s), GFP_KERNEL);
-	if (!ctx->sa)
-		printk("!! no sa memory\n");
+	ctx->type = tmpl->type;
 
+	ctx->sa_in = kzalloc(sizeof(struct saRecord_s), GFP_KERNEL);
+	if (!ctx->sa_in)
+		return -ENOMEM;
+
+	ctx->sa_base_in = dma_map_single(ctx->mtk->dev, ctx->sa_in,
+				sizeof(struct saRecord_s), DMA_TO_DEVICE);
+
+	ctx->sa_out = kzalloc(sizeof(struct saRecord_s), GFP_KERNEL);
+	if (!ctx->sa_out)
+		return -ENOMEM;
+
+	ctx->sa_base_out = dma_map_single(ctx->mtk->dev, ctx->sa_out,
+				sizeof(struct saRecord_s), DMA_TO_DEVICE);
 	return 0;
 }
 
 static void mtk_des_cra_exit(struct crypto_tfm *tfm)
 {
-	struct mtk_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct mtk_crypto_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	kfree(ctx->sa);
+	dma_unmap_single(ctx->mtk->dev, ctx->sa_base_in,
+			sizeof(struct saRecord_s), DMA_TO_DEVICE);
+	dma_unmap_single(ctx->mtk->dev, ctx->sa_base_out,
+			sizeof(struct saRecord_s), DMA_TO_DEVICE);
+
+	kfree(ctx->sa_in);
+	kfree(ctx->sa_out);
 }
 
 static int mtk_des_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 				 unsigned int len)
 {
 	struct crypto_tfm *tfm = crypto_skcipher_tfm(ctfm);
-	struct mtk_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
+	struct mtk_crypto_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct mtk_alg_template *tmpl = container_of(tfm->__crt_alg,
 				struct mtk_alg_template, alg.skcipher.base);
-	unsigned long flags = tmpl->flags;
+	struct saRecord_s *saRecord = ctx->sa_out;
+	int sa_size = sizeof(struct saRecord_s);
+	u32 flags = tmpl->flags;
 	unsigned int keylen = len;
-	u32 nonce = 0;
-	int err = 0;
+	int err;
 
 	if (!key || !keylen)
 		return -EINVAL;
 
 	switch ((flags & MTK_ALG_MASK)) {
 	case MTK_ALG_DES:
+		ctx->blksize = DES_BLOCK_SIZE;
 		err = verify_skcipher_des_key(ctfm, key);
 		break;
 	case MTK_ALG_3DES:
-		if (keylen != DES3_EDE_KEY_SIZE) {
-			err = -EINVAL;
-			break;
-		}
+		ctx->blksize = DES3_EDE_BLOCK_SIZE;
 		err = verify_skcipher_des3_key(ctfm, key);
 	}
 
-	if (err) {
-//		crypto_skcipher_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (err)
 		return err;
-	}
 
-	mtk_set_saRecord(ctx->sa, key, nonce, keylen, flags);
+	dma_unmap_single(ctx->mtk->dev, ctx->sa_base_in, sa_size,
+								DMA_TO_DEVICE);
+	dma_unmap_single(ctx->mtk->dev, ctx->sa_base_out, sa_size,
+								DMA_TO_DEVICE);
 
-	return err;
+	mtk_set_saRecord(saRecord, keylen, flags);
+
+	memset(saRecord->saKey + keylen, 0, 32 - keylen);
+	memcpy(saRecord->saKey, key, keylen);
+
+	saRecord->saCmd0.bits.direction = 0;
+
+	memcpy(ctx->sa_in, saRecord, sa_size);
+	ctx->sa_in->saCmd0.bits.direction = 1;
+
+	ctx->sa_base_out = dma_map_single(ctx->mtk->dev, ctx->sa_out, sa_size,
+								DMA_TO_DEVICE);
+
+	ctx->sa_base_in = dma_map_single(ctx->mtk->dev, ctx->sa_in, sa_size,
+								DMA_TO_DEVICE);
+	return 0;
 }
 
 static int mtk_des_crypt(struct skcipher_request *req)
 {
 	struct mtk_cipher_reqctx *rctx = skcipher_request_ctx(req);
-	struct crypto_async_request *base = &req->base;
-	struct mtk_cipher_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
-	struct mtk_device *mtk = ctx->mtk;
-	int ret;
-	int DescriptorCountDone = MTK_RING_SIZE - 1;
-	int DescriptorDoneTimeout = 3;
-	int DescriptorPendingCount = 0;
+	struct crypto_async_request *async = &req->base;
+	struct mtk_crypto_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
-	u32 ivsize = crypto_skcipher_ivsize(skcipher);
 
 	if (!req->cryptlen)
 		return 0;
 
-	if (mtk->ring->requests > MTK_RING_BUSY)
-		return -EAGAIN;
-
+	rctx->assoclen = 0;
 	rctx->textsize = req->cryptlen;
 	rctx->authsize = 0;
-	rctx->assoclen = 0;
-	rctx->iv_dma = true;
-	rctx->ivsize = ivsize;
+	rctx->sg_src = req->src;
+	rctx->sg_dst = req->dst;
+	rctx->ivsize = crypto_skcipher_ivsize(skcipher);
+	rctx->blksize = ctx->blksize;
+	if (!IS_ECB(rctx->flags))
+		rctx->flags |= MTK_DESC_DMA_IV;
 
-	ret = mtk_send_req(base, ctx, req->src, req->dst, req->iv,
-				rctx);
-
-	if (ret < 0) {
-		base->complete(base, ret);
-		return ret;
-	}
-
-	if (ret == 0)
-		return 0;
-
-	spin_lock_bh(&mtk->ring->lock);
-	mtk->ring->requests += ret;
-
-	if (!mtk->ring->busy) {
-		DescriptorPendingCount = min_t(int, mtk->ring->requests, 32);
-		writel(BIT(31) | (DescriptorCountDone & GENMASK(10, 0)) |
-			(((DescriptorPendingCount - 1) & GENMASK(10, 0)) << 16) |
-			((DescriptorDoneTimeout  & GENMASK(4, 0)) << 26),
-			mtk->base + EIP93_REG_PE_RING_THRESH);
-		mtk->ring->busy = true;
-	}
-	spin_unlock_bh(&mtk->ring->lock);
-	/* Writing new descriptor count starts DMA action */
-	writel(ret, mtk->base + EIP93_REG_PE_CD_COUNT);
-
-	if (mtk->ring->requests > MTK_RING_BUSY) {
-		rctx->flags |= MTK_BUSY;
-		return -EBUSY;
-	}
-
-	return -EINPROGRESS;
+	return mtk_skcipher_send_req(async);
 }
 
 static int mtk_des_encrypt(struct skcipher_request *req)
 {
+	struct mtk_crypto_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct mtk_cipher_reqctx *rctx = skcipher_request_ctx(req);
-	struct crypto_async_request *base = &req->base;
-	struct mtk_alg_template *tmpl = container_of(base->tfm->__crt_alg,
+	struct mtk_alg_template *tmpl = container_of(req->base.tfm->__crt_alg,
 				struct mtk_alg_template, alg.skcipher.base);
 
 	rctx->flags = tmpl->flags;
 	rctx->flags |= MTK_ENCRYPT;
+	rctx->saRecord_base = ctx->sa_base_out;
 
 	return mtk_des_crypt(req);
 }
 
 static int mtk_des_decrypt(struct skcipher_request *req)
 {
+	struct mtk_crypto_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct mtk_cipher_reqctx *rctx = skcipher_request_ctx(req);
-	struct crypto_async_request *base = &req->base;
-	struct mtk_alg_template *tmpl = container_of(base->tfm->__crt_alg,
+	struct mtk_alg_template *tmpl = container_of(req->base.tfm->__crt_alg,
 				struct mtk_alg_template, alg.skcipher.base);
 
 	rctx->flags = tmpl->flags;
 	rctx->flags |= MTK_DECRYPT;
+	rctx->saRecord_base = ctx->sa_base_in;
 
 	return mtk_des_crypt(req);
 }
-
 
 /* Available algorithms in this module */
 
@@ -184,7 +179,7 @@ struct mtk_alg_template mtk_alg_ecb_des = {
 			.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_ctxsize = sizeof(struct mtk_cipher_ctx),
+			.cra_ctxsize = sizeof(struct mtk_crypto_ctx),
 			.cra_alignmask = 0,
 			.cra_init = mtk_des_cra_init,
 			.cra_exit = mtk_des_cra_exit,
@@ -210,7 +205,7 @@ struct mtk_alg_template mtk_alg_cbc_des = {
 			.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES_BLOCK_SIZE,
-			.cra_ctxsize = sizeof(struct mtk_cipher_ctx),
+			.cra_ctxsize = sizeof(struct mtk_crypto_ctx),
 			.cra_alignmask = 0,
 			.cra_init = mtk_des_cra_init,
 			.cra_exit = mtk_des_cra_exit,
@@ -236,7 +231,7 @@ struct mtk_alg_template mtk_alg_ecb_des3_ede = {
 			.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
-			.cra_ctxsize = sizeof(struct mtk_cipher_ctx),
+			.cra_ctxsize = sizeof(struct mtk_crypto_ctx),
 			.cra_alignmask = 0,
 			.cra_init = mtk_des_cra_init,
 			.cra_exit = mtk_des_cra_exit,
@@ -262,7 +257,7 @@ struct mtk_alg_template mtk_alg_cbc_des3_ede = {
 			.cra_flags = CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_KERN_DRIVER_ONLY,
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
-			.cra_ctxsize = sizeof(struct mtk_cipher_ctx),
+			.cra_ctxsize = sizeof(struct mtk_crypto_ctx),
 			.cra_alignmask = 0,
 			.cra_init = mtk_des_cra_init,
 			.cra_exit = mtk_des_cra_exit,

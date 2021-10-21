@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) 2019 - 2020
+ * Copyright (C) 2019 - 2021
  *
  * Richard van Schagen <vschagen@cs.com>
  */
@@ -157,25 +157,22 @@
  * EIP93_BO_REVERSE_DUAL_WORD : reverse the byte order within a dual-word
  * EIP93_BO_REVERSE_QUAD_WORD : reverse the byte order within a quad-word
  */
-typedef enum
-{
-    EIP93_BO_REVERSE_HALF_WORD = 1,
-    EIP93_BO_REVERSE_WORD = 2,
-    EIP93_BO_REVERSE_DUAL_WORD = 4,
-    EIP93_BO_REVERSE_QUAD_WORD = 8,
-} EIP93_Byte_Order_Value_t;
+enum EIP93_Byte_Order_Value_t {
+	EIP93_BO_REVERSE_HALF_WORD = 1,
+	EIP93_BO_REVERSE_WORD = 2,
+	EIP93_BO_REVERSE_DUAL_WORD = 4,
+	EIP93_BO_REVERSE_QUAD_WORD = 8,
+};
 
 /*----------------------------------------------------------------------------
  * Byte Order Reversal Mechanisms Supported in EIP93 for Target Data
  * EIP93_BO_REVERSE_HALF_WORD : reverse the byte order within a half-word
  * EIP93_BO_REVERSE_WORD :  reverse the byte order within a word
  */
-typedef enum
-{
-    EIP93_BO_REVERSE_HALF_WORD_TD = 1,
-    EIP93_BO_REVERSE_WORD_TD = 2,
-} EIP93_Byte_Order_Value_TD_t;
-
+enum EIP93_Byte_Order_Value_TD_t {
+	EIP93_BO_REVERSE_HALF_WORD_TD = 1,
+	EIP93_BO_REVERSE_WORD_TD = 2,
+};
 
 // BYTE_ORDER_CFG register values
 #define EIP93_BYTE_ORDER_PD		EIP93_BO_REVERSE_WORD
@@ -184,7 +181,7 @@ typedef enum
 #define EIP93_BYTE_ORDER_TD		EIP93_BO_REVERSE_WORD_TD
 
 // INT_CFG register values
-#define EIP93_INT_HOST_OUTPUT_TYPE	0	// 0 = Level
-#define EIP93_INT_PULSE_CLEAR		0	// 0 = Manual clear
+#define EIP93_INT_HOST_OUTPUT_TYPE	0
+#define EIP93_INT_PULSE_CLEAR		0
 
 #endif

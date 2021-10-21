@@ -1,39 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright (C) 2019 - 2020
+ * Copyright (C) 2019 - 2021
  *
  * Richard van Schagen <vschagen@cs.com>
  */
 
-#ifndef _COMMON_H_
-#define _COMMON_H_
-
-#include <crypto/internal/aead.h>
-#include <crypto/internal/des.h>
-#include <crypto/internal/skcipher.h>
-
-#include <linux/bits.h>
-#include <linux/types.h>
-#include <linux/scatterlist.h>
+#ifndef _EIP93_COMMON_H_
+#define _EIP93_COMMON_H_
 
 #include "eip93-cipher.h"
 
-#define MTK_RING_SIZE			1024	// 256
-#define MTK_RING_BUSY_PART		8
-#define MTK_RING_BUSY			(MTK_RING_SIZE-(MTK_RING_SIZE/MTK_RING_BUSY_PART))
-						// 224
-#define NUM_AES_BYPASS			256
-#define MTK_QUEUE_LENGTH		128
+#define MTK_RING_SIZE			512
+#define MTK_RING_BUSY			32
 #define MTK_CRA_PRIORITY		1500
-
-#define MTK_DESC_ASYNC			BIT(0)
-#define MTK_DESC_SKCIPHER		BIT(1)
-#define MTK_DESC_AEAD			BIT(2)
-#define MTK_DESC_AHASH			BIT(3)
-#define MTK_DESC_PRNG			BIT(4)
-#define MTK_DESC_FAKE_HMAC		BIT(5)
-#define MTK_DESC_LAST			BIT(6)
-#define MTK_DESC_FINISH			BIT(7)
 
 /* cipher algorithms */
 #define MTK_ALG_DES			BIT(0)
@@ -58,8 +37,19 @@
 #define MTK_ENCRYPT			BIT(12)
 #define MTK_DECRYPT			BIT(13)
 
-#define MTK_GENIV			BIT(14)
-#define MTK_BUSY			BIT(15)
+#define MTK_BUSY			BIT(14)
+
+/* descriptor flags */
+#define MTK_DESC_ASYNC			BIT(31)
+#define MTK_DESC_SKCIPHER		BIT(30)
+#define MTK_DESC_AEAD			BIT(29)
+#define MTK_DESC_AHASH			BIT(28)
+#define MTK_DESC_PRNG			BIT(27)
+#define MTK_DESC_FAKE_HMAC		BIT(26)
+#define MTK_DESC_LAST			BIT(25)
+#define MTK_DESC_FINISH			BIT(24)
+#define MTK_DESC_IPSEC			BIT(23)
+#define MTK_DESC_DMA_IV			BIT(22)
 
 #define IS_DES(flags)			(flags & MTK_ALG_DES)
 #define IS_3DES(flags)			(flags & MTK_ALG_3DES)
@@ -75,9 +65,9 @@
 #define IS_ECB(mode)			(mode & MTK_MODE_ECB)
 #define IS_CTR(mode)			(mode & MTK_MODE_CTR)
 #define IS_RFC3686(mode)		(mode & MTK_MODE_RFC3686)
-#define IS_GENIV(flags)			(flags & MTK_GENIV)
 
 #define IS_BUSY(flags)			(flags & MTK_BUSY)
+#define IS_DMA_IV(flags)		(flags & MTK_DESC_DMA_IV)
 
 #define IS_ENCRYPT(dir)			(dir & MTK_ENCRYPT)
 #define IS_DECRYPT(dir)			(dir & MTK_DECRYPT)
@@ -95,7 +85,7 @@
  * Interrupts of EIP93
  */
 
-typedef enum {
+enum EIP93_InterruptSource_t {
 	EIP93_INT_PE_CDRTHRESH_REQ =	BIT(0),
 	EIP93_INT_PE_RDRTHRESH_REQ =	BIT(1),
 	EIP93_INT_PE_OPERATION_DONE =	BIT(9),
@@ -104,129 +94,134 @@ typedef enum {
 	EIP93_INT_PE_PRNG_IRQ =		BIT(12),
 	EIP93_INT_PE_ERR_REG =		BIT(13),
 	EIP93_INT_PE_RD_DONE_IRQ =	BIT(16),
-} EIP93_InterruptSource_t;
+};
 
-typedef union {
+union saCmd0 {
+	u32	word;
 	struct {
-		unsigned int opCode		:3;
-		unsigned int direction		:1;
-		unsigned int opGroup		:2;
-		unsigned int padType		:2;
-		unsigned int cipher		:4;
-		unsigned int hash		:4;
-		unsigned int reserved2		:1;
-		unsigned int scPad		:1;
-		unsigned int extPad		:1;
-		unsigned int hdrProc		:1;
-		unsigned int digestLength	:4;
-		unsigned int ivSource		:2;
-		unsigned int hashSource		:2;
-		unsigned int saveIv		:1;
-		unsigned int saveHash		:1;
-		unsigned int reserved1		:2;
+		u32 opCode		:3;
+		u32 direction		:1;
+		u32 opGroup		:2;
+		u32 padType		:2;
+		u32 cipher		:4;
+		u32 hash		:4;
+		u32 reserved2		:1;
+		u32 scPad		:1;
+		u32 extPad		:1;
+		u32 hdrProc		:1;
+		u32 digestLength	:4;
+		u32 ivSource		:2;
+		u32 hashSource		:2;
+		u32 saveIv		:1;
+		u32 saveHash		:1;
+		u32 reserved1		:2;
 	} bits;
-	unsigned int word;
+} __packed;
 
-} saCmd0_t;
-
-typedef union {
+union saCmd1 {
+	u32	word;
 	struct {
-		unsigned int copyDigest		:1;
-		unsigned int copyHeader		:1;
-		unsigned int copyPayload	:1;
-		unsigned int copyPad		:1;
-		unsigned int reserved4		:4;
-		unsigned int cipherMode		:2;
-		unsigned int reserved3		:1;
-		unsigned int sslMac		:1;
-		unsigned int hmac		:1;
-		unsigned int byteOffset		:1;
-		unsigned int reserved2		:2;
-		unsigned int hashCryptOffset	:8;
-		unsigned int aesKeyLen		:3;
-		unsigned int reserved1		:1;
-		unsigned int aesDecKey		:1;
-		unsigned int seqNumCheck	:1;
-		unsigned int reserved0		:2;
+		u32 copyDigest		:1;
+		u32 copyHeader		:1;
+		u32 copyPayload		:1;
+		u32 copyPad		:1;
+		u32 reserved4		:4;
+		u32 cipherMode		:2;
+		u32 reserved3		:1;
+		u32 sslMac		:1;
+		u32 hmac		:1;
+		u32 byteOffset		:1;
+		u32 reserved2		:2;
+		u32 hashCryptOffset	:8;
+		u32 aesKeyLen		:3;
+		u32 reserved1		:1;
+		u32 aesDecKey		:1;
+		u32 seqNumCheck		:1;
+		u32 reserved0		:2;
 	} bits;
-	unsigned int word;
+} __packed;
 
-} saCmd1_t;
+struct saRecord_s {
+	union saCmd0	saCmd0;
+	union saCmd1	saCmd1;
+	u32		saKey[8];
+	u32		saIDigest[8];
+	u32		saODigest[8];
+	u32		saSpi;
+	u32		saSeqNum[2];
+	u32		saSeqNumMask[2];
+	u32		saNonce;
+} __packed;
 
-typedef struct saRecord_s {
-	saCmd0_t	saCmd0;
-	saCmd1_t	saCmd1;
-	unsigned int	saKey[8];
-	unsigned int	saIDigest[8];
-	unsigned int	saODigest[8];
-	unsigned int	saSpi;
-	unsigned int	saSeqNum[2];
-	unsigned int	saSeqNumMask[2];
-	unsigned int	saNonce;
-} saRecord_t;
+struct saState_s {
+	u32	stateIv[4];
+	u32	stateByteCnt[2];
+	u32	stateIDigest[8];
+} __packed;
 
-typedef struct saState_s {
-	unsigned int	stateIv[4];
-	unsigned int	stateByteCnt[2];
-	unsigned int	stateIDigest[8];
-} saState_t;
-
-typedef union {
+union peCrtlStat_w {
+	u32 word;
 	struct {
-		unsigned int hostReady		:1;
-		unsigned int peReady		:1;
-		unsigned int reserved		:1;
-		unsigned int initArc4		:1;
-		unsigned int hashFinal		:1;
-		unsigned int haltMode		:1;
-		unsigned int prngMode		:2;
-		unsigned int padValue		:8;
-		unsigned int errStatus		:8;
-		unsigned int padCrtlStat	:8;
+		u32 hostReady		:1;
+		u32 peReady		:1;
+		u32 reserved		:1;
+		u32 initArc4		:1;
+		u32 hashFinal		:1;
+		u32 haltMode		:1;
+		u32 prngMode		:2;
+		u32 padValue		:8;
+		u32 errStatus		:8;
+		u32 padCrtlStat		:8;
 	} bits;
-	unsigned int word;
-} peCrtlStat_t;
+} __packed;
 
-typedef union {
+union  peLength_w {
+	u32 word;
 	struct {
-		unsigned int length		:20;
-		unsigned int reserved		:2;
-		unsigned int hostReady		:1;
-		unsigned int peReady		:1;
-		unsigned int byPass		:8;
+		u32 length		:20;
+		u32 reserved		:2;
+		u32 hostReady		:1;
+		u32 peReady		:1;
+		u32 byPass		:8;
 	} bits;
-	unsigned int word;
-} peLength_t;
+} __packed;
 
-typedef struct eip93_descriptor_s {
-	peCrtlStat_t		peCrtlStat;
-	unsigned int		srcAddr;
-	unsigned int		dstAddr;
-	unsigned int		saAddr;
-	unsigned int		stateAddr;
-	unsigned int		arc4Addr;
-	unsigned int		userId;
-	peLength_t		peLength;
-} eip93_descriptor_t;
+struct eip93_descriptor_s {
+	union peCrtlStat_w	peCrtlStat;
+	u32			srcAddr;
+	u32			dstAddr;
+	u32			saAddr;
+	u32			stateAddr;
+	u32			arc4Addr;
+	u32			userId;
+	union peLength_w	peLength;
+} __packed;
 
-void mtk_set_saRecord(struct saRecord_s *saRecord, const u8 *key,
-				const u32 nonce, const unsigned int keylen,
-				const unsigned long flags);
+void mtk_set_saRecord(struct saRecord_s *saRecord, const unsigned int keylen,
+				const u32 flags);
 
-int mtk_send_req(struct crypto_async_request *base,
-			const struct mtk_cipher_ctx *ctx,
-			struct scatterlist *reqsrc, struct scatterlist *reqdst,
+int check_valid_request(struct mtk_cipher_reqctx *rctx);
+
+void mtk_unmap_dma(struct mtk_device *mtk, struct mtk_cipher_reqctx *rctx,
+			struct scatterlist *reqsrc, struct scatterlist *reqdst);
+
+int mtk_send_req(struct crypto_async_request *async,
 			const u8 *reqiv, struct mtk_cipher_reqctx *rctx);
 
-void mtk_handle_result(struct mtk_device *mtk,
-	struct crypto_async_request *async, struct mtk_cipher_reqctx *rctx,
-	struct scatterlist *reqsrc, struct scatterlist *reqdst,	u8 *reqiv,
-	bool complete, int err);
+void mtk_handle_result(struct mtk_device *mtk, struct mtk_cipher_reqctx *rctx,
+			u8 *reqiv);
 
-#ifdef CONFIG_EIP93_SKCIPHER
+#ifdef CONFIG_CRYPTO_DEV_EIP93_SKCIPHER
+int mtk_skcipher_send_req(struct crypto_async_request *async);
+
 void mtk_skcipher_handle_result(struct mtk_device *mtk,
 				struct crypto_async_request *async,
-				bool complete, int err);
+				int err);
 #endif
 
-#endif /* _COMMON_H_ */
+#ifdef CONFIG_CRYPTO_DEV_EIP93_HMAC
+int mtk_authenc_setkey(struct crypto_shash *cshash, struct saRecord_s *sa,
+			const u8 *authkey, unsigned int authkeylen);
+#endif
+
+#endif /* _EIP93_COMMON_H_ */

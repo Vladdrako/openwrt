@@ -1,19 +1,18 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright (C) 2019 - 2020
+ * Copyright (C) 2019 - 2021
  *
  * Richard van Schagen <vschagen@cs.com>
  */
-#ifndef _MAIN_H_
-#define _MAIN_H_
+#ifndef _EIP93_MAIN_H_
+#define _EIP93_MAIN_H_
 
-#include <linux/atomic.h>
-#include <linux/completion.h>
-#include <linux/dmapool.h>
-#include <crypto/aead.h>
+#include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
 #include <crypto/internal/rng.h>
 #include <crypto/internal/skcipher.h>
+#include <linux/device.h>
+#include <linux/interrupt.h>
 
 /**
  * struct mtk_device - crypto engine device structure
@@ -23,26 +22,8 @@ struct mtk_device {
 	struct device		*dev;
 	struct clk		*clk;
 	int			irq;
-
-	struct tasklet_struct	dequeue;
-	struct tasklet_struct	done;
-
 	struct mtk_ring		*ring;
-
-	struct dma_pool		*saRecord_pool;
-	struct dma_pool		*saState_pool;
-
-	struct mtk_prng_device	*prng;
-};
-
-struct mtk_prng_device {
-	struct saRecord_s	*PRNGSaRecord;
-	dma_addr_t		PRNGSaRecord_dma;
-	void			*PRNGBuffer[2];
-	dma_addr_t		PRNGBuffer_dma[2];
-	uint32_t		cur_buf;
-	struct completion	Filled;
-	atomic_t		State;
+	struct mtk_state_pool	*saState_pool;
 };
 
 struct mtk_desc_ring {
@@ -56,36 +37,45 @@ struct mtk_desc_ring {
 	u32			offset;
 };
 
+struct mtk_state_pool {
+	void			*base;
+	dma_addr_t		base_dma;
+	bool			in_use;
+};
+
 struct mtk_ring {
-	spinlock_t			lock;
+	struct tasklet_struct		done_task;
 	/* command/result rings */
 	struct mtk_desc_ring		cdr;
 	struct mtk_desc_ring		rdr;
 	spinlock_t			write_lock;
 	spinlock_t			read_lock;
-	/* Number of request in the engine. */
-	int				requests;
-	/* The rings is handling at least one request */
-	bool				busy;
+	atomic_t			free;
+	/* saState */
+	struct mtk_state_pool		*saState_pool;
+	void				*saState;
+	dma_addr_t			saState_dma;
 };
 
 enum mtk_alg_type {
-	MTK_ALG_TYPE_SKCIPHER,
 	MTK_ALG_TYPE_AEAD,
-	MTK_ALG_TYPE_AHASH,
-	MTK_ALG_TYPE_PRNG,
+	MTK_ALG_TYPE_SKCIPHER,
 };
 
 struct mtk_alg_template {
 	struct mtk_device	*mtk;
 	enum mtk_alg_type	type;
-	unsigned long		flags;
+	u32			flags;
 	union {
-		struct skcipher_alg	skcipher;
 		struct aead_alg		aead;
-		struct ahash_alg	ahash;
-		struct rng_alg		rng;
+		struct skcipher_alg	skcipher;
 	} alg;
 };
 
-#endif /* _MAIN_H_ */
+inline void mtk_irq_disable(struct mtk_device *mtk, u32 mask);
+
+inline void mtk_irq_enable(struct mtk_device *mtk, u32 mask);
+
+inline void mtk_irq_clear(struct mtk_device *mtk, u32 mask);
+
+#endif /* _EIP93_MAIN_H_ */

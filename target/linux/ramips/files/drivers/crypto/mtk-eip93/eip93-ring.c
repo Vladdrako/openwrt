@@ -1,15 +1,10 @@
-/* SPDX-License-Identifier: GPL-2.0
- *
- * Copyright (C) 2019 - 2020
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (C) 2019 - 2021
  *
  * Richard van Schagen <vschagen@cs.com>
  */
 
-#include <linux/version.h>
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
-#include <linux/dev_printk.h>
-#endif
-#include <linux/device.h>
 #include "eip93-common.h"
 #include "eip93-main.h"
 
@@ -47,29 +42,34 @@ inline void *mtk_ring_next_rptr(struct mtk_device *mtk,
 }
 
 inline int mtk_put_descriptor(struct mtk_device *mtk,
-					struct eip93_descriptor_s desc)
+					struct eip93_descriptor_s *desc)
 {
 	struct eip93_descriptor_s *cdesc;
 	struct eip93_descriptor_s *rdesc;
-	unsigned long flags;
+	unsigned long irqflags;
 
-	spin_lock_irqsave(&mtk->ring->write_lock, flags);
-	cdesc = mtk_ring_next_wptr(mtk, &mtk->ring->cdr);
-
-	if (IS_ERR(cdesc))
-		return -ENOENT;
+	spin_lock_irqsave(&mtk->ring->write_lock, irqflags);
 
 	rdesc = mtk_ring_next_wptr(mtk, &mtk->ring->rdr);
 
 	if (IS_ERR(rdesc)) {
-		spin_lock(&mtk->ring->write_lock);
+		spin_unlock_irqrestore(&mtk->ring->write_lock, irqflags);
+		return -ENOENT;
+	}
+
+	cdesc = mtk_ring_next_wptr(mtk, &mtk->ring->cdr);
+
+	if (IS_ERR(cdesc)) {
+		spin_unlock_irqrestore(&mtk->ring->write_lock, irqflags);
 		return -ENOENT;
 	}
 
 	memset(rdesc, 0, sizeof(struct eip93_descriptor_s));
-	memcpy(cdesc, &desc, sizeof(struct eip93_descriptor_s));
 
-	spin_unlock_irqrestore(&mtk->ring->write_lock, flags);
+	memcpy(cdesc, desc, sizeof(struct eip93_descriptor_s));
+
+	atomic_dec(&mtk->ring->free);
+	spin_unlock_irqrestore(&mtk->ring->write_lock, irqflags);
 
 	return 0;
 }
@@ -77,12 +77,44 @@ inline int mtk_put_descriptor(struct mtk_device *mtk,
 inline void *mtk_get_descriptor(struct mtk_device *mtk)
 {
 	struct eip93_descriptor_s *cdesc;
+	void *ptr;
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&mtk->ring->read_lock, irqflags);
 
 	cdesc = mtk_ring_next_rptr(mtk, &mtk->ring->cdr);
+
 	if (IS_ERR(cdesc)) {
-		dev_err(mtk->dev, "Cant get Cdesc");
-		return cdesc;
+		spin_unlock_irqrestore(&mtk->ring->read_lock, irqflags);
+		return ERR_PTR(-ENOENT);
 	}
 
-	return mtk_ring_next_rptr(mtk, &mtk->ring->rdr);
+	memset(cdesc, 0, sizeof(struct eip93_descriptor_s));
+
+	ptr = mtk_ring_next_rptr(mtk, &mtk->ring->rdr);
+	if (IS_ERR(ptr)) {
+		spin_unlock_irqrestore(&mtk->ring->read_lock, irqflags);
+		return ERR_PTR(-ENOENT);
+	}
+
+	atomic_inc(&mtk->ring->free);
+	spin_unlock_irqrestore(&mtk->ring->read_lock, irqflags);
+	return ptr;
+}
+
+inline int mtk_get_free_saState(struct mtk_device *mtk)
+{
+	struct mtk_state_pool *saState_pool;
+	int i;
+
+	for (i = 0; i < MTK_RING_SIZE; i++) {
+		saState_pool = &mtk->ring->saState_pool[i];
+		if (saState_pool->in_use == false) {
+			saState_pool->in_use = true;
+			return i;
+		}
+
+	}
+
+	return -ENOENT;
 }

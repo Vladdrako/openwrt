@@ -1,44 +1,26 @@
-/* SPDX-License-Identifier: GPL-2.0
- *
- * Copyright (C) 2019 - 2020
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (C) 2019 - 2021
  *
  * Richard van Schagen <vschagen@cs.com>
  */
-#define DEBUG 1
 
-#include <crypto/aead.h>
+
 #include <crypto/aes.h>
-#include <crypto/authenc.h>
 #include <crypto/ctr.h>
 #include <crypto/hmac.h>
-#include <crypto/md5.h>
-#include <crypto/null.h>
-#include <crypto/scatterwalk.h>
-//#include <crypto/sha.h>
-#include <crypto/hash_info.h>
-
+#include <crypto/sha.h>
+#include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/dmapool.h>
-#include <linux/moduleparam.h>
 #include <linux/scatterlist.h>
-#include <linux/types.h>
 
-#ifdef CONFIG_EIP93_AES
-#include "eip93-aes.h"
-#endif
-#ifdef CONFIG_EIP93_DES
-#include "eip93-des.h"
-#endif
-#ifdef CONFIG_EIP93_AEAD
-#include "eip93-aead.h"
-#endif
 #include "eip93-common.h"
 #include "eip93-main.h"
 #include "eip93-cipher.h"
 #include "eip93-regs.h"
 #include "eip93-ring.h"
 
-static inline void mtk_free_sg_cpy(const int len, struct scatterlist **sg)
+static inline void mtk_free_sg_copy(const int len, struct scatterlist **sg)
 {
 	if (!*sg || !len)
 		return;
@@ -48,33 +30,28 @@ static inline void mtk_free_sg_cpy(const int len, struct scatterlist **sg)
 	*sg = NULL;
 }
 
-static inline int mtk_make_sg_cpy(struct mtk_device *mtk, struct scatterlist *src,
-		struct scatterlist **dst, const int len,
-		struct mtk_cipher_reqctx *rctx, const bool copy)
+static inline int mtk_make_sg_copy(struct scatterlist *src,
+			struct scatterlist **dst,
+			const uint32_t len, const bool copy)
 {
 	void *pages;
-	int totallen;
 
 	*dst = kmalloc(sizeof(**dst), GFP_KERNEL);
-	if (!*dst) {
-		printk("NO MEM\n");
+	if (!*dst)
 		return -ENOMEM;
-	}
-	/* allocate enough memory for full scatterlist */
-	totallen = rctx->assoclen + rctx->textsize + rctx->authsize;
+
 
 	pages = (void *)__get_free_pages(GFP_KERNEL | GFP_DMA,
-					get_order(totallen));
+					get_order(len));
 
 	if (!pages) {
 		kfree(*dst);
 		*dst = NULL;
-		printk("no free pages\n");
 		return -ENOMEM;
 	}
 
 	sg_init_table(*dst, 1);
-	sg_set_buf(*dst, pages, totallen);
+	sg_set_buf(*dst, pages, len);
 
 	/* copy only as requested */
 	if (copy)
@@ -83,27 +60,23 @@ static inline int mtk_make_sg_cpy(struct mtk_device *mtk, struct scatterlist *sr
 	return 0;
 }
 
-static inline bool mtk_is_sg_aligned(struct scatterlist *sg, u32 len, const int blksz)
+static inline bool mtk_is_sg_aligned(struct scatterlist *sg, u32 len,
+						const int blksize)
 {
 	int nents;
 
 	for (nents = 0; sg; sg = sg_next(sg), ++nents) {
-		/* When destination buffers are not aligned to the cache line
-		 * size we need bounce buffers. The DMA-API requires that the
-		 * entire line is owned by the DMA buffer.
-		 */
 		if (!IS_ALIGNED(sg->offset, 4))
 			return false;
 
-		/* segments need to be blocksize aligned */
 		if (len <= sg->length) {
-			if (!IS_ALIGNED(len, blksz))
+			if (!IS_ALIGNED(len, blksize))
 				return false;
 
 			return true;
 		}
 
-		if (!IS_ALIGNED(sg->length, blksz))
+		if (!IS_ALIGNED(sg->length, blksize))
 			return false;
 
 		len -= sg->length;
@@ -111,19 +84,107 @@ static inline bool mtk_is_sg_aligned(struct scatterlist *sg, u32 len, const int 
 	return false;
 }
 
-void mtk_set_saRecord(struct saRecord_s *saRecord, const u8 *key,
-				const u32 nonce, const unsigned int keylen,
-				const unsigned long flags)
+int check_valid_request(struct mtk_cipher_reqctx *rctx)
+{
+	struct scatterlist *src = rctx->sg_src;
+	struct scatterlist *dst = rctx->sg_dst;
+	uint32_t src_nents, dst_nents;
+	u32 textsize = rctx->textsize;
+	u32 authsize = rctx->authsize;
+	u32 blksize = rctx->blksize;
+	u32 totlen_src = rctx->assoclen + rctx->textsize;
+	u32 totlen_dst = rctx->assoclen + rctx->textsize;
+	u32 copy_len;
+	bool src_align, dst_align;
+	int err = -EINVAL;
+
+	if (!IS_CTR(rctx->flags)) {
+		if (!IS_ALIGNED(textsize, blksize))
+			return err;
+	}
+
+	if (authsize) {
+		if (IS_ENCRYPT(rctx->flags))
+			totlen_dst += authsize;
+		else
+			totlen_src += authsize;
+	}
+
+	src_nents = sg_nents_for_len(src, totlen_src);
+	dst_nents = sg_nents_for_len(dst, totlen_dst);
+
+	if (src == dst) {
+		src_nents = max(src_nents, dst_nents);
+		dst_nents = src_nents;
+		if (unlikely((totlen_src || totlen_dst) && (src_nents <= 0)))
+			return err;
+
+	} else {
+		if (unlikely(totlen_src && (src_nents <= 0)))
+			return err;
+
+		if (unlikely(totlen_dst && (dst_nents <= 0)))
+			return err;
+	}
+
+	if (authsize) {
+		if (dst_nents == 1 && src_nents == 1) {
+			src_align = mtk_is_sg_aligned(src, totlen_src, blksize);
+			if (src ==  dst)
+				dst_align = src_align;
+			else
+				dst_align = mtk_is_sg_aligned(dst,
+						totlen_dst, blksize);
+		} else {
+			src_align = false;
+			dst_align = false;
+		}
+	} else {
+		src_align = mtk_is_sg_aligned(src, totlen_src, blksize);
+		if (src == dst)
+			dst_align = src_align;
+		else
+			dst_align = mtk_is_sg_aligned(dst, totlen_dst, blksize);
+	}
+
+	copy_len = max(totlen_src, totlen_dst);
+	if (!src_align) {
+		err = mtk_make_sg_copy(src, &rctx->sg_src, copy_len, true);
+		if (err)
+			return err;
+	}
+
+	if (!dst_align) {
+		err = mtk_make_sg_copy(dst, &rctx->sg_dst, copy_len, false);
+		if (err)
+			return err;
+	}
+
+	rctx->src_nents = sg_nents_for_len(rctx->sg_src, totlen_src);
+	rctx->dst_nents = sg_nents_for_len(rctx->sg_dst, totlen_dst);
+
+	return 0;
+}
+/*
+ * Set saRecord function:
+ * Even saRecord is set to "0", keep " = 0" for readability.
+ */
+void mtk_set_saRecord(struct saRecord_s *saRecord, const unsigned int keylen,
+				const u32 flags)
 {
 	saRecord->saCmd0.bits.ivSource = 2;
-	saRecord->saCmd0.bits.saveIv = 1;
+	if (IS_ECB(flags))
+		saRecord->saCmd0.bits.saveIv = 0;
+	else
+		saRecord->saCmd0.bits.saveIv = 1;
+
 	saRecord->saCmd0.bits.opGroup = 0;
 	saRecord->saCmd0.bits.opCode = 0;
 
 	switch ((flags & MTK_ALG_MASK)) {
 	case MTK_ALG_AES:
 		saRecord->saCmd0.bits.cipher = 3;
-		saRecord->saCmd1.bits.aesKeyLen = (keylen / 8);
+		saRecord->saCmd1.bits.aesKeyLen = keylen >> 3;
 		break;
 	case MTK_ALG_3DES:
 		saRecord->saCmd0.bits.cipher = 1;
@@ -184,15 +245,10 @@ void mtk_set_saRecord(struct saRecord_s *saRecord, const u8 *key,
 		saRecord->saCmd1.bits.copyHeader = 0;
 	}
 
-	memcpy(saRecord->saKey, key, keylen);
-
-	if (IS_RFC3686(flags))
-		saRecord->saNonce = nonce;
-
 	/* Default for now, might be used for ESP offload */
 	saRecord->saCmd1.bits.seqNumCheck = 0;
 	saRecord->saSpi = 0x0;
-	saRecord->saSeqNumMask[0] = 0x0;
+	saRecord->saSeqNumMask[0] = 0xFFFFFFFF;
 	saRecord->saSeqNumMask[1] = 0x0;
 }
 
@@ -202,56 +258,39 @@ void mtk_set_saRecord(struct saRecord_s *saRecord, const u8 *key,
  * For performance better to wait for hardware to perform multiple DMA
  *
  */
-inline int mtk_scatter_combine(struct mtk_device *mtk,
- 			struct mtk_cipher_reqctx *rctx,
-			struct scatterlist *sgsrc, struct scatterlist *sgdst,
-			u32 datalen,  bool complete, unsigned int *areq,
-			int offsetin)
+static inline int mtk_scatter_combine(struct mtk_device *mtk,
+			struct mtk_cipher_reqctx *rctx,
+			u32 datalen, u32 split, int offsetin)
 {
-	dma_addr_t saRecord_base = rctx->saRecord_base;
-	dma_addr_t saState_base;
-	unsigned int remainin, remainout;
-	int offsetout = 0;
-	u32 n, len;
-	dma_addr_t saddr, daddr;
-	u32 srcAddr, dstAddr;
+	struct eip93_descriptor_s *cdesc = rctx->cdesc;
+	struct scatterlist *sgsrc = rctx->sg_src;
+	struct scatterlist *sgdst = rctx->sg_dst;
+	unsigned int remainin = sg_dma_len(sgsrc);
+	unsigned int remainout = sg_dma_len(sgdst);
+	dma_addr_t saddr = sg_dma_address(sgsrc);
+	dma_addr_t daddr = sg_dma_address(sgdst);
+	dma_addr_t stateAddr;
+	u32 srcAddr, dstAddr, len, n;
 	bool nextin = false;
 	bool nextout = false;
-	struct eip93_descriptor_s cdesc;
+	int offsetout = 0;
 	int ndesc_cdr = 0, err;
 
-	if (complete)
-		saState_base = rctx->saState_base;
-	else
-		saState_base = rctx->saState_base_ctr;
+	if (IS_ECB(rctx->flags))
+		rctx->saState_base = 0;
 
-	cdesc.peCrtlStat.word = 0;
-	cdesc.peCrtlStat.bits.hostReady = 1;
-	cdesc.peCrtlStat.bits.prngMode = 0;
-	cdesc.peCrtlStat.bits.hashFinal = 1;
-	cdesc.peCrtlStat.bits.padCrtlStat = 0;
-	cdesc.peCrtlStat.bits.peReady = 0;
-	cdesc.saAddr = saRecord_base;
-	cdesc.stateAddr = saState_base;
-	cdesc.arc4Addr = (u32)areq;
-	if (IS_HMAC(rctx->flags))
-		cdesc.userId = MTK_DESC_AEAD;
-	else
-		cdesc.userId = MTK_DESC_SKCIPHER;
-	cdesc.peLength.word = 0;
-	cdesc.peLength.bits.byPass = 0;
-	cdesc.peLength.bits.hostReady = 1;
-
-	n = datalen;
-	remainin = min(sg_dma_len(sgsrc), n);
-	remainout = min(sg_dma_len(sgdst), n);
-	saddr = sg_dma_address(sgsrc);
-	daddr = sg_dma_address(sgdst);
+	if (split < datalen) {
+		stateAddr = rctx->saState_base_ctr;
+		n = split;
+	} else {
+		stateAddr = rctx->saState_base;
+		n = datalen;
+	}
 
 	do {
 		if (nextin) {
 			sgsrc = sg_next(sgsrc);
-			remainin = min(sg_dma_len(sgsrc), n);
+			remainin = sg_dma_len(sgsrc);
 			if (remainin == 0)
 				continue;
 
@@ -262,7 +301,7 @@ inline int mtk_scatter_combine(struct mtk_device *mtk,
 
 		if (nextout) {
 			sgdst = sg_next(sgdst);
-			remainout = min(sg_dma_len(sgdst), n);
+			remainout = sg_dma_len(sgdst);
 			if (remainout == 0)
 				continue;
 
@@ -275,324 +314,205 @@ inline int mtk_scatter_combine(struct mtk_device *mtk,
 
 		if (remainin == remainout) {
 			len = remainin;
+			if (len > n) {
+				len = n;
+				remainin -= n;
+				remainout -= n;
+				offsetin += n;
+				offsetout += n;
+			} else {
 				nextin = true;
 				nextout = true;
+			}
 		} else if (remainin < remainout) {
 			len = remainin;
+			if (len > n) {
+				len = n;
+				remainin -= n;
+				remainout -= n;
+				offsetin += n;
+				offsetout += n;
+			} else {
 				offsetout += len;
 				remainout -= len;
 				nextin = true;
+			}
 		} else {
 			len = remainout;
+			if (len > n) {
+				len = n;
+				remainin -= n;
+				remainout -= n;
+				offsetin += n;
+				offsetout += n;
+			} else {
 				offsetin += len;
 				remainin -= len;
 				nextout = true;
+			}
 		}
 		n -= len;
 
-		cdesc.srcAddr = srcAddr;
-		cdesc.dstAddr = dstAddr;
-		cdesc.peLength.bits.length = len;
+		cdesc->srcAddr = srcAddr;
+		cdesc->dstAddr = dstAddr;
+		cdesc->stateAddr = stateAddr;
+		cdesc->peLength.bits.peReady = 0;
+		cdesc->peLength.bits.byPass = 0;
+		cdesc->peLength.bits.length = len;
+		cdesc->peLength.bits.hostReady = 1;
+
+		if (n == 0) {
+			n = datalen - split;
+			split = datalen;
+			stateAddr = rctx->saState_base;
+		}
 
 		if (n == 0)
-			if (complete == true) {
-				cdesc.userId |= MTK_DESC_LAST;
-				cdesc.userId |= MTK_DESC_FINISH;
-				}
+			cdesc->userId |= MTK_DESC_LAST | MTK_DESC_FINISH;
 
+		/* Loop - Delay - No need to rollback
+		 * Maybe refine by slowing down at MTK_RING_BUSY
+		 */
+again:
 		err = mtk_put_descriptor(mtk, cdesc);
-		if (err)
-			dev_err(mtk->dev, "No empty Descriptor space");
+		if (err) {
+			udelay(500);
+			goto again;
+		}
+		/* Writing new descriptor count starts DMA action */
+		writel(1, mtk->base + EIP93_REG_PE_CD_COUNT);
 
 		ndesc_cdr++;
 	} while (n);
 
-	return ndesc_cdr;
+	return -EINPROGRESS;
 }
 
-int mtk_send_req(struct crypto_async_request *base,
-			const struct mtk_cipher_ctx *ctx,
-			struct scatterlist *reqsrc, struct scatterlist *reqdst,
+int mtk_send_req(struct crypto_async_request *async,
 			const u8 *reqiv, struct mtk_cipher_reqctx *rctx)
 {
+	struct mtk_crypto_ctx *ctx = crypto_tfm_ctx(async->tfm);
 	struct mtk_device *mtk = ctx->mtk;
-	int ndesc_cdr = 0, ctr_cdr = 0;
-	int offset = 0, err;
-	int src_nents, dst_nents;
-	u32 aad = rctx->assoclen;
-	u32 textsize = rctx->textsize;
-	u32 authsize = rctx->authsize;
-	u32 datalen = aad + textsize;
-	u32 totlen_src = datalen;
-	u32 totlen_dst = datalen;
-	struct scatterlist *src, *src_ctr;
-	struct scatterlist *dst, *dst_ctr;
-	struct saRecord_s *saRecord;
+	struct scatterlist *src = rctx->sg_src;
+	struct scatterlist *dst = rctx->sg_dst;
 	struct saState_s *saState;
+	struct mtk_state_pool *saState_pool;
+	struct eip93_descriptor_s cdesc;
+	u32 flags = rctx->flags;
+	int idx;
+	int offsetin = 0, err = -ENOMEM;
+	u32 datalen = rctx->assoclen + rctx->textsize;
+	u32 split = datalen;
 	u32 start, end, ctr, blocks;
-	unsigned long flags = rctx->flags;
-	bool overflow;
-	bool complete = true;
-	bool src_align = true, dst_align = true;
-	u32 iv[AES_BLOCK_SIZE / sizeof(u32)], *esph;
-	int blksize = 1, offsetin = 0;
-
-	switch ((flags & MTK_ALG_MASK))	{
-	case MTK_ALG_AES:
-		blksize = AES_BLOCK_SIZE;
-		break;
-	case MTK_ALG_DES:
-		blksize = DES_BLOCK_SIZE;
-		break;
-	case MTK_ALG_3DES:
-		blksize = DES3_EDE_BLOCK_SIZE;
-		break;
-	}
-
-	if (!IS_CTR(rctx->flags)) {
-		if (IS_GENIV(rctx->flags))
-			textsize -= rctx->ivsize;
-		if (!IS_ALIGNED(textsize, blksize))
-			return -EINVAL;
-	}
-
-	rctx->sg_src = reqsrc;
-	src = reqsrc;
-	rctx->sg_dst = reqdst;
-	dst = reqdst;
-
-	if (ctx->aead) {
-		if (IS_ENCRYPT(flags))
-			totlen_dst += authsize;
-		else
-			totlen_src += authsize;
-	}
-
-	src_nents = sg_nents_for_len(src, totlen_src);
-	dst_nents = sg_nents_for_len(dst, totlen_dst);
-
-	if (src == dst) {
-		src_nents = max(src_nents, dst_nents);
-		dst_nents = src_nents;
-		if (unlikely((totlen_src || totlen_dst) &&
-		    (src_nents <= 0))) {
-			dev_err(mtk->dev, "In-place buffer not large enough (need %d bytes)!",
-				max(totlen_src, totlen_dst));
-			return -EINVAL;
-		}
-	} else {
-		if (unlikely(totlen_src && (src_nents <= 0))) {
-			dev_err(mtk->dev, "Source buffer not large enough (need %d bytes)!",
-				totlen_src);
-			return -EINVAL;
-		}
-
-		if (unlikely(totlen_dst && (dst_nents <= 0))) {
-			dev_err(mtk->dev, "Dest buffer not large enough (need %d bytes)!",
-				totlen_dst);
-			return -EINVAL;
-		}
-	}
-
-	if (ctx->aead) {
-		if (dst_nents == 1 && src_nents == 1) {
-			src_align = mtk_is_sg_aligned(src, totlen_src, blksize);
-			if (src ==  dst)
-				dst_align = src_align;
-			else
-				dst_align = mtk_is_sg_aligned(reqdst,
-							totlen_dst, blksize);
-		} else {
-			src_align = false;
-			dst_align = false;
-		}
-	} else {
-		src_align = mtk_is_sg_aligned(src, totlen_src, blksize);
-		if (src == dst)
-			dst_align = src_align;
-		else
-			dst_align = mtk_is_sg_aligned(reqdst, totlen_dst,
-								blksize);
-	}
-
-	if (!src_align) {
-		err = mtk_make_sg_cpy(mtk, rctx->sg_src, &rctx->sg_src,
-					totlen_src, rctx, true);
-		if (err)
-			return err;
-		src = rctx->sg_src;
-	}
-
-	if (!dst_align) {
-		err = mtk_make_sg_cpy(mtk, rctx->sg_dst, &rctx->sg_dst,
-					totlen_dst, rctx, false);
-		if (err)
-			return err;
-
-		dst = rctx->sg_dst;
-	}
+	u32 iv[AES_BLOCK_SIZE / sizeof(u32)];
 
 	rctx->saState_ctr = NULL;
 	rctx->saState = NULL;
 
-	if ((IS_ECB(flags)) || (IS_GENIV(flags))) {
-		rctx->iv_dma = false;
-		rctx->saState_base = NULL;
+	if (IS_ECB(flags))
 		goto skip_iv;
-	}
 
-	/* make sure IV is DMA-able */
-	if (!IS_ALIGNED((u32)reqiv, 16))
-			rctx->iv_dma = false;
 	memcpy(iv, reqiv, rctx->ivsize);
 
-	overflow = (IS_CTR(rctx->flags) && (!IS_RFC3686(rctx->flags)));
+	if (!IS_ALIGNED((u32)reqiv, rctx->ivsize) || IS_RFC3686(flags)) {
+		rctx->flags &= ~MTK_DESC_DMA_IV;
+		flags = rctx->flags;
+	}
 
-	if (overflow) {
+	if (IS_DMA_IV(flags)) {
+		rctx->saState = (void *)reqiv;
+	} else  {
+		idx = mtk_get_free_saState(mtk);
+		if (idx < 0)
+			goto send_err;
+		saState_pool = &mtk->ring->saState_pool[idx];
+		rctx->saState_idx = idx;
+		rctx->saState = saState_pool->base;
+		rctx->saState_base = saState_pool->base_dma;
+		memcpy(rctx->saState->stateIv, iv, rctx->ivsize);
+	}
+
+	saState = rctx->saState;
+
+	if (IS_RFC3686(flags)) {
+		saState->stateIv[0] = ctx->saNonce;
+		saState->stateIv[1] = iv[0];
+		saState->stateIv[2] = iv[1];
+		saState->stateIv[3] = cpu_to_be32(1);
+	} else if (!IS_HMAC(flags) && IS_CTR(flags)) {
 		/* Compute data length. */
-		blocks = DIV_ROUND_UP(totlen_src, AES_BLOCK_SIZE);
+		blocks = DIV_ROUND_UP(rctx->textsize, AES_BLOCK_SIZE);
 		ctr = be32_to_cpu(iv[3]);
 		/* Check 32bit counter overflow. */
 		start = ctr;
 		end = start + blocks - 1;
 		if (end < start) {
-			offset = AES_BLOCK_SIZE * -start;
+			split = AES_BLOCK_SIZE * -start;
 			/*
 			 * Increment the counter manually to cope with
 			 * the hardware counter overflow.
 			 */
 			iv[3] = 0xffffffff;
 			crypto_inc((u8 *)iv, AES_BLOCK_SIZE);
-			complete = false;
-			rctx->saState_ctr = dma_pool_zalloc(mtk->saState_pool,
-				GFP_KERNEL, &rctx->saState_base_ctr);
-			if (!rctx->saState_ctr)
-				dev_err(mtk->dev, "No State_ctr DMA memory\n");
+			idx = mtk_get_free_saState(mtk);
+			if (idx < 0)
+				goto free_state;
+			saState_pool = &mtk->ring->saState_pool[idx];
+			rctx->saState_ctr_idx = idx;
+			rctx->saState_ctr = saState_pool->base;
+			rctx->saState_base_ctr = saState_pool->base_dma;
 
 			memcpy(rctx->saState_ctr->stateIv, reqiv, rctx->ivsize);
-		}
-	}
-
-	if (rctx->iv_dma) {
-		rctx->saState = (void *)reqiv;
-	} else {
-		rctx->saState = dma_pool_zalloc(mtk->saState_pool,
-					GFP_KERNEL, &rctx->saState_base);
-		if (!rctx->saState)
-			dev_err(mtk->dev, "No saState DMA memory\n");
-	}
-
-	saState = rctx->saState;
-
-	if (rctx->saState_ctr)
-		memcpy(saState->stateIv, iv, rctx->ivsize);
-
-	if (IS_RFC3686(flags)) {
-		saState->stateIv[0] = ctx->sa->saNonce;
-		saState->stateIv[1] = iv[0];
-		saState->stateIv[2] = iv[1];
-		saState->stateIv[3] = cpu_to_be32(1);
-	}
-
-	if (rctx->iv_dma)
-		rctx->saState_base = dma_map_single(mtk->dev, (void *)reqiv,
-						rctx->ivsize,	DMA_TO_DEVICE);
-	else if (IS_CBC(flags) || overflow)
 			memcpy(saState->stateIv, iv, rctx->ivsize);
-
-skip_iv:
-	rctx->saRecord = dma_pool_zalloc(mtk->saRecord_pool, GFP_KERNEL,
-					&rctx->saRecord_base);
-	if (!rctx->saRecord)
-		dev_err(mtk->dev, "No saRecord DMA memory\n");
-
-	saRecord = rctx->saRecord;
-
-	memcpy(saRecord, ctx->sa, sizeof(struct saRecord_s));
-
-	if (IS_DECRYPT(flags))
-		saRecord->saCmd0.bits.direction = 1;
-
-	if ((IS_ECB(flags)) || (IS_GENIV(flags)))
-		saRecord->saCmd0.bits.saveIv = 0;
-
-	if (IS_HMAC(flags)) {
-		saRecord->saCmd1.bits.byteOffset = 0;
-		saRecord->saCmd1.bits.hashCryptOffset = (aad / 4);
-		saRecord->saCmd0.bits.digestLength = (authsize / 4);
-	}
-
-	if (ctx->aead) {
-		saRecord->saCmd0.bits.opCode = 1;
-		if (IS_DECRYPT(flags))
-			saRecord->saCmd1.bits.copyDigest = 0;
-	}
-
-	if (IS_GENIV(flags)) {
-		saRecord->saCmd0.bits.opGroup = 1;
-		saRecord->saCmd0.bits.opCode = 0;
-		saRecord->saCmd1.bits.seqNumCheck = 1;
-
-		if (IS_ENCRYPT(flags)) {
-			datalen = rctx->textsize - rctx->ivsize;
-			/* seems EIP93 needs to process the header itself
-			 * So get the spi and sequence number from orginal
-			 * header for now
-			 */
-			esph = sg_virt(rctx->sg_src);
-			saRecord->saSpi = ntohl(esph[0]);
-			saRecord->saSeqNum[0] = ntohl(esph[1]) - 1;
-			offsetin = rctx->assoclen + rctx->ivsize;
-			saRecord->saCmd1.bits.copyHeader = 0;
-			saRecord->saCmd1.bits.copyDigest = 0;
-			saRecord->saCmd0.bits.hdrProc = 1;
-			saRecord->saCmd0.bits.ivSource = 3;
-		} else {
-			esph = sg_virt(rctx->sg_src);
-			saRecord->saSpi = ntohl(esph[0]);
-			saRecord->saSeqNum[0] = ntohl(esph[1]);
-			saRecord->saCmd1.bits.copyHeader = 1;
-			saRecord->saCmd1.bits.copyDigest = 0;
-			saRecord->saCmd0.bits.hdrProc = 1;
-			saRecord->saCmd0.bits.ivSource = 1;
-			datalen += rctx->authsize;
 		}
 	}
+
+	if (IS_DMA_IV(flags)) {
+		rctx->saState_base = dma_map_single(mtk->dev, (void *)reqiv,
+						rctx->ivsize, DMA_TO_DEVICE);
+		if (dma_mapping_error(mtk->dev, rctx->saState_base))
+			goto free_state;
+	}
+skip_iv:
+	cdesc.peCrtlStat.bits.hostReady = 1;
+	cdesc.peCrtlStat.bits.prngMode = 0;
+	cdesc.peCrtlStat.bits.hashFinal = 0;
+	cdesc.peCrtlStat.bits.padCrtlStat = 0;
+	cdesc.peCrtlStat.bits.peReady = 0;
+	cdesc.saAddr = rctx->saRecord_base;
+	cdesc.arc4Addr = (u32)async;
+	if (ctx->type == MTK_ALG_TYPE_AEAD)
+		cdesc.userId = MTK_DESC_AEAD;
+	else
+		cdesc.userId = MTK_DESC_SKCIPHER;
+	rctx->cdesc = &cdesc;
 
 	/* map DMA_BIDIRECTIONAL to invalidate cache on destination
 	 * implies __dma_cache_wback_inv
 	 */
-	dma_map_sg(mtk->dev, dst, sg_nents(dst), DMA_BIDIRECTIONAL);
+	dma_map_sg(mtk->dev, dst, rctx->dst_nents, DMA_BIDIRECTIONAL);
 	if (src != dst)
-		dma_map_sg(mtk->dev, src, sg_nents(src), DMA_TO_DEVICE);
+		dma_map_sg(mtk->dev, src, rctx->src_nents, DMA_TO_DEVICE);
 
+	err = mtk_scatter_combine(mtk, rctx, datalen, split, offsetin);
 
-	if (unlikely(complete == false)) {
-		src_ctr = src;
-		dst_ctr = dst;
-		/* process until offset of the counter overflow */
-		ctr_cdr = mtk_scatter_combine(mtk, rctx, src, dst, offset,
-						complete, (void *)base, 0);
-		/* Jump to offset. */
-		src = scatterwalk_ffwd(rctx->ctr_src, src_ctr, offset);
-		dst = ((src_ctr == dst_ctr) ? src :
-			scatterwalk_ffwd(rctx->ctr_dst, dst_ctr, offset));
+	return err;
 
-		datalen -= offset;
-		complete = true;
-		/* map DMA_BIDIRECTIONAL to invalidate cache on destination */
-		dma_map_sg(mtk->dev, dst, sg_nents(dst), DMA_BIDIRECTIONAL);
-		if (src != dst)
-			dma_map_sg(mtk->dev, src, sg_nents(src), DMA_TO_DEVICE);
+free_state:
+	if (rctx->saState) {
+		saState_pool = &mtk->ring->saState_pool[rctx->saState_idx];
+		saState_pool->in_use = false;
 	}
 
-	ndesc_cdr = mtk_scatter_combine(mtk, rctx, src, dst, datalen, complete,
-			(void *)base, offsetin);
-
-	return ndesc_cdr + ctr_cdr;
+	if (rctx->saState_ctr) {
+		saState_pool = &mtk->ring->saState_pool[rctx->saState_ctr_idx];
+		saState_pool->in_use = false;
+	}
+send_err:
+	return err;
 }
 
-static void mtk_unmap_dma(struct mtk_device *mtk, struct mtk_cipher_reqctx *rctx,
+void mtk_unmap_dma(struct mtk_device *mtk, struct mtk_cipher_reqctx *rctx,
 			struct scatterlist *reqsrc, struct scatterlist *reqdst)
 {
 	u32 len = rctx->assoclen + rctx->textsize;
@@ -602,87 +522,153 @@ static void mtk_unmap_dma(struct mtk_device *mtk, struct mtk_cipher_reqctx *rctx
 	int i;
 
 	if (rctx->sg_src == rctx->sg_dst) {
-		dma_unmap_sg(mtk->dev, rctx->sg_dst, sg_nents(rctx->sg_dst),
-							DMA_FROM_DEVICE);
+		dma_unmap_sg(mtk->dev, rctx->sg_dst, rctx->dst_nents,
+							DMA_BIDIRECTIONAL);
 		goto process_tag;
 	}
 
-	dma_unmap_sg(mtk->dev, rctx->sg_src, sg_nents(rctx->sg_src),
+	dma_unmap_sg(mtk->dev, rctx->sg_src, rctx->src_nents,
 							DMA_TO_DEVICE);
 
 	if (rctx->sg_src != reqsrc)
-		mtk_free_sg_cpy(len +  rctx->authsize, &rctx->sg_src);
+		mtk_free_sg_copy(len +  rctx->authsize, &rctx->sg_src);
 
-	dma_unmap_sg(mtk->dev, rctx->sg_dst, sg_nents(rctx->sg_dst),
-							DMA_FROM_DEVICE);
+	dma_unmap_sg(mtk->dev, rctx->sg_dst, rctx->dst_nents,
+							DMA_BIDIRECTIONAL);
 
 	/* SHA tags need conversion from net-to-host */
 process_tag:
 	if (IS_DECRYPT(flags))
 		authsize = 0;
 
-	if (authsize && (!IS_GENIV(flags))) {
+	if (authsize) {
 		if (!IS_HASH_MD5(flags)) {
 			otag = sg_virt(rctx->sg_dst) + len;
 			for (i = 0; i < (authsize / 4); i++)
-			otag[i] = ntohl(otag[i]);
+				otag[i] = ntohl(otag[i]);
 		}
 	}
 
 	if (rctx->sg_dst != reqdst) {
 		sg_copy_from_buffer(reqdst, sg_nents(reqdst),
 				sg_virt(rctx->sg_dst), len + authsize);
-		mtk_free_sg_cpy(len + rctx->authsize, &rctx->sg_dst);
+		mtk_free_sg_copy(len + rctx->authsize, &rctx->sg_dst);
 	}
 }
 
-void mtk_handle_result(struct mtk_device *mtk,
-	struct crypto_async_request *async, struct mtk_cipher_reqctx *rctx,
-	struct scatterlist *reqsrc, struct scatterlist *reqdst,	u8 *reqiv,
-	bool complete, int err)
+void mtk_handle_result(struct mtk_device *mtk, struct mtk_cipher_reqctx *rctx,
+			u8 *reqiv)
 {
-	mtk_unmap_dma(mtk, rctx, reqsrc, reqdst);
+	struct mtk_state_pool *saState_pool;
 
-	if (IS_BUSY(rctx->flags)) {
-		local_bh_disable();
-		async->complete(async, -EINPROGRESS);
-		local_bh_enable();
-	}
-
-	if (!complete)
-		return;
-
-	if (rctx->iv_dma) {
+	if (IS_DMA_IV(rctx->flags))
 		dma_unmap_single(mtk->dev, rctx->saState_base, rctx->ivsize,
-						DMA_BIDIRECTIONAL);
-	} else {
-		if ((!IS_ECB(rctx->flags)) || (!IS_GENIV(rctx->flags)))  {
-			memcpy(reqiv, rctx->saState->stateIv, rctx->ivsize);
-			if (rctx->saState)
-				dma_pool_free(mtk->saState_pool, rctx->saState,
-							rctx->saState_base);
-		}
+						DMA_TO_DEVICE);
+
+	if (!IS_ECB(rctx->flags))
+		memcpy(reqiv, rctx->saState->stateIv, rctx->ivsize);
+
+	if ((rctx->saState) && !(IS_DMA_IV(rctx->flags))) {
+		saState_pool = &mtk->ring->saState_pool[rctx->saState_idx];
+		saState_pool->in_use = false;
 	}
 
-	if (rctx->saState_ctr)
-		dma_pool_free(mtk->saState_pool, rctx->saState_ctr,
-						rctx->saState_base_ctr);
-
-	dma_pool_free(mtk->saRecord_pool, rctx->saRecord, rctx->saRecord_base);
-
-	local_bh_disable();
-	async->complete(async, err);
-	local_bh_enable();
+	if (rctx->saState_ctr) {
+		saState_pool = &mtk->ring->saState_pool[rctx->saState_ctr_idx];
+		saState_pool->in_use = false;
+	}
 }
-#ifdef CONFIG_EIP93_SKCIPHER
+
+#ifdef CONFIG_CRYPTO_DEV_EIP93_SKCIPHER
+int mtk_skcipher_send_req(struct crypto_async_request *async)
+{
+	struct skcipher_request *req = skcipher_request_cast(async);
+	struct mtk_cipher_reqctx *rctx = skcipher_request_ctx(req);
+	int err;
+
+	err = check_valid_request(rctx);
+
+	if (err) {
+		skcipher_request_complete(req, err);
+		return err;
+	}
+
+	return mtk_send_req(async, req->iv, rctx);
+}
+
 void mtk_skcipher_handle_result(struct mtk_device *mtk,
 				struct crypto_async_request *async,
-				bool complete, int err)
+				int err)
 {
 	struct skcipher_request *req = skcipher_request_cast(async);
 	struct mtk_cipher_reqctx *rctx = skcipher_request_ctx(req);
 
-	mtk_handle_result(mtk, async, rctx, req->src, req->dst, req->iv,
-				complete, err);
+	mtk_unmap_dma(mtk, rctx, req->src, req->dst);
+	mtk_handle_result(mtk, rctx, req->iv);
+
+	skcipher_request_complete(req, err);
+}
+#endif
+
+#ifdef CONFIG_CRYPTO_DEV_EIP93_HMAC
+/* basically this is set hmac - key */
+int mtk_authenc_setkey(struct crypto_shash *cshash, struct saRecord_s *sa,
+			const u8 *authkey, unsigned int authkeylen)
+{
+	int bs = crypto_shash_blocksize(cshash);
+	int ds = crypto_shash_digestsize(cshash);
+	int ss = crypto_shash_statesize(cshash);
+	u8 *ipad, *opad;
+	unsigned int i, err;
+
+	SHASH_DESC_ON_STACK(shash, cshash);
+
+	shash->tfm = cshash;
+
+	/* auth key
+	 *
+	 * EIP93 can only authenticate with hash of the key
+	 * do software shash until EIP93 hash function complete.
+	 */
+	ipad = kcalloc(2, SHA256_BLOCK_SIZE + ss, GFP_KERNEL);
+	if (!ipad)
+		return -ENOMEM;
+
+	opad = ipad + SHA256_BLOCK_SIZE + ss;
+
+	if (authkeylen > bs) {
+		err = crypto_shash_digest(shash, authkey,
+					authkeylen, ipad);
+		if (err)
+			return err;
+
+		authkeylen = ds;
+	} else
+		memcpy(ipad, authkey, authkeylen);
+
+	memset(ipad + authkeylen, 0, bs - authkeylen);
+	memcpy(opad, ipad, bs);
+
+	for (i = 0; i < bs; i++) {
+		ipad[i] ^= HMAC_IPAD_VALUE;
+		opad[i] ^= HMAC_OPAD_VALUE;
+	}
+
+	err = crypto_shash_init(shash) ?:
+		crypto_shash_update(shash, ipad, bs) ?:
+		crypto_shash_export(shash, ipad) ?:
+		crypto_shash_init(shash) ?:
+		crypto_shash_update(shash, opad, bs) ?:
+		crypto_shash_export(shash, opad);
+
+	if (err)
+		return err;
+
+	/* add auth key */
+	memcpy(&sa->saIDigest, ipad, SHA256_DIGEST_SIZE);
+	memcpy(&sa->saODigest, opad, SHA256_DIGEST_SIZE);
+
+	kfree(ipad);
+	return 0;
 }
 #endif
