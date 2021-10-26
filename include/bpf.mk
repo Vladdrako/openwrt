@@ -1,10 +1,15 @@
-ifeq ($(CONFIG_BUILD_LLVM_BPF),)
-export PATH:=/usr/local/opt/llvm/bin:$(PATH)
-CLANG:=$(firstword $(shell PATH='$(PATH)' which clang clang-13 clang-12 clang-11 clang-10 clang-9))
-LLVM_VER:=$(subst clang,,$(notdir $(CLANG)))
+ifneq ($(CONFIG_BPF_TOOLCHAIN_HOST),)
+  BPF_TOOLCHAIN_HOST_PATH:=$(call qstrip,$(CONFIG_BPF_TOOLCHAIN_HOST_PATH))
+  ifneq ($(BPF_TOOLCHAIN_HOST_PATH),)
+    BPF_PATH:=$(BPF_TOOLCHAIN_HOST_PATH)/bin:$(PATH)
+  else
+    BPF_PATH:=$(BPF_PATH)
+  endif
+  CLANG:=$(firstword $(shell PATH='$(BPF_PATH)' which clang clang-13 clang-12 clang-11))
+  LLVM_VER:=$(subst clang,,$(notdir $(CLANG)))
 else
-CLANG:=$(STAGING_DIR_HOST)/bin/clang
-LLVM_VER:=
+  CLANG:=$(STAGING_DIR_HOST)/bin/clang
+  LLVM_VER:=
 endif
 
 LLVM_PATH:=$(dir $(CLANG))
