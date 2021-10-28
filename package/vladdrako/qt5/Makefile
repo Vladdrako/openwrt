@@ -26,6 +26,7 @@ PKG_USE_MIPS16:=0
 PKG_INSTALL:=1
 
 include $(INCLUDE_DIR)/package.mk
+include $(INCLUDE_DIR)/nls.mk
 
 define Package/libQt5/Default
   SECTION:=libs
@@ -33,7 +34,7 @@ define Package/libQt5/Default
   SUBMENU:=Qt5
   TITLE:=Qt5
   URL:=http://qt-project.org
-  DEPENDS:=+libatomic +libzstd +libpthread +librt +libopenssl +libstdcpp +zlib @!LINUX_2_6
+  DEPENDS:=+libatomic +libzstd +libpthread +librt +libpcre2-16 +icu +libopenssl +libstdcpp +zlib @!LINUX_2_6
 endef
 
 define Package/libQt5
@@ -212,6 +213,8 @@ CONFIGURE_ARGS:= \
 	-shared \
 	-no-opengl \
 	-openssl \
+	-no-iconv \
+	-icu \
 	-skip 3d \
 	-skip activeqt \
 	-skip androidextras \
@@ -233,6 +236,7 @@ define Build/Prepare
 	$(call Build/Prepare/Default)
 	$(INSTALL_DIR) $(PKG_BUILD_DIR)/qtbase/mkspecs/linux-openwrt-g++
 	$(CP) ./files/qplatformdefs.h $(PKG_BUILD_DIR)/qtbase/mkspecs/linux-openwrt-g++/qplatformdefs.h
+	$(CP) ./files/qglobal.h $(PKG_BUILD_DIR)/qtbase/src/corelib/global/qglobal.h
 	$(CP) ./files/qmake.conf $(PKG_BUILD_DIR)/qtbase/mkspecs/linux-openwrt-g++/qmake.conf
 	$(SED) 's@$$$$(TARGET_CROSS)@$(TARGET_CROSS)@g' $(PKG_BUILD_DIR)/qtbase/mkspecs/linux-openwrt-g++/qmake.conf
 endef
