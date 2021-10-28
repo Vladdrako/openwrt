@@ -11,11 +11,12 @@ PKG_NAME:=qBittorrent
 PKG_VERSION:=4.4.0beta3
 PKG_RELEASE=0
 
-PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_SOURCE_URL:=https://codeload.github.com/qbittorrent/qBittorrent/tar.gz/release-$(PKG_VERSION)?
-PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
-PKG_HASH:=e7265ec7730b1f9daa2291fa135b2223986923ea3385ea060585f3e56486aa98
-PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-release-$(PKG_VERSION)
+PKG_SOURCE_URL:=https://github.com/c0re100/qBittorrent-Enhanced-Edition.git
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_DATE:=2021-10-25
+PKG_SOURCE_VERSION:=4a457f3137d69dd5b48a5668aa750f636a8b940f
+PKG_MIRROR_HASH:=
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
 PKG_MAINTAINER:=Krypton Lee <jun.k.lee199410@outlook.com>
 PKG_LICENSE:=GPL-2.0+
@@ -51,7 +52,7 @@ CMAKE_OPTIONS += \
    -DSTACKTRACE=OFF \
     -DLIBTINS_BUILD_EXAMPLES=OFF \
 	-DLIBTINS_BUILD_TESTS=OFF \
-    -DCMAKE_PREFIX_PATH=/home/dmitriy/MyProk/openwrt/staging_dir/target-aarch64_cortex-a53_musl/usr/lib/cmake/Qt5Core  \
+    -DCMAKE_PREFIX_PATH=$(STAGING_DIR)/usr/lib/cmake/Qt5Core  \
     -DCMAKE_BUILD_TYPE="Release" \
     -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON
 
