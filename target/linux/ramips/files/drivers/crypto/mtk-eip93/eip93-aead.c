@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2019 - 2021
  *
- * Richard van Schagen <vschagen@cs.com>
+ * Richard van Schagen <vschagen@icloud.com>
  */
 
 #include <crypto/aead.h>
@@ -13,23 +13,25 @@
 #include <crypto/internal/aead.h>
 #include <crypto/md5.h>
 #include <crypto/null.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 
-#ifdef CONFIG_CRYPTO_DEV_EIP93_DES
+#if IS_ENABLED(CONFIG_CRYPTO_DEV_EIP93_DES)
 #include <crypto/internal/des.h>
 #endif
 
 #include <linux/crypto.h>
 #include <linux/dma-mapping.h>
 
+#include "eip93-aead.h"
 #include "eip93-cipher.h"
 #include "eip93-common.h"
 #include "eip93-regs.h"
 
-void mtk_aead_handle_result(struct mtk_device *mtk,
-				struct crypto_async_request *async,
-				int err)
+void mtk_aead_handle_result(struct crypto_async_request *async, int err)
 {
+	struct mtk_crypto_ctx *ctx = crypto_tfm_ctx(async->tfm);
+	struct mtk_device *mtk = ctx->mtk;
 	struct aead_request *req = aead_request_cast(async);
 	struct mtk_cipher_reqctx *rctx = aead_request_ctx(req);
 
@@ -45,7 +47,7 @@ void mtk_aead_handle_result(struct mtk_device *mtk,
 	aead_request_complete(req, err);
 }
 
-int mtk_aead_send_req(struct crypto_async_request *async)
+static int mtk_aead_send_req(struct crypto_async_request *async)
 {
 	struct aead_request *req = aead_request_cast(async);
 	struct mtk_cipher_reqctx *rctx = aead_request_ctx(req);
@@ -75,8 +77,6 @@ static int mtk_aead_cra_init(struct crypto_tfm *tfm)
 			sizeof(struct mtk_cipher_reqctx));
 
 	ctx->mtk = tmpl->mtk;
-	ctx->type = tmpl->type;
-	ctx->fallback = NULL;
 	ctx->in_first = true;
 	ctx->out_first = true;
 
@@ -138,19 +138,20 @@ static int mtk_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 	struct mtk_alg_template *tmpl = container_of(tfm->__crt_alg,
 				struct mtk_alg_template, alg.skcipher.base);
 	u32 flags = tmpl->flags;
+	u32 nonce = 0;
 	struct crypto_authenc_keys keys;
 	struct crypto_aes_ctx aes;
 	struct saRecord_s *saRecord = ctx->sa_out;
 	int sa_size = sizeof(struct saRecord_s);
-	int err;
-	u32 nonce = 0;
+	int err = -EINVAL;
+
 
 	if (crypto_authenc_extractkeys(&keys, key, len))
-		return -EINVAL;
+		return err;
 
 	if (IS_RFC3686(flags)) {
 		if (keys.enckeylen < CTR_RFC3686_NONCE_SIZE)
-			goto badkey;
+			return err;
 
 		keys.enckeylen -= CTR_RFC3686_NONCE_SIZE;
 		memcpy(&nonce, keys.enckey + keys.enckeylen,
@@ -173,7 +174,7 @@ static int mtk_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 		err = aes_expandkey(&aes, keys.enckey, keys.enckeylen);
 	}
 	if (err)
-		goto badkey;
+		return err;
 
 	ctx->blksize = crypto_aead_blocksize(ctfm);
 	dma_unmap_single(ctx->mtk->dev, ctx->sa_base_in, sa_size,
@@ -205,7 +206,7 @@ static int mtk_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 								DMA_TO_DEVICE);
 	ctx->in_first = true;
 	ctx->out_first = true;
-badkey:
+
 	return err;
 }
 
@@ -272,6 +273,7 @@ static int mtk_aead_crypt(struct aead_request *req)
 	rctx->sg_src = req->src;
 	rctx->sg_dst = req->dst;
 	rctx->ivsize = crypto_aead_ivsize(aead);
+	rctx->flags |= MTK_DESC_AEAD;
 
 	if IS_DECRYPT(rctx->flags)
 		rctx->textsize -= rctx->authsize;
@@ -548,7 +550,7 @@ struct mtk_alg_template mtk_alg_authenc_hmac_sha256_rfc3686_aes = {
 	},
 };
 
-#ifdef CONFIG_CRYPTO_DEV_EIP93_DES
+#if IS_ENABLED(CONFIG_CRYPTO_DEV_EIP93_DES)
 struct mtk_alg_template mtk_alg_authenc_hmac_md5_cbc_des = {
 	.type = MTK_ALG_TYPE_AEAD,
 	.flags = MTK_HASH_HMAC | MTK_HASH_MD5 | MTK_MODE_CBC | MTK_ALG_DES,
