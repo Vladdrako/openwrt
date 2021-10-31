@@ -1569,20 +1569,17 @@ endef
 
 define Device/xiaomi_mi-router-3g
   $(Device/xiaomi_nand_separate)
-  IMAGES += breed-factory.bin factory.bin
-  IMAGE/factory.bin := append-kernel | pad-to $$(KERNEL_SIZE) | append-ubi | check-size
-  IMAGE/breed-factory.bin := append-kernel | pad-to $$(KERNEL_SIZE) | \
-			     append-kernel | pad-to $$(KERNEL_SIZE) | \
-			     append-ubi | check-size
   DEVICE_VENDOR := Xiaomi
   DEVICE_MODEL := Mi Router 3G
   IMAGE_SIZE := 124416k
   DEVICE_PACKAGES += kmod-mt7603 kmod-mt76x2 kmod-usb3 \
 	kmod-usb-ledtrig-usbport
   SUPPORTED_DEVICES += R3G mir3g xiaomi,mir3g
-  IMAGES += factory.bin
-  IMAGE/factory.bin := append-kernel | pad-to $$(KERNEL_SIZE) | append-kernel | pad-to $$(KERNEL_SIZE) | append-ubi | \
-	check-size $$$$(IMAGE_SIZE)
+  IMAGES += breed-factory.bin factory.bin
+  IMAGE/factory.bin := append-kernel | pad-to $$(KERNEL_SIZE) | append-ubi | check-size
+  IMAGE/breed-factory.bin := append-kernel | pad-to $$(KERNEL_SIZE) | \
+			     append-kernel | pad-to $$(KERNEL_SIZE) | \
+			     append-ubi | check-size
 endef
 TARGET_DEVICES += xiaomi_mi-router-3g
 
