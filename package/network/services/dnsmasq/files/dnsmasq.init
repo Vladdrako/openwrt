@@ -943,8 +943,8 @@ dnsmasq_start()
 	}
 	config_get_bool ignore_hosts_dir "$cfg" ignore_hosts_dir 0
 	if [ "$ignore_hosts_dir" = "1" ]; then
-		xappend "--addn-hosts=$HOSTFILE"
-		append EXTRA_MOUNT "$HOSTFILE"
+		xappend "--addn-hosts=$HOSTFILE_DIR"
+		append EXTRA_MOUNT "$HOSTFILE_DIR"
 	else
 		xappend "--hostsdir=$(dirname $HOSTFILE)"
 		append EXTRA_MOUNT "$(dirname $HOSTFILE)"
@@ -1140,7 +1140,6 @@ dnsmasq_start()
 	procd_add_jail_mount $EXTRA_MOUNT $RFC6761FILE $TRUSTANCHORSFILE
 	procd_add_jail_mount $dnsmasqconffile $dnsmasqconfdir $resolvdir $user_dhcpscript
 	procd_add_jail_mount /etc/passwd /etc/group /etc/TZ /etc/hosts /etc/ethers
-	[ "$HOSTFILE_DIR" != "/tmp" ] && procd_add_jail_mount "$HOSTFILE_DIR"
 	procd_add_jail_mount_rw /var/run/dnsmasq/ $leasefile
 
 	procd_close_instance
