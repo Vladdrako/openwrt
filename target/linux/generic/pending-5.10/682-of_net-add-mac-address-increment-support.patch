@@ -20,7 +20,7 @@ Signed-off-by: Ansuel Smith <ansuelsmth@gmail.com>
 
 --- a/drivers/of/of_net.c
 +++ b/drivers/of/of_net.c
-@@ -119,28 +119,63 @@ static int of_get_mac_addr_nvmem(struct device_node *np, u8 *addr)
+@@ -115,27 +115,62 @@ static int of_get_mac_addr_nvmem(struct
   * this case, the real MAC is in 'local-mac-address', and 'mac-address' exists
   * but is all zeros.
   *
@@ -66,8 +66,7 @@ Signed-off-by: Ansuel Smith <ansuelsmth@gmail.com>
  	if (!ret)
 -		return 0;
 +		goto found;
- 
--	return of_get_mac_addr_nvmem(np, addr);
++
 +	ret = of_get_mac_addr_nvmem(np, addr);
 +	if (ret)
 +		return ret;
@@ -83,7 +82,8 @@ Signed-off-by: Ansuel Smith <ansuelsmth@gmail.com>
 +		addr[4] = (mac_val >> 8) & 0xff;
 +		addr[5] = (mac_val >> 0) & 0xff;
 +	}
-+
+ 
+-	return of_get_mac_addr_nvmem(np, addr);
 +	return ret;
  }
  EXPORT_SYMBOL(of_get_mac_address);
