@@ -54,7 +54,7 @@ LDFLAGS		+= -flto -fwhole-program -Wl,-z,max-page-size=4096
 
 O_FORMAT 	= $(shell $(OBJDUMP) -i | head -2 | grep elf32)
 
-OBJECTS		:= head.o loader.o cache.o board-$(PLATFORM).o printf.o LzmaDecode.o
+OBJECTS		:= head.o loader.o cache.o board-$(PLATFORM).o printf.o LzmaDec.o
 
 ifneq ($(strip $(LOADER_DATA)),)
 OBJECTS		+= data.o
