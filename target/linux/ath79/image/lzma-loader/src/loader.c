@@ -25,7 +25,7 @@
 #include "config.h"
 #include "cache.h"
 #include "printf.h"
-#include "LzmaDecode.h"
+#include "LzmaDec.h"
 
 #define AR71XX_FLASH_START	0x1f000000
 #define AR71XX_FLASH_END	0x1fe00000
@@ -34,14 +34,6 @@
 #define KSEG1			0xa0000000
 
 #define KSEG1ADDR(a)		((((unsigned)(a)) & 0x1fffffffU) | KSEG1)
-
-#undef LZMA_DEBUG
-
-#ifdef LZMA_DEBUG
-#  define DBG(f, a...)	printf(f, ## a)
-#else
-#  define DBG(f, a...)	do {} while (0)
-#endif
 
 #define IH_MAGIC_OKLI		0x4f4b4c49	/* 'OKLI' */
 
@@ -108,15 +100,13 @@ static __inline__ unsigned char lzma_get_byte(void)
 	return c;
 }
 
-static int lzma_init_props(void)
+static void lzma_init_props(void)
 {
-	unsigned char props[LZMA_PROPERTIES_SIZE];
-	int res;
 	int i;
 
 	/* read lzma properties */
-	for (i = 0; i < LZMA_PROPERTIES_SIZE; i++)
-		props[i] = lzma_get_byte();
+	for (i = 0; i < sizeof lzma_props; i++)
+		lzma_props[i] = lzma_get_byte();
 
 	/* read the lower half of uncompressed size in the header */
 	lzma_outsize = ((SizeT) lzma_get_byte()) +
@@ -127,35 +117,24 @@ static int lzma_init_props(void)
 	/* skip rest of the header (upper half of uncompressed size) */
 	for (i = 0; i < 4; i++)
 		lzma_get_byte();
+}
 
-	res = LzmaDecodeProperties(&lzma_state.Properties, props,
-					LZMA_PROPERTIES_SIZE);
-	return res;
+static void *lz_alloc(ISzAllocPtr p, size_t size)
+{
+	return workspace;
+}
+static void lz_free(ISzAllocPtr p, void *address)
+{
 }
 
 static int lzma_decompress(unsigned char *outStream)
 {
-	SizeT ip, op;
-	int ret;
+	ISzAlloc alloc = { lz_alloc, lz_free };
+	ELzmaStatus status;
 
-	lzma_state.Probs = (CProb *) workspace;
-
-	ret = LzmaDecode(&lzma_state, lzma_data, lzma_datasize, &ip, outStream,
-			 lzma_outsize, &op);
-
-	if (ret != LZMA_RESULT_OK) {
-		int i;
-
-		DBG("LzmaDecode error %d at %08x, osize:%d ip:%d op:%d\n",
-		    ret, lzma_data + ip, lzma_outsize, ip, op);
-
-		for (i = 0; i < 16; i++)
-			DBG("%02x ", lzma_data[ip + i]);
-
-		DBG("\n");
-	}
-
-	return ret;
+	return LzmaDecode(outStream, &lzma_outsize, lzma_data, &lzma_datasize,
+			  lzma_props, sizeof lzma_props, LZMA_FINISH_END,
+			  &status, &alloc);
 }
 
 #if (LZMA_WRAPPER)
@@ -229,20 +208,22 @@ void loader_main(unsigned long reg_a0, unsigned long reg_a1,
 
 	lzma_init_data();
 
-	res = lzma_init_props();
-	if (res != LZMA_RESULT_OK) {
-		printf("Incorrect LZMA stream properties!\n");
-		halt();
-	}
+	lzma_init_props();
 
 	printf("Decompressing kernel... ");
 
 	res = lzma_decompress((unsigned char *) kernel_la);
-	if (res != LZMA_RESULT_OK) {
+	if (res != SZ_OK) {
 		printf("failed, ");
 		switch (res) {
-		case LZMA_RESULT_DATA_ERROR:
+		case SZ_ERROR_DATA:
 			printf("data error!\n");
+			break;
+		case SZ_ERROR_UNSUPPORTED:
+			printf("unsupported LZMA properties!\n");
+			break;
+		case SZ_ERROR_INPUT_EOF:
+			printf("premature input EOF reached!\n");
 			break;
 		default:
 			printf("unknown error %d!\n", res);
