@@ -48,7 +48,7 @@ LDFLAGS		+= -flto -fwhole-program
 
 O_FORMAT 	= $(shell $(OBJDUMP) -i | head -2 | grep elf32)
 
-OBJECTS		:= head.o loader.o cache.o board.o printf.o LzmaDec.o
+OBJECTS		:= head.o loader.o cache.o board.o printf.o LzmaDecode.o
 
 ifneq ($(strip $(LOADER_DATA)),)
 OBJECTS		+= data.o
