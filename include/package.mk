@@ -184,8 +184,6 @@ define Build/CoreTargets
   $(call Build/Autoclean)
   $(call DefaultTargets)
 
-  $(call check_download_integrity)
-
   download:
 	$(foreach hook,$(Hooks/Download),
 		$(call $(hook))$(sep)
