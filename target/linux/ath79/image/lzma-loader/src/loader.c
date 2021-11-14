@@ -19,6 +19,7 @@
  * by the Free Software Foundation.
  */
 
+#include <endian.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -86,16 +87,6 @@ static void halt(void)
 {
 	printf("\nSystem halted!\n");
 	for(;;);
-}
-
-static __inline__ unsigned long get_be32(void *buf)
-{
-	unsigned char *p = buf;
-
-	return (((unsigned long) p[0] << 24) +
-	        ((unsigned long) p[1] << 16) +
-	        ((unsigned long) p[2] << 8) +
-	        (unsigned long) p[3]);
 }
 
 static __inline__ unsigned char lzma_get_byte(void)
@@ -171,11 +162,14 @@ static void lzma_init_data(void)
 #else
 static void lzma_init_data(void)
 {
+#ifdef CONFIG_KERNEL_MAGIC
+	uint32_t magic_be = htobe32(CONFIG_KERNEL_MAGIC);
+#else
+	uint32_t magic_be = htobe32(IH_MAGIC_OKLI);
+#endif
 	struct image_header *hdr = NULL;
 	unsigned char *flash_base;
 	unsigned long flash_ofs;
-	unsigned long kernel_ofs;
-	unsigned long kernel_size;
 
 	flash_base = (unsigned char *) KSEG1ADDR(AR71XX_FLASH_START);
 
@@ -184,17 +178,10 @@ static void lzma_init_data(void)
 	for (flash_ofs = CONFIG_FLASH_OFFS;
 	     flash_ofs <= (CONFIG_FLASH_OFFS + CONFIG_FLASH_MAX);
 	     flash_ofs += CONFIG_FLASH_STEP) {
-		unsigned long magic;
-		unsigned char *p;
-
-		p = flash_base + flash_ofs;
-		magic = get_be32(p);
-#ifdef CONFIG_KERNEL_MAGIC
-		if (magic == CONFIG_KERNEL_MAGIC) {
-#else
-		if (magic == IH_MAGIC_OKLI) {
-#endif
-			hdr = (struct image_header *) p;
+		struct image_header *tmp;
+		tmp = (struct image_header *)(flash_base + flash_ofs);
+		if (tmp->ih_magic == magic_be) {
+			hdr = tmp;
 			break;
 		}
 	}
@@ -204,14 +191,12 @@ static void lzma_init_data(void)
 		halt();
 	}
 
-	printf("found at 0x%08x\n", flash_base + flash_ofs);
+	printf("found at 0x%08x\n", hdr);
 
-	kernel_ofs = sizeof(struct image_header);
-	kernel_size = get_be32(&hdr->ih_size);
-	kernel_la = get_be32(&hdr->ih_load);
+	kernel_la = be32toh(hdr->ih_load);
 
-	lzma_data = flash_base + flash_ofs + kernel_ofs;
-	lzma_datasize = kernel_size;
+	lzma_data = (unsigned char *)(hdr + 1);
+	lzma_datasize = be32toh(hdr->ih_size);
 }
 #endif /* (LZMA_WRAPPER) */
 
