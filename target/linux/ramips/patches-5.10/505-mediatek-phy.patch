@@ -24,7 +24,7 @@
  obj-$(CONFIG_MICREL_PHY)	+= micrel.o
 --- /dev/null
 +++ b/drivers/net/phy/mediatek-ge.c
-@@ -0,0 +1,112 @@
+@@ -0,0 +1,116 @@
 +// SPDX-License-Identifier: GPL-2.0+
 +#include <linux/bitfield.h>
 +#include <linux/module.h>
@@ -114,6 +114,8 @@
 +		 */
 +		.config_intr	= genphy_no_config_intr,
 +		.ack_interrupt  = genphy_no_ack_interrupt,
++		.suspend	= genphy_suspend,
++		.resume		= genphy_resume,
 +		.read_page	= mtk_gephy_read_page,
 +		.write_page	= mtk_gephy_write_page,
 +	},
@@ -126,6 +128,8 @@
 +		 */
 +		.config_intr	= genphy_no_config_intr,
 +		.ack_interrupt  = genphy_no_ack_interrupt,
++		.suspend	= genphy_suspend,
++		.resume		= genphy_resume,
 +		.read_page	= mtk_gephy_read_page,
 +		.write_page	= mtk_gephy_write_page,
 +	},
