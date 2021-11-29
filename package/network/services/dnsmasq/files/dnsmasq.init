@@ -33,6 +33,7 @@ dnsmasq_ignore_opt() {
 		[ "${dnsmasq_features#* DNSSEC }" = "$dnsmasq_features" ] || dnsmasq_has_dnssec=1
 		[ "${dnsmasq_features#* TFTP }" = "$dnsmasq_features" ] || dnsmasq_has_tftp=1
 		[ "${dnsmasq_features#* ipset }" = "$dnsmasq_features" ] || dnsmasq_has_ipset=1
+		[ "${dnsmasq_features#* nftset }" = "$dnsmasq_features" ] || dnsmasq_has_nftset=1
 	fi
 
 	case "$opt" in
@@ -55,6 +56,8 @@ dnsmasq_ignore_opt() {
 			[ -z "$dnsmasq_has_tftp" ] ;;
 		ipset)
 			[ -z "$dnsmasq_has_ipset" ] ;;
+		nftset)
+			[ -z "$dnsmasq_has_nftset" ] ;;
 		*)
 			return 1
 	esac
