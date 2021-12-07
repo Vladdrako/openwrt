@@ -7,7 +7,11 @@ main() {
 	local boot status
 
 	if [ -f "/etc/init.d/${service}" ]; then
-		/etc/init.d/"${service}" "${cmd}"
+		if [ "$cmd" = "list" ]; then
+			ubus call service list "{ 'verbose': true, 'name': '$(basename "$service")' }"
+		else
+			/etc/init.d/"${service}" "${cmd}"
+		fi
 		exit "$?"
 	fi
 
