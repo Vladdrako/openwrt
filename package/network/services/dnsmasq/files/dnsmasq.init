@@ -934,6 +934,9 @@ dnsmasq_start()
 		append_bool "$cfg" nonwildcard "--bind-dynamic" 1
 	}
 
+	config_get dnsfilter "$cfg" "dnsfilter"
+	[ -n "$dnsfilter" ] && xappend "--filter-$dnsfilter"
+
 	append_bool "$cfg" fqdn "--dhcp-fqdn"
 	append_bool "$cfg" proxydnssec "--proxy-dnssec"
 	append_bool "$cfg" localservice "--local-service"
