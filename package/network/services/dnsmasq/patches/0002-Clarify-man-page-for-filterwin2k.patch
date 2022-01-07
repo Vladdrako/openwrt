@@ -1,0 +1,28 @@
+From 8cfcd9ff638f0ecc677dca0c43f9e9885ecb5bdb Mon Sep 17 00:00:00 2001
+From: Andreas Metzler <ametzler@bebt.de>
+Date: Thu, 6 Jan 2022 23:12:53 +0000
+Subject: [PATCH 02/16] Clarify man page for --filterwin2k
+
+---
+ man/dnsmasq.8 | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/man/dnsmasq.8 b/man/dnsmasq.8
+index 0a83e9e..eecf5df 100644
+--- a/man/dnsmasq.8
++++ b/man/dnsmasq.8
+@@ -345,8 +345,9 @@ forged answer to a DNS request for certain domain, before the correct answer can
+ .B \-f, --filterwin2k
+ Later versions of windows make periodic DNS requests which don't get sensible answers from
+ the public DNS and can cause problems by triggering dial-on-demand links. This flag turns on an option
+-to filter such requests. The requests blocked are for records of types SOA and SRV, and type ANY where the 
+-requested name has underscores, to catch LDAP requests.
++to filter such requests. The requests blocked are for records of type ANY
++where the requested name has underscores, to catch LDAP requests, and for
++\fBall\fP records of types SOA and SRV.
+ .TP
+ .B --filter-A
+ Remove A records from answers. No IPv4 addresses will be returned.
+-- 
+2.34.1
+

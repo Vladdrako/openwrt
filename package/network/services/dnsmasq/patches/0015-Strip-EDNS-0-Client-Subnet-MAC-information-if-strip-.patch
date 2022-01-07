@@ -1,0 +1,154 @@
+From 3ab0ad874853050440e1a1a332fa2648e3f5ad5b Mon Sep 17 00:00:00 2001
+From: Dominik Derigs <dl6er@dl6er.de>
+Date: Fri, 7 Jan 2022 06:11:53 +0100
+Subject: [PATCH 15/16] Strip EDNS(0) Client Subnet / MAC information if
+ --strip-subnet or --strip-mac is set. If both the add and strip options are
+ set, incoming EDNS0 options are replaced. This ensures we do not
+ unintentionally forward client information somewhere upstream when ECS is
+ used in lower DNS layers in our local network.
+
+Signed-off-by: DL6ER <dl6er@dl6er.de>
+---
+ src/dnsmasq.h |  4 +++-
+ src/edns0.c   | 33 ++++++++++++++++++++++++++-------
+ src/option.c  |  6 ++++++
+ 3 files changed, 35 insertions(+), 8 deletions(-)
+
+diff --git a/src/dnsmasq.h b/src/dnsmasq.h
+index 1b00298..7384a1a 100644
+--- a/src/dnsmasq.h
++++ b/src/dnsmasq.h
+@@ -277,7 +277,9 @@ struct event_desc {
+ #define OPT_QUIET_TFTP     66
+ #define OPT_FILTER_A       67
+ #define OPT_FILTER_AAAA    68
+-#define OPT_LAST           69
++#define OPT_STRIP_ECS      69
++#define OPT_STRIP_MAC      70
++#define OPT_LAST           71
+ 
+ #define OPTION_BITS (sizeof(unsigned int)*8)
+ #define OPTION_SIZE ( (OPT_LAST/OPTION_BITS)+((OPT_LAST%OPTION_BITS)!=0) )
+diff --git a/src/edns0.c b/src/edns0.c
+index 5de6cb2..1599040 100644
+--- a/src/edns0.c
++++ b/src/edns0.c
+@@ -291,7 +291,7 @@ static size_t add_dns_client(struct dns_header *header, size_t plen, unsigned ch
+ 
+ 
+ static size_t add_mac(struct dns_header *header, size_t plen, unsigned char *limit,
+-		      union mysockaddr *l3, time_t now, int *cacheablep)
++		      union mysockaddr *l3, time_t now, int *cacheablep, const int replace)
+ {
+   int maclen;
+   unsigned char mac[DHCP_CHADDR_MAX];
+@@ -299,8 +299,13 @@ static size_t add_mac(struct dns_header *header, size_t plen, unsigned char *lim
+   if ((maclen = find_mac(l3, mac, 1, now)) != 0)
+     {
+       *cacheablep = 0;
+-      plen = add_pseudoheader(header, plen, limit, PACKETSZ, EDNS0_OPTION_MAC, mac, maclen, 0, 0); 
++      plen = add_pseudoheader(header, plen, limit, PACKETSZ, EDNS0_OPTION_MAC, mac, maclen, 0, replace);
+     }
++  else if(replace > 0)
++  {
++    /* Asked to replace MAC address but it is not available here. We just remove whatever might be there */
++    plen = add_pseudoheader(header, plen, (unsigned char *)limit, daemon->edns_pktsz, EDNS0_OPTION_MAC, NULL, 0, 0, 2);
++  }
+   
+   return plen; 
+ }
+@@ -378,7 +383,8 @@ static size_t calc_subnet_opt(struct subnet_opt *opt, union mysockaddr *source,
+   return len + 4;
+ }
+  
+-static size_t add_source_addr(struct dns_header *header, size_t plen, unsigned char *limit, union mysockaddr *source, int *cacheable)
++static size_t add_source_addr(struct dns_header *header, size_t plen, unsigned char *limit,
++			      union mysockaddr *source, int *cacheable, const int replace)
+ {
+   /* http://tools.ietf.org/html/draft-vandergaast-edns-client-subnet-02 */
+   
+@@ -386,7 +392,7 @@ static size_t add_source_addr(struct dns_header *header, size_t plen, unsigned c
+   struct subnet_opt opt;
+   
+   len = calc_subnet_opt(&opt, source, cacheable);
+-  return add_pseudoheader(header, plen, (unsigned char *)limit, PACKETSZ, EDNS0_OPTION_CLIENT_SUBNET, (unsigned char *)&opt, len, 0, 0);
++  return add_pseudoheader(header, plen, (unsigned char *)limit, PACKETSZ, EDNS0_OPTION_CLIENT_SUBNET, (unsigned char *)&opt, len, 0, replace);
+ }
+ 
+ int check_source(struct dns_header *header, size_t plen, unsigned char *pseudoheader, union mysockaddr *peer)
+@@ -498,11 +504,19 @@ size_t add_edns0_config(struct dns_header *header, size_t plen, unsigned char *l
+   *check_subnet = 0;
+   *cacheable = 1;
+   
++  /* OPT_ADD_MAC = MAC is added (if available)
++     OPT_ADD_MAC + OPT_STRIP_MAC = MAC is replaced, if not available, it is only removed
++     OPT_STRIP_MAC = MAC is removed */
+   if (option_bool(OPT_ADD_MAC))
+-    plen  = add_mac(header, plen, limit, source, now, cacheable);
+-  
++    plen  = add_mac(header, plen, limit, source, now, cacheable, option_bool(OPT_STRIP_MAC) ? 1 : 0);
++  else if (option_bool(OPT_STRIP_MAC))
++    plen = add_pseudoheader(header, plen, (unsigned char *)limit, daemon->edns_pktsz, EDNS0_OPTION_MAC, NULL, 0, 0, 2);
++
++  /* Use --strip-mac also for --add-mac=hex and --add-mac=text */
+   if (option_bool(OPT_MAC_B64) || option_bool(OPT_MAC_HEX))
+     plen = add_dns_client(header, plen, limit, source, now, cacheable);
++  else if (option_bool(OPT_STRIP_MAC))
++    plen = add_pseudoheader(header, plen, (unsigned char *)limit, daemon->edns_pktsz, EDNS0_OPTION_NOMDEVICEID, NULL, 0, 0, 2);
+   
+   if (daemon->dns_client_id)
+     plen = add_pseudoheader(header, plen, limit, PACKETSZ, EDNS0_OPTION_NOMCPEID, 
+@@ -511,11 +525,16 @@ size_t add_edns0_config(struct dns_header *header, size_t plen, unsigned char *l
+   if (option_bool(OPT_UMBRELLA))
+     plen = add_umbrella_opt(header, plen, limit, source, cacheable);
+   
++  /* OPT_CLIENT_SUBNET = client subnet is added
++     OPT_CLIENT_SUBNET + OPT_STRIP_ECS = client subnet is replaced
++     OPT_STRIP_ECS = client subnet is removed */
+   if (option_bool(OPT_CLIENT_SUBNET))
+     {
+-      plen = add_source_addr(header, plen, limit, source, cacheable); 
++      plen = add_source_addr(header, plen, limit, source, cacheable, option_bool(OPT_STRIP_ECS) ? 1 : 0);
+       *check_subnet = 1;
+     }
++  else if (option_bool(OPT_STRIP_ECS))
++    plen = add_pseudoheader(header, plen, (unsigned char *)limit, daemon->edns_pktsz, EDNS0_OPTION_CLIENT_SUBNET, NULL, 0, 0, 2);
+ 	  
+   return plen;
+ }
+diff --git a/src/option.c b/src/option.c
+index 7134ee7..6942432 100644
+--- a/src/option.c
++++ b/src/option.c
+@@ -177,6 +177,8 @@ struct myoption {
+ #define LOPT_NFTSET        368
+ #define LOPT_FILTER_A      369
+ #define LOPT_FILTER_AAAA   370
++#define LOPT_STRIP_SBNET   371
++#define LOPT_STRIP_MAC     372
+ 
+ #ifdef HAVE_GETOPT_LONG
+ static const struct option opts[] =  
+@@ -314,7 +316,9 @@ static const struct myoption opts[] =
+     { "dhcp-generate-names", 2, 0, LOPT_GEN_NAMES },
+     { "rebind-localhost-ok", 0, 0,  LOPT_LOC_REBND },
+     { "add-mac", 2, 0, LOPT_ADD_MAC },
++    { "strip-mac", 0, 0, LOPT_STRIP_MAC },
+     { "add-subnet", 2, 0, LOPT_ADD_SBNET },
++    { "strip-subnet", 0, 0, LOPT_STRIP_SBNET },
+     { "add-cpe-id", 1, 0 , LOPT_CPE_ID },
+     { "proxy-dnssec", 0, 0, LOPT_DNSSEC },
+     { "dhcp-sequential-ip", 0, 0,  LOPT_INCR_ADDR },
+@@ -501,7 +505,9 @@ static struct {
+   { LOPT_PXE_SERV, ARG_DUP, "<service>", gettext_noop("Boot service for PXE menu."), NULL },
+   { LOPT_TEST, 0, NULL, gettext_noop("Check configuration syntax."), NULL },
+   { LOPT_ADD_MAC, ARG_DUP, "[=base64|text]", gettext_noop("Add requestor's MAC address to forwarded DNS queries."), NULL },
++  { LOPT_STRIP_MAC, OPT_STRIP_MAC, NULL, gettext_noop("Strip MAC information from queries."), NULL },
+   { LOPT_ADD_SBNET, ARG_ONE, "<v4 pref>[,<v6 pref>]", gettext_noop("Add specified IP subnet to forwarded DNS queries."), NULL },
++  { LOPT_STRIP_SBNET, OPT_STRIP_ECS, NULL, gettext_noop("Strip ECS information from queries."), NULL },
+   { LOPT_CPE_ID, ARG_ONE, "<text>", gettext_noop("Add client identification to forwarded DNS queries."), NULL },
+   { LOPT_DNSSEC, OPT_DNSSEC_PROXY, NULL, gettext_noop("Proxy DNSSEC validation results from upstream nameservers."), NULL },
+   { LOPT_INCR_ADDR, OPT_CONSEC_ADDR, NULL, gettext_noop("Attempt to allocate sequential IP addresses to DHCP clients."), NULL },
+-- 
+2.34.1
+

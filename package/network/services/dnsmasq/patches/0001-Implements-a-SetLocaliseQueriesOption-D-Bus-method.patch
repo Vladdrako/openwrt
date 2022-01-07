@@ -1,0 +1,54 @@
+From 80a6c16dcccdc105ecbdb67b78d28f56d572f948 Mon Sep 17 00:00:00 2001
+From: Daniel Collins <daniel.collins@smoothwall.net>
+Date: Thu, 6 Jan 2022 00:20:05 +0000
+Subject: [PATCH 01/16] Implements a SetLocaliseQueriesOption D-Bus method. For
+ setting the state of the -y/--localise-queries option.
+
+---
+ dbus/DBus-interface | 4 ++++
+ src/dbus.c          | 7 +++++++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/dbus/DBus-interface b/dbus/DBus-interface
+index 954c5b9..df41d79 100644
+--- a/dbus/DBus-interface
++++ b/dbus/DBus-interface
+@@ -48,6 +48,10 @@ SetBogusPrivOption
+ ------------------
+ Takes boolean, sets or resets the --bogus-priv option.
+ 
++SetLocaliseQueriesOption
++------------------------
++Takes boolean, sets or resets the --localise-queries option.
++
+ SetServers
+ ----------
+ Returns nothing. Takes a set of arguments representing the new
+diff --git a/src/dbus.c b/src/dbus.c
+index d746b9a..4eae789 100644
+--- a/src/dbus.c
++++ b/src/dbus.c
+@@ -52,6 +52,9 @@ const char* introspection_xml_template =
+ "    <method name=\"SetFilterWin2KOption\">\n"
+ "      <arg name=\"filterwin2k\" direction=\"in\" type=\"b\"/>\n"
+ "    </method>\n"
++"    <method name=\"SetLocaliseQueriesOption\">\n"
++"      <arg name=\"localise-queries\" direction=\"in\" type=\"b\"/>\n"
++"    </method>\n"
+ "    <method name=\"SetBogusPrivOption\">\n"
+ "      <arg name=\"boguspriv\" direction=\"in\" type=\"b\"/>\n"
+ "    </method>\n"
+@@ -694,6 +697,10 @@ DBusHandlerResult message_handler(DBusConnection *connection,
+     {
+       reply = dbus_set_bool(message, OPT_FILTER, "filterwin2k");
+     }
++  else if (strcmp(method, "SetLocaliseQueriesOption") == 0)
++    {
++      reply = dbus_set_bool(message, OPT_LOCALISE, "localise-queries");
++    }
+   else if (strcmp(method, "SetBogusPrivOption") == 0)
+     {
+       reply = dbus_set_bool(message, OPT_BOGUSPRIV, "bogus-priv");
+-- 
+2.34.1
+
