@@ -92,8 +92,6 @@
 		gpio: gpio@600 {
 			#gpio-cells = <2>;
 			#interrupt-cells = <2>;
-			#address-cells = <2>;
-
 			compatible = "mediatek,mt7621-gpio";
 			gpio-controller;
 			interrupt-controller;
@@ -411,8 +409,6 @@
 	};
 
 	gic: interrupt-controller@1fbc0000 {
-		#address-cells = <2>;
-
 		compatible = "mti,gic";
 		reg = <0x1fbc0000 0x2000>;
 
@@ -485,9 +481,6 @@
 
 		mediatek,ethsys = <&sysc>;
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&rgmii1_pins &mdio_pins>;
-
 		gmac0: mac@0 {
 			compatible = "mediatek,eth-mac";
 			reg = <0>;
@@ -497,7 +490,6 @@
 				speed = <1000>;
 				full-duplex;
 				pause;
-				asym-pause;
 			};
 		};
 
@@ -520,10 +512,6 @@
 				mediatek,mcm;
 				resets = <&rstctrl 2>;
 				reset-names = "mcm";
-				interrupt-controller;
-				#interrupt-cells = <1>;
-				interrupt-parent = <&gic>;
-				interrupts = <GIC_SHARED 23 IRQ_TYPE_LEVEL_HIGH>;
 
 				ports {
 					#address-cells = <1>;
@@ -569,8 +557,6 @@
 						fixed-link {
 							speed = <1000>;
 							full-duplex;
-							pause;
-							asym-pause;
 						};
 					};
 				};
