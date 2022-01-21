@@ -948,8 +948,8 @@ dnsmasq_start()
 	}
 	config_get_bool ignore_hosts_dir "$cfg" ignore_hosts_dir 0
 	if [ "$ignore_hosts_dir" = "1" ]; then
-		xappend "--addn-hosts=$HOSTFILE_DIR"
-		append EXTRA_MOUNT "$HOSTFILE_DIR"
+		xappend "--addn-hosts=$(dirname $HOSTFILE)"
+		append EXTRA_MOUNT "$(dirname $HOSTFILE)"
 	else
 		xappend "--hostsdir=$(dirname $HOSTFILE)"
 		append EXTRA_MOUNT "$(dirname $HOSTFILE)"
