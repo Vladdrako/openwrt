@@ -57,7 +57,16 @@ $(call Package/iproute2/Default)
   DEFAULT_VARIANT:=1
   PROVIDES:=tc
   CONFLICTS:=tc-full
-  DEPENDS:=+kmod-sched-core +PACKAGE_iptables:tc-mod-iptables +(PACKAGE_devlink||PACKAGE_rdma):libmnl
+  DEPENDS:=+kmod-sched-core +(PACKAGE_devlink||PACKAGE_rdma):libmnl
+endef
+
+define Package/tc-bpf
+$(call Package/iproute2/Default)
+  TITLE:=Traffic control utility (bpf)
+  VARIANT:=tcbpf
+  PROVIDES:=tc
+  ALTERNATIVES:=300:/sbin/tc:/usr/libexec/tc-bpf
+  DEPENDS:=+kmod-sched-core +(PACKAGE_devlink||PACKAGE_rdma):libmnl +libbpf
 endef
 
 define Package/tc-full
