@@ -15,7 +15,7 @@ PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=@KERNEL/linux/utils/net/iproute2
 PKG_HASH:=38e3e4a5f9a7f5575c015027a10df097c149111eeb739993128e5b2b35b291ff
 PKG_BUILD_PARALLEL:=1
-PKG_BUILD_DEPENDS:=PACKAGE_tc-mod-iptables:iptables
+PKG_BUILD_DEPENDS:=iptables
 PKG_LICENSE:=GPL-2.0
 PKG_CPE_ID:=cpe:/a:iproute2_project:iproute2
 
@@ -57,7 +57,7 @@ $(call Package/iproute2/Default)
   DEFAULT_VARIANT:=1
   PROVIDES:=tc
   CONFLICTS:=tc-full
-  DEPENDS:=+kmod-sched-core +PACKAGE_iptables:tc-mod-iptables +(PACKAGE_devlink||PACKAGE_rdma):libmnl
+  DEPENDS:=+kmod-sched-core +libxtables +tc-mod-iptables +(PACKAGE_devlink||PACKAGE_rdma):libmnl
 endef
 
 define Package/tc-full
@@ -65,13 +65,12 @@ $(call Package/iproute2/Default)
   TITLE:=Traffic control utility (full)
   VARIANT:=tcfull
   PROVIDES:=tc
-  DEPENDS:=+kmod-sched-core +libbpf +PACKAGE_iptables:tc-mod-iptables +(PACKAGE_devlink||PACKAGE_rdma):libmnl
+  DEPENDS:=+kmod-sched-core +libxtables +tc-mod-iptables +libbpf +(PACKAGE_devlink||PACKAGE_rdma):libmnl
 endef
 
 define Package/tc-mod-iptables
 $(call Package/iproute2/Default)
   TITLE:=Traffic control module - iptables action
-  VARIANT:=tciptables
   DEPENDS:=+libxtables
 endef
 
@@ -132,20 +131,6 @@ ifeq ($(BUILD_VARIANT),tcfull)
   SHARED_LIBS:=y
 endif
 
-ifeq ($(BUILD_VARIANT),tciptables)
-  #enable iptables/xtables requirement only if tciptables variant is selected
-  TC_CONFIG_XT:=y
-  TC_CONFIG_XT_OLD:=y
-  TC_CONFIG_XT_OLD_H:=y
-  TC_CONFIG_IPSET:=y
-else
-  #disable iptables requirement by default
-  TC_CONFIG_XT:=n
-  TC_CONFIG_XT_OLD:=n
-  TC_CONFIG_XT_OLD_H:=n
-  TC_CONFIG_IPSET:=n
-endif
-
 ifdef CONFIG_PACKAGE_devlink
   HAVE_MNL:=y
 endif
@@ -174,10 +159,6 @@ MAKE_FLAGS += \
 	HAVE_CAP=$(HAVE_CAP) \
 	IPT_LIB_DIR=/usr/lib/iptables \
 	XT_LIB_DIR=/usr/lib/iptables \
-	TC_CONFIG_XT=$(TC_CONFIG_XT) \
-	TC_CONFIG_XT_OLD=$(TC_CONFIG_XT_OLD) \
-	TC_CONFIG_XT_OLD_H=$(TC_CONFIG_XT_OLD_H) \
-	TC_CONFIG_IPSET=$(TC_CONFIG_IPSET) \
 	FPIC="$(FPIC)" \
 	$(if $(findstring c,$(OPENWRT_VERBOSE)),V=1,V='')
 
