@@ -1,0 +1,111 @@
+--- a/drivers/of/of_net.c
++++ b/drivers/of/of_net.c
+@@ -62,8 +62,8 @@ static int of_get_mac_addr_nvmem(struct
+ 	struct platform_device *pdev = of_find_device_by_node(np);
+ 	struct nvmem_cell *cell;
+ 	const void *mac;
++	int ret = 0;
+ 	size_t len;
+-	int ret;
+ 
+ 	/* Try lookup by device first, there might be a nvmem_cell_lookup
+ 	 * associated with a given device.
+@@ -84,15 +84,38 @@ static int of_get_mac_addr_nvmem(struct
+ 	if (IS_ERR(mac))
+ 		return PTR_ERR(mac);
+ 
+-	if (len != ETH_ALEN || !is_valid_ether_addr(mac)) {
+-		kfree(mac);
+-		return -EINVAL;
++	switch (len) {
++	case ETH_ALEN:
++		if (!is_valid_ether_addr(mac)) {
++			ret = -EINVAL;
++			break;
++		}
++
++		ether_addr_copy(addr, mac);
++		break;
++	case ETH_ALEN * 2: /* ASCII without delimiter */
++		if (sscanf(mac, "%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
++			   addr + 0, addr + 1, addr + 2, addr + 3,
++			   addr + 4, addr + 5) != ETH_ALEN ||
++		    !is_valid_ether_addr(addr))
++			ret = -EINVAL;
++
++		break;
++	case ETH_ALEN * 3 - 1: /* ASCII with delimiter */
++		if (sscanf(mac, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx",
++			   addr + 0, addr + 1, addr + 2, addr + 3,
++			   addr + 4, addr + 5) != ETH_ALEN ||
++		    !is_valid_ether_addr(addr))
++			ret = -EINVAL;
++
++		break;
++	default:
++		ret = -EINVAL;
+ 	}
+ 
+-	memcpy(addr, mac, ETH_ALEN);
+ 	kfree(mac);
+ 
+-	return 0;
++	return ret;
+ }
+ 
+ static int of_add_mac_address(struct device_node *np, u8* addr)
+--- a/net/ethernet/eth.c
++++ b/net/ethernet/eth.c
+@@ -557,7 +557,9 @@ EXPORT_SYMBOL(eth_platform_get_mac_addre
+ int nvmem_get_mac_address(struct device *dev, void *addrbuf)
+ {
+ 	struct nvmem_cell *cell;
++	u8 *addr = addrbuf;
+ 	const void *mac;
++	int ret = 0;
+ 	size_t len;
+ 
+ 	cell = nvmem_cell_get(dev, "mac-address");
+@@ -570,14 +572,37 @@ int nvmem_get_mac_address(struct device
+ 	if (IS_ERR(mac))
+ 		return PTR_ERR(mac);
+ 
+-	if (len != ETH_ALEN || !is_valid_ether_addr(mac)) {
+-		kfree(mac);
+-		return -EINVAL;
++	switch (len) {
++	case ETH_ALEN:
++		if (!is_valid_ether_addr(mac)) {
++			ret = -EINVAL;
++			break;
++		}
++
++		ether_addr_copy(addr, mac);
++		break;
++	case ETH_ALEN * 2: /* ASCII without delimiter */
++		if (sscanf(mac, "%2hhx%2hhx%2hhx%2hhx%2hhx%2hhx",
++			   addr + 0, addr + 1, addr + 2, addr + 3,
++			   addr + 4, addr + 5) != ETH_ALEN ||
++		    !is_valid_ether_addr(addr))
++			ret = -EINVAL;
++
++		break;
++	case ETH_ALEN * 3 - 1: /* ASCII with delimiter */
++		if (sscanf(mac, "%2hhx:%2hhx:%2hhx:%2hhx:%2hhx:%2hhx",
++			   addr + 0, addr + 1, addr + 2, addr + 3,
++			   addr + 4, addr + 5) != ETH_ALEN ||
++		    !is_valid_ether_addr(addr))
++			ret = -EINVAL;
++
++		break;
++	default:
++		ret = -EINVAL;
+ 	}
+ 
+-	ether_addr_copy(addrbuf, mac);
+ 	kfree(mac);
+ 
+-	return 0;
++	return ret;
+ }
+ EXPORT_SYMBOL(nvmem_get_mac_address);
