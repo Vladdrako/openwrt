@@ -93,7 +93,7 @@ DRIVER_MAKEOPTS= \
 	CONFIG_DRIVER_WEXT=$(CONFIG_DRIVER_WEXT_SUPPORT) \
 
 ifeq ($(SSL_VARIANT),openssl)
-  DRIVER_MAKEOPTS += CONFIG_TLS=openssl CONFIG_SAE=y
+  DRIVER_MAKEOPTS += CONFIG_TLS=openssl CONFIG_SAE=y CONFIG_OCV=y
   TARGET_LDFLAGS += -lcrypto -lssl
 
   ifeq ($(LOCAL_VARIANT),basic)
@@ -108,7 +108,7 @@ ifeq ($(SSL_VARIANT),openssl)
 endif
 
 ifeq ($(SSL_VARIANT),wolfssl)
-  DRIVER_MAKEOPTS += CONFIG_TLS=wolfssl CONFIG_SAE=y
+  DRIVER_MAKEOPTS += CONFIG_TLS=wolfssl CONFIG_SAE=y CONFIG_OCV=y
   TARGET_LDFLAGS += -lwolfssl
 
   ifeq ($(LOCAL_VARIANT),basic)
