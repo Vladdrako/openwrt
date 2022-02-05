@@ -373,6 +373,8 @@ hostapd_common_add_bss_config() {
 
 	config_add_boolean fils
 	config_add_string fils_dhcp
+
+	config_add_int ocv
 }
 
 hostapd_set_vlan_file() {
@@ -545,7 +547,7 @@ hostapd_set_bss_options() {
 		airtime_bss_weight airtime_bss_limit airtime_sta_weight \
 		multicast_to_unicast proxy_arp per_sta_vif \
 		eap_server eap_user_file ca_cert server_cert private_key private_key_passwd server_id \
-		vendor_elements fils
+		vendor_elements fils ocv
 
 	set_default fils 0
 	set_default isolate 0
@@ -794,6 +796,8 @@ hostapd_set_bss_options() {
 			fi
 		}
 	}
+
+	append bss_conf "ocv=$ocv" "$N"
 
 	append bss_conf "ssid=$ssid" "$N"
 	[ -n "$network_bridge" ] && append bss_conf "bridge=$network_bridge${N}wds_bridge=" "$N"
