@@ -373,20 +373,19 @@ config KERNEL_DEBUG_INFO
 	help
 	  This will compile your kernel and modules with debug information.
 
-config KERNEL_DEBUG_INFO_BTF
-	bool "Enable additional BTF type information"
-	default n
-	depends on KERNEL_DEBUG_INFO
-	depends on !HOST_OS_MACOS
-	select DWARVES
-	help
-	  Generate BPF Type Format (BTF) information from DWARF debug info.
-	  Turning this on expects presence of pahole tool, which will convert
-	  DWARF type info into equivalent deduplicated BTF type info.
-
 config KERNEL_DEBUG_INFO_REDUCED
-	def_bool !KERNEL_DEBUG_INFO_BTF
+	bool "Reduce debugging information"
+	default y
 	depends on KERNEL_DEBUG_INFO
+	help
+	  If you say Y here gcc is instructed to generate less debugging
+	  information for structure types. This means that tools that
+	  need full debugging information (like kgdb or systemtap) won't
+	  be happy. But if you merely need debugging information to
+	  resolve line numbers there is no loss. Advantage is that
+	  build directory object sizes shrink dramatically over a full
+	  DEBUG_INFO build and compile times are reduced too.
+	  Only works with newer gcc versions.
 
 config KERNEL_DEBUG_LL_UART_NONE
 	bool
