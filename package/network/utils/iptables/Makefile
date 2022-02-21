@@ -41,7 +41,7 @@ endef
 
 define Package/iptables/Module
 $(call Package/iptables/Default)
-  DEPENDS:=+iptables $(1)
+  DEPENDS:=+libxtables $(1)
 endef
 
 define Package/iptables
@@ -483,7 +483,6 @@ $(call Package/iptables/Default)
   DEPENDS:=@IPV6 +kmod-ip6tables +iptables
   CATEGORY:=Network
   TITLE:=IPv6 firewall administration tool
-  MENU:=1
   ALTERNATIVES:=\
     200:/usr/sbin/ip6tables:/usr/sbin/xtables-legacy-multi \
     200:/usr/sbin/ip6tables-restore:/usr/sbin/xtables-legacy-multi \
@@ -511,7 +510,7 @@ endef
 
 define Package/ip6tables-extra
 $(call Package/iptables/Default)
-  DEPENDS:=ip6tables +kmod-ip6tables-extra
+  DEPENDS:=+libxtables +kmod-ip6tables-extra
   TITLE:=IPv6 header matching modules
 endef
 
@@ -521,7 +520,7 @@ endef
 
 define Package/ip6tables-mod-nat
 $(call Package/iptables/Default)
-  DEPENDS:=ip6tables +kmod-ipt-nat6
+  DEPENDS:=+libxtables +kmod-ipt-nat6
   TITLE:=IPv6 NAT extensions
 endef
 
