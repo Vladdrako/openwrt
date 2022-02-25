@@ -1,7 +1,7 @@
 From b7f62475d03336c5c58d633fc795894896c33b1f Mon Sep 17 00:00:00 2001
 From: Conrad Kostecki <ck@conrad-kostecki.de>
 Date: Wed, 2 Mar 2022 19:28:26 +0000
-Subject: [PATCH 4/8] Update German translation.
+Subject: [PATCH 04/14] Update German translation.
 
 ---
  po/de.po | 110 ++++++++++++++++++++++++++-----------------------------
@@ -349,5 +349,5 @@ index 1f1c058..7173712 100644
  #: hash-questions.c:40
  msgid "Failed to create SHA-256 hash object"
 -- 
-2.35.1
+2.35.3
 

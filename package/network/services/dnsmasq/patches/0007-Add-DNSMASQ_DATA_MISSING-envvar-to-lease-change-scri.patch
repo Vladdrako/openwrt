@@ -1,7 +1,7 @@
 From 191924576ca105939c5275134ffcb8a2cb629bb2 Mon Sep 17 00:00:00 2001
 From: Simon Kelley <simon@thekelleys.org.uk>
 Date: Tue, 22 Mar 2022 13:47:05 +0000
-Subject: [PATCH 7/8] Add DNSMASQ_DATA_MISSING envvar to lease-change script.
+Subject: [PATCH 07/14] Add DNSMASQ_DATA_MISSING envvar to lease-change script.
 
 ---
  man/dnsmasq.8 | 8 +++++++-
@@ -52,5 +52,5 @@ index 39e4b89..14330f3 100644
  	  if (!is6)
  	    buf = grab_extradata(buf, end, "DNSMASQ_VENDOR_CLASS", &err);
 -- 
-2.35.1
+2.35.3
 

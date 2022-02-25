@@ -1,7 +1,7 @@
 From 3ab6dd1c37da3f4ea0e369a1ecdf275697f01ecc Mon Sep 17 00:00:00 2001
 From: Simon Kelley <simon@thekelleys.org.uk>
 Date: Sat, 5 Mar 2022 18:07:07 +0000
-Subject: [PATCH 5/8] Enhance --domain to accept, interface names for the
+Subject: [PATCH 05/14] Enhance --domain to accept, interface names for the
  address range.
 
 This allows hosts get a domain which relects the interface they
@@ -233,5 +233,5 @@ index c354ddf..39e1179 100644
  			{
  			  if (!(new->prefix = canonicalise_opt(prefstr)) ||
 -- 
-2.35.1
+2.35.3
 

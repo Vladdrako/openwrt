@@ -1,7 +1,7 @@
 From bb6f6bae0ba6a95f481485f9d74a89072f2c800c Mon Sep 17 00:00:00 2001
 From: Simon Kelley <simon@thekelleys.org.uk>
 Date: Tue, 22 Feb 2022 21:56:48 +0000
-Subject: [PATCH 2/8] Fix longjump() compiler warnings.
+Subject: [PATCH 02/14] Fix longjump() compiler warnings.
 
 ---
  src/option.c | 36 +++++++++++++++---------------------
@@ -108,5 +108,5 @@ index d9dd6a3..c354ddf 100644
    cleanup_servers();
    check_servers(0);
 -- 
-2.35.1
+2.35.3
 
