@@ -35,6 +35,10 @@ static int mtk_skcipher_send_req(struct crypto_async_request *async)
 {
 	struct skcipher_request *req = skcipher_request_cast(async);
 	struct mtk_cipher_reqctx *rctx = skcipher_request_ctx(req);
+#if IS_ENABLED(CONFIG_CRYPTO_DEV_EIP93_POLL)
+	struct mtk_crypto_ctx *ctx = crypto_tfm_ctx(async->tfm);
+	struct mtk_device *mtk = ctx->mtk;
+#endif
 	int err;
 
 	err = check_valid_request(rctx);
@@ -43,8 +47,14 @@ static int mtk_skcipher_send_req(struct crypto_async_request *async)
 		skcipher_request_complete(req, err);
 		return err;
 	}
+	err = mtk_send_req(async, req->iv, rctx);
+	if (err != -EINPROGRESS)
+		return err;
 
-	return mtk_send_req(async, req->iv, rctx);
+#if IS_ENABLED(CONFIG_CRYPTO_DEV_EIP93_POLL)
+	mtk_handle_result_polling(mtk);
+#endif
+	return -EINPROGRESS;
 }
 
 /* Crypto skcipher API functions */
@@ -58,6 +68,7 @@ static int mtk_skcipher_cra_init(struct crypto_tfm *tfm)
 					sizeof(struct mtk_cipher_reqctx));
 
 	memset(ctx, 0, sizeof(*ctx));
+
 	ctx->mtk = tmpl->mtk;
 
 	ctx->sa_in = kzalloc(sizeof(struct saRecord_s), GFP_KERNEL);
@@ -95,8 +106,8 @@ static int mtk_skcipher_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 	struct mtk_crypto_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct mtk_alg_template *tmpl = container_of(tfm->__crt_alg,
 				struct mtk_alg_template, alg.skcipher.base);
-	struct saRecord_s *saRecord = ctx->sa_out;
 	u32 flags = tmpl->flags;
+	struct saRecord_s *saRecord = ctx->sa_out;
 	u32 nonce = 0;
 	unsigned int keylen = len;
 	int sa_size = sizeof(struct saRecord_s);

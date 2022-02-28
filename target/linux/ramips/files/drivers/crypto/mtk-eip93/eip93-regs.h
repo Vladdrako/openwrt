@@ -158,10 +158,10 @@
  * EIP93_BO_REVERSE_QUAD_WORD : reverse the byte order within a quad-word
  */
 enum EIP93_Byte_Order_Value_t {
-	EIP93_BO_REVERSE_HALF_WORD = 1,
-	EIP93_BO_REVERSE_WORD = 2,
-	EIP93_BO_REVERSE_DUAL_WORD = 4,
-	EIP93_BO_REVERSE_QUAD_WORD = 8,
+    EIP93_BO_REVERSE_HALF_WORD = 1,
+    EIP93_BO_REVERSE_WORD = 2,
+    EIP93_BO_REVERSE_DUAL_WORD = 4,
+    EIP93_BO_REVERSE_QUAD_WORD = 8,
 };
 
 /*----------------------------------------------------------------------------
@@ -170,8 +170,8 @@ enum EIP93_Byte_Order_Value_t {
  * EIP93_BO_REVERSE_WORD :  reverse the byte order within a word
  */
 enum EIP93_Byte_Order_Value_TD_t {
-	EIP93_BO_REVERSE_HALF_WORD_TD = 1,
-	EIP93_BO_REVERSE_WORD_TD = 2,
+    EIP93_BO_REVERSE_HALF_WORD_TD = 1,
+    EIP93_BO_REVERSE_WORD_TD = 2,
 };
 
 // BYTE_ORDER_CFG register values
@@ -181,8 +181,8 @@ enum EIP93_Byte_Order_Value_TD_t {
 #define EIP93_BYTE_ORDER_TD		EIP93_BO_REVERSE_WORD_TD
 
 // INT_CFG register values
-#define EIP93_INT_HOST_OUTPUT_TYPE	0
-#define EIP93_INT_PULSE_CLEAR		0
+#define EIP93_INT_HOST_OUTPUT_TYPE	0	// 0 = Level
+#define EIP93_INT_PULSE_CLEAR		0	// 0 = Manual clear
 
 /*
  * Interrupts of EIP93
@@ -198,6 +198,7 @@ enum EIP93_InterruptSource_t {
 	EIP93_INT_PE_ERR_REG =		BIT(13),
 	EIP93_INT_PE_RD_DONE_IRQ =	BIT(16),
 };
+
 
 union peConfig_w {
 	u32 word;
@@ -336,9 +337,9 @@ struct saRecord_s {
 } __packed;
 
 struct saState_s {
-	u32	stateIv[4];
-	u32	stateByteCnt[2];
-	u32	stateIDigest[8];
+	u32		stateIv[4];
+	u32		stateByteCnt[2];
+	u32		stateIDigest[8];
 } __packed;
 
 union peCrtlStat_w {
@@ -357,7 +358,7 @@ union peCrtlStat_w {
 	} bits;
 } __packed;
 
-union  peLength_w {
+union peLength_w {
 	u32 word;
 	struct {
 		u32 length		:20;
