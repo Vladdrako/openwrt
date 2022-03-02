@@ -26,6 +26,6 @@ extern struct mtk_alg_template mtk_alg_authenc_hmac_sha224_cbc_des3_ede;
 extern struct mtk_alg_template mtk_alg_authenc_hmac_sha256_cbc_des3_ede;
 #endif
 
-void mtk_aead_handle_result(struct crypto_async_request *async,	int err);
+void mtk_aead_handle_result(struct crypto_async_request *async, int err);
 
 #endif /* _EIP93_AEAD_H_ */

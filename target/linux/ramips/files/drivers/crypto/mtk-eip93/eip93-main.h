@@ -12,7 +12,7 @@
 #include <crypto/internal/rng.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/device.h>
-#include <linux/skbuff.h>
+#include <linux/interrupt.h>
 
 #define MTK_RING_SIZE			512
 #define MTK_RING_BUSY			32
@@ -54,7 +54,6 @@
 #define MTK_DESC_FINISH			BIT(24)
 #define MTK_DESC_IPSEC			BIT(23)
 #define MTK_DESC_DMA_IV			BIT(22)
-#define MTK_DESC_HASH_CACHE		BIT(21)
 
 #define IS_DES(flags)			(flags & MTK_ALG_DES)
 #define IS_3DES(flags)			(flags & MTK_ALG_3DES)
@@ -96,17 +95,6 @@ struct mtk_device {
 	int			irq;
 	struct mtk_ring		*ring;
 	struct mtk_state_pool	*saState_pool;
-	struct mtk_prng_device	*prng;
-};
-
-struct mtk_prng_device {
-	struct saRecord_s	*PRNGSaRecord;
-	dma_addr_t		PRNGSaRecord_dma;
-	void			*PRNGBuffer[2];
-	dma_addr_t		PRNGBuffer_dma[2];
-	uint32_t		cur_buf;
-	struct completion	Filled;
-	atomic_t		State;
 };
 
 struct mtk_desc_ring {
@@ -117,7 +105,7 @@ struct mtk_desc_ring {
 	void			*read;
 	void			*write;
 	/* descriptor element offset */
-	uint32_t		offset;
+	u32			offset;
 };
 
 struct mtk_state_pool {
@@ -127,10 +115,6 @@ struct mtk_state_pool {
 };
 
 struct mtk_ring {
-	spinlock_t			lock;
-
-	struct tasklet_struct		rx_task;
-	struct tasklet_struct		tx_task;
 	struct tasklet_struct		done_task;
 	/* command/result rings */
 	struct mtk_desc_ring		cdr;
@@ -142,18 +126,11 @@ struct mtk_ring {
 	struct mtk_state_pool		*saState_pool;
 	void				*saState;
 	dma_addr_t			saState_dma;
-	/* queue */
-	struct sk_buff_head		rx_queue;
-	struct sk_buff_head		tx_queue;
-	/* Hash buffers */
-	struct mtk_desc_ring		hash_buf;
 };
 
 enum mtk_alg_type {
 	MTK_ALG_TYPE_AEAD,
-	MTK_ALG_TYPE_AHASH,
 	MTK_ALG_TYPE_SKCIPHER,
-	MTK_ALG_TYPE_PRNG,
 };
 
 struct mtk_alg_template {
@@ -162,12 +139,8 @@ struct mtk_alg_template {
 	u32			flags;
 	union {
 		struct aead_alg		aead;
-		struct ahash_alg	ahash;
 		struct skcipher_alg	skcipher;
-		struct rng_alg		rng;
 	} alg;
 };
-
-void mtk_handle_result_polling(struct mtk_device *mtk);
 
 #endif /* _EIP93_MAIN_H_ */

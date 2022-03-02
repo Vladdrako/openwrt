@@ -5,7 +5,6 @@
  * Richard van Schagen <vschagen@icloud.com>
  */
 
-
 #include <crypto/aes.h>
 #include <crypto/ctr.h>
 #include <crypto/hmac.h>
@@ -76,7 +75,6 @@ inline int mtk_put_descriptor(struct mtk_device *mtk,
 	}
 
 	memset(rdesc, 0, sizeof(struct eip93_descriptor_s));
-
 	memcpy(cdesc, desc, sizeof(struct eip93_descriptor_s));
 
 	atomic_dec(&mtk->ring->free);
@@ -110,6 +108,7 @@ inline void *mtk_get_descriptor(struct mtk_device *mtk)
 
 	atomic_inc(&mtk->ring->free);
 	spin_unlock_irqrestore(&mtk->ring->read_lock, irqflags);
+
 	return ptr;
 }
 
@@ -149,6 +148,7 @@ static inline int mtk_make_sg_copy(struct scatterlist *src,
 	*dst = kmalloc(sizeof(**dst), GFP_KERNEL);
 	if (!*dst)
 		return -ENOMEM;
+
 
 	pages = (void *)__get_free_pages(GFP_KERNEL | GFP_DMA,
 					get_order(len));
@@ -279,7 +279,7 @@ int check_valid_request(struct mtk_cipher_reqctx *rctx)
  * Even saRecord is set to "0", keep " = 0" for readability.
  */
 void mtk_set_saRecord(struct saRecord_s *saRecord, const unsigned int keylen,
-				const unsigned long flags)
+				const u32 flags)
 {
 	saRecord->saCmd0.bits.ivSource = 2;
 	if (IS_ECB(flags))
@@ -354,13 +354,12 @@ void mtk_set_saRecord(struct saRecord_s *saRecord, const unsigned int keylen,
 		saRecord->saCmd1.bits.copyHeader = 0;
 	}
 
-	/* Default for now, might be used for ESP offload */
 	saRecord->saCmd1.bits.seqNumCheck = 0;
 	saRecord->saSpi = 0x0;
 	saRecord->saSeqNumMask[0] = 0xFFFFFFFF;
 	saRecord->saSeqNumMask[1] = 0x0;
 }
-EXPORT_SYMBOL_GPL(mtk_set_saRecord);
+
 /*
  * Poor mans Scatter/gather function:
  * Create a Descriptor for every segment to avoid copying buffers.
@@ -477,7 +476,7 @@ static inline int mtk_scatter_combine(struct mtk_device *mtk,
 		}
 
 		if (n == 0)
-			cdesc->userId |= MTK_DESC_LAST | MTK_DESC_FINISH;
+			cdesc->userId |= MTK_DESC_LAST;
 
 		/* Loop - Delay - No need to rollback
 		 * Maybe refine by slowing down at MTK_RING_BUSY
@@ -507,7 +506,7 @@ int mtk_send_req(struct crypto_async_request *async,
 	struct saState_s *saState;
 	struct mtk_state_pool *saState_pool;
 	struct eip93_descriptor_s cdesc;
-	unsigned long flags = rctx->flags;
+	u32 flags = rctx->flags;
 	int idx;
 	int offsetin = 0, err = -ENOMEM;
 	u32 datalen = rctx->assoclen + rctx->textsize;
@@ -547,11 +546,11 @@ int mtk_send_req(struct crypto_async_request *async,
 		saState->stateIv[0] = ctx->saNonce;
 		saState->stateIv[1] = iv[0];
 		saState->stateIv[2] = iv[1];
-		saState->stateIv[3] = htonl(1);
+		saState->stateIv[3] = cpu_to_be32(1);
 	} else if (!IS_HMAC(flags) && IS_CTR(flags)) {
 		/* Compute data length. */
 		blocks = DIV_ROUND_UP(rctx->textsize, AES_BLOCK_SIZE);
-		ctr = ntohl(iv[3]);
+		ctr = be32_to_cpu(iv[3]);
 		/* Check 32bit counter overflow. */
 		start = ctr;
 		end = start + blocks - 1;
@@ -589,8 +588,8 @@ skip_iv:
 	cdesc.peCrtlStat.bits.padCrtlStat = 0;
 	cdesc.peCrtlStat.bits.peReady = 0;
 	cdesc.saAddr = rctx->saRecord_base;
-	cdesc.arc4Addr = (uintptr_t)async;
-	cdesc.userId = (flags & (MTK_DESC_AEAD | MTK_DESC_SKCIPHER));
+	cdesc.arc4Addr = (uint32_t)async;
+	cdesc.userId = flags;
 	rctx->cdesc = &cdesc;
 
 	/* map DMA_BIDIRECTIONAL to invalidate cache on destination
@@ -730,11 +729,11 @@ int mtk_authenc_setkey(struct crypto_shash *cshash, struct saRecord_s *sa,
 	}
 
 	err = crypto_shash_init(shash) ?:
-				 crypto_shash_update(shash, ipad, bs) ?:
-				 crypto_shash_export(shash, ipad) ?:
-				 crypto_shash_init(shash) ?:
-				 crypto_shash_update(shash, opad, bs) ?:
-				 crypto_shash_export(shash, opad);
+		crypto_shash_update(shash, ipad, bs) ?:
+		crypto_shash_export(shash, ipad) ?:
+		crypto_shash_init(shash) ?:
+		crypto_shash_update(shash, opad, bs) ?:
+		crypto_shash_export(shash, opad);
 
 	if (err)
 		return err;
@@ -746,5 +745,4 @@ int mtk_authenc_setkey(struct crypto_shash *cshash, struct saRecord_s *sa,
 	kfree(ipad);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mtk_authenc_setkey);
 #endif

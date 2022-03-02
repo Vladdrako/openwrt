@@ -24,8 +24,8 @@
 
 #include "eip93-aead.h"
 #include "eip93-cipher.h"
-#include "eip93-regs.h"
 #include "eip93-common.h"
+#include "eip93-regs.h"
 
 void mtk_aead_handle_result(struct crypto_async_request *async, int err)
 {
@@ -39,8 +39,9 @@ void mtk_aead_handle_result(struct crypto_async_request *async, int err)
 
 	if (err == 1)
 		err = -EBADMSG;
+	/* let software handle anti-replay errors */
 	if (err == 4)
-		err = 0; //SPI error
+		err = 0;
 
 	aead_request_complete(req, err);
 }
@@ -50,10 +51,6 @@ static int mtk_aead_send_req(struct crypto_async_request *async)
 	struct aead_request *req = aead_request_cast(async);
 	struct mtk_cipher_reqctx *rctx = aead_request_ctx(req);
 	int err;
-#if IS_ENABLED(CONFIG_CRYPTO_DEV_EIP93_POLL)
-	struct mtk_crypto_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
-	struct mtk_device *mtk = ctx->mtk;
-#endif
 
 	err = check_valid_request(rctx);
 	if (err) {
@@ -61,14 +58,7 @@ static int mtk_aead_send_req(struct crypto_async_request *async)
 		return err;
 	}
 
-	err = mtk_send_req(async, req->iv, rctx);
-	if (err != -EINPROGRESS)
-		return err;
-
-#if IS_ENABLED(CONFIG_CRYPTO_DEV_EIP93_POLL)
-	mtk_handle_result_polling(mtk);
-#endif
-	return -EINPROGRESS;
+	return mtk_send_req(async, req->iv, rctx);
 }
 
 /* Crypto aead API functions */
@@ -153,6 +143,7 @@ static int mtk_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 	struct saRecord_s *saRecord = ctx->sa_out;
 	int sa_size = sizeof(struct saRecord_s);
 	int err = -EINVAL;
+
 
 	if (crypto_authenc_extractkeys(&keys, key, len))
 		return err;

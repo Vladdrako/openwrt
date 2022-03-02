@@ -10,33 +10,33 @@
 #include "eip93-main.h"
 
 struct mtk_crypto_ctx {
-	struct mtk_device	*mtk;
-	struct saRecord_s	*sa_in;
-	dma_addr_t		sa_base_in;
-	struct saRecord_s	*sa_out;
-	dma_addr_t		sa_base_out;
-	u32			saNonce;
-	u32			blksize;
+	struct mtk_device		*mtk;
+	struct saRecord_s		*sa_in;
+	dma_addr_t			sa_base_in;
+	struct saRecord_s		*sa_out;
+	dma_addr_t			sa_base_out;
+	uint32_t			saNonce;
+	int				blksize;
 	/* AEAD specific */
-	u32			authsize;
-	u32			assoclen_in;
-	u32			assoclen_out;
-	bool			in_first;
-	bool			out_first;
-	struct crypto_shash	*shash;
+	unsigned int			authsize;
+	unsigned int			assoclen_in;
+	unsigned int			assoclen_out;
+	bool				in_first;
+	bool				out_first;
+	struct crypto_shash		*shash;
 };
 
 struct mtk_cipher_reqctx {
-	u32				flags;
-	u32				blksize;
-	u32				ivsize;
-	u32				textsize;
-	u32				assoclen;
-	u32				authsize;
+	unsigned long			flags;
+	unsigned int			blksize;
+	unsigned int			ivsize;
+	unsigned int			textsize;
+	unsigned int			assoclen;
+	unsigned int			authsize;
 	dma_addr_t			saRecord_base;
 	struct saState_s		*saState;
 	dma_addr_t			saState_base;
-	u32				saState_idx;
+	uint32_t			saState_idx;
 	struct eip93_descriptor_s	*cdesc;
 	struct scatterlist		*sg_src;
 	struct scatterlist		*sg_dst;
@@ -44,7 +44,7 @@ struct mtk_cipher_reqctx {
 	int				dst_nents;
 	struct saState_s		*saState_ctr;
 	dma_addr_t			saState_base_ctr;
-	u32				saState_ctr_idx;
+	uint32_t			saState_ctr_idx;
 };
 
 int check_valid_request(struct mtk_cipher_reqctx *rctx);
