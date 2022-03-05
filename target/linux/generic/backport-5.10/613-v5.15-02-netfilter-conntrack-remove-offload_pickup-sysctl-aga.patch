@@ -73,7 +73,7 @@ Signed-off-by: Pablo Neira Ayuso <pablo@netfilter.org>
  
 --- a/net/netfilter/nf_conntrack_proto_tcp.c
 +++ b/net/netfilter/nf_conntrack_proto_tcp.c
-@@ -1441,7 +1441,6 @@ void nf_conntrack_tcp_init_net(struct ne
+@@ -1450,7 +1450,6 @@ void nf_conntrack_tcp_init_net(struct ne
  
  #if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
  	tn->offload_timeout = 30 * HZ;
