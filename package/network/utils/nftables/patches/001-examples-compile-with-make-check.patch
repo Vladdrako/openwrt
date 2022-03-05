@@ -17,18 +17,13 @@ Signed-off-by: Pablo Neira Ayuso <pablo@netfilter.org>
  examples/Makefile.am | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/examples/Makefile.am b/examples/Makefile.am
-index c972170d..3b8b0b67 100644
 --- a/examples/Makefile.am
 +++ b/examples/Makefile.am
 @@ -1,4 +1,6 @@
 -noinst_PROGRAMS	= nft-buffer		\
 +check_PROGRAMS	= nft-buffer		\
  		  nft-json-file
- 
+
 +AM_CPPFLAGS = -I$(top_srcdir)/include
 +
  LDADD = $(top_builddir)/src/libnftables.la
--- 
-cgit v1.2.3
-
