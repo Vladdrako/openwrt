@@ -74,9 +74,6 @@ mtd_get_mac_ascii() {
 	fi
 
 	mac_dirty=$(strings "$part" | sed -n 's/^'"$key"'=//p')
-	if [ -z "$mac_dirty" ]; then
-		mac_dirty=$(strings "$part" | sed -n 's/^.*'"$key"'=//p')
-	fi
 
 	# "canonicalize" mac
 	[ -n "$mac_dirty" ] && macaddr_canonicalize "$mac_dirty"
