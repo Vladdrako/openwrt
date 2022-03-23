@@ -1,8 +1,6 @@
-diff --git a/drivers/net/dsa/mt7530.c b/drivers/net/dsa/mt7530.c
-index 347845d66671..4c61a5895a62 100644
 --- a/drivers/net/dsa/mt7530.c
 +++ b/drivers/net/dsa/mt7530.c
-@@ -1640,6 +1640,40 @@ static void mt753x_port_mirror_del(struct dsa_switch *ds, int port,
+@@ -1717,6 +1717,40 @@ static void mt753x_port_mirror_del(struc
  	}
  }
  
@@ -43,7 +41,7 @@ index 347845d66671..4c61a5895a62 100644
  static enum dsa_tag_protocol
  mtk_get_tag_protocol(struct dsa_switch *ds, int port,
  		     enum dsa_tag_protocol mp)
-@@ -2640,6 +2674,8 @@ static const struct dsa_switch_ops mt7530_switch_ops = {
+@@ -3086,6 +3120,8 @@ static const struct dsa_switch_ops mt753
  	.port_vlan_del		= mt7530_port_vlan_del,
  	.port_mirror_add	= mt753x_port_mirror_add,
  	.port_mirror_del	= mt753x_port_mirror_del,
@@ -52,11 +50,9 @@ index 347845d66671..4c61a5895a62 100644
  	.phylink_validate	= mt753x_phylink_validate,
  	.phylink_mac_link_state	= mt753x_phylink_mac_link_state,
  	.phylink_mac_config	= mt753x_phylink_mac_config,
-diff --git a/drivers/net/dsa/mt7530.h b/drivers/net/dsa/mt7530.h
-index 32d8969b3ace..28e3ae8f1aee 100644
 --- a/drivers/net/dsa/mt7530.h
 +++ b/drivers/net/dsa/mt7530.h
-@@ -187,6 +187,15 @@ enum mt7530_stp_state {
+@@ -197,6 +197,15 @@ enum mt7530_stp_state {
  	MT7530_STP_FORWARDING  = 3
  };
  
