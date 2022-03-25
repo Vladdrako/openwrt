@@ -56,6 +56,8 @@ ALLWIFIBOARDS:= \
 	plasmacloud_pa1200 \
 	plasmacloud_pa2200 \
 	qxwlan_e2600ac \
+	qxwlan_e2600ac-c1 \
+	qxwlan_e2600ac-c2 \
 	teltonika_rutx
 
 ALLWIFIPACKAGES:=$(foreach BOARD,$(ALLWIFIBOARDS),ipq-wifi-$(BOARD))
