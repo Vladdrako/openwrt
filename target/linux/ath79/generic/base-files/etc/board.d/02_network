@@ -541,8 +541,8 @@ ath79_setup_macs()
 		;;
 	arduino,yun)
 		base_mac=$(mtd_get_mac_binary art 0x1002)
-		lan_mac=$(macaddr_setbit $base_mac 29)
-		[ $lan_mac = $base_mac ] && lan_mac=$(macaddr_unsetbit $base_mac 29)
+		lan_mac=$(macaddr_setbit $base_mac 28)
+		[ $lan_mac = $base_mac ] && lan_mac=$(macaddr_unsetbit $base_mac 28)
 		;;
 	avm,fritz1750e|\
 	avm,fritz450e|\

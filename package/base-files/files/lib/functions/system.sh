@@ -1,71 +1,77 @@
 # Copyright (C) 2006-2013 OpenWrt.org
 
 . /lib/functions.sh
-. /usr/share/libubox/jshn.sh
 
 get_mac_binary() {
 	local path="$1"
-	local offset="$2"
+	local offset="${2:-0}"
+	local length="${3:-6}"
 
 	if ! [ -e "$path" ]; then
 		echo "get_mac_binary: file $path not found!" >&2
 		return
 	fi
 
-	hexdump -v -n 6 -s $offset -e '5/1 "%02x:" 1/1 "%02x"' $path 2>/dev/null
+	hexdump -v -s "$offset" -n "$length" -e '6/1 "%02x"' "$path" |
+		macaddr_canonicalize
 }
 
 get_mac_label_dt() {
 	local basepath="/proc/device-tree"
-	local macdevice="$(cat "$basepath/aliases/label-mac-device" 2>/dev/null)"
-	local macaddr
+	local macdevice mac
 
+	macdevice=$(cat "$basepath/aliases/label-mac-device" 2>/dev/null)
 	[ -n "$macdevice" ] || return
 
-	macaddr=$(get_mac_binary "$basepath/$macdevice/mac-address" 0 2>/dev/null)
-	[ -n "$macaddr" ] || macaddr=$(get_mac_binary "$basepath/$macdevice/local-mac-address" 0 2>/dev/null)
-
-	echo $macaddr
+	mac=$(get_mac_binary "$basepath/$macdevice/mac-address")
+	[ -n "$mac" ] &&
+		echo -n "$mac" ||
+		echo -n $(get_mac_binary "$basepath/$macdevice/local-mac-address")
 }
 
 get_mac_label_json() {
 	local cfg="/etc/board.json"
-	local macaddr
+	local mac
 
 	[ -s "$cfg" ] || return
+
+	. /usr/share/libubox/jshn.sh
 
 	json_init
 	json_load "$(cat $cfg)"
 	if json_is_a system object; then
 		json_select system
-			json_get_var macaddr label_macaddr
+			json_get_var mac label_macaddr
 		json_select ..
 	fi
 
-	echo $macaddr
+	echo -n "$mac"
 }
 
 get_mac_label() {
-	local macaddr=$(get_mac_label_dt)
+	local mac
 
-	[ -n "$macaddr" ] || macaddr=$(get_mac_label_json)
-
-	echo $macaddr
+	mac=$(get_mac_label_dt)
+	[ -n "$mac" ] &&
+		echo -n "$mac" ||
+		echo -n "$(get_mac_label_json)"
 }
 
 find_mtd_chardev() {
-	local INDEX=$(find_mtd_index "$1")
-	local PREFIX=/dev/mtd
+	local mtdname="$1"
+	local prefix index
 
-	[ -d /dev/mtd ] && PREFIX=/dev/mtd/
-	echo "${INDEX:+$PREFIX$INDEX}"
+	index=$(find_mtd_index "$mtdname")
+	[ -d /dev/mtd ] && prefix="/dev/mtd/" || prefix="/dev/mtd"
+
+	echo -n "${index:+${prefix}${index}}"
 }
 
 mtd_get_mac_ascii() {
 	local mtdname="$1"
 	local key="$2"
-	local part
-	local mac_dirty
+	local cmd="$3"
+	local part keys var mac
 
 	part=$(find_mtd_part "$mtdname")
 	if [ -z "$part" ]; then
@@ -73,17 +79,32 @@ mtd_get_mac_ascii() {
 		return
 	fi
 
-	mac_dirty=$(strings "$part" | sed -n 's/^'"$key"'=//p')
+	[ -z "$cmd" ] &&
+		case "$mtdname" in
+			"u"*"boot"*"env") cmd="tail -c +5" ;;
+			*) cmd="cat" ;;
+		esac
 
-	# "canonicalize" mac
-	[ -n "$mac_dirty" ] && macaddr_canonicalize "$mac_dirty"
+	keys=$($cmd "$part" | strings -n 12 -)
+
+	for var in $keys; do
+		case "$var" in
+			"$key") mac="$var" && break ;;
+			*"$key"*) mac="$var" && continue ;;
+		esac
+	done
+
+	mac="${mac//${key}*${operators}/}"
+	mac="${mac//${operators}*${key}/}"
+
+	echo -n "${mac//$key/}" | macaddr_canonicalize
 }
 
 mtd_get_mac_text() {
-	local mtdname=$1
-	local offset=$(($2))
+	local mtdname="$1"
+	local offset=$((${2:-0}))
+	local length="${3:-17}"
 	local part
-	local mac_dirty
 
 	part=$(find_mtd_part "$mtdname")
 	if [ -z "$part" ]; then
@@ -91,15 +112,8 @@ mtd_get_mac_text() {
 		return
 	fi
 
-	if [ -z "$offset" ]; then
-		echo "mtd_get_mac_text: offset missing!" >&2
-		return
-	fi
-
-	mac_dirty=$(dd if="$part" bs=1 skip="$offset" count=17 2>/dev/null)
-
-	# "canonicalize" mac
-	[ -n "$mac_dirty" ] && macaddr_canonicalize "$mac_dirty"
+	head -c $((offset + length)) "$part" | tail -c "$length" |
+		macaddr_canonicalize
 }
 
 mtd_get_mac_binary() {
@@ -114,24 +128,23 @@ mtd_get_mac_binary() {
 mtd_get_mac_binary_ubi() {
 	local mtdname="$1"
 	local offset="$2"
+	local ubidev part
 
 	. /lib/upgrade/nand.sh
 
-	local ubidev=$(nand_find_ubi $CI_UBIPART)
-	local part=$(nand_find_volume $ubidev $1)
-
+	ubidev=$(nand_find_ubi "$CI_UBIPART")
+	part=$(nand_find_volume "$ubidev" "$mtdname")
 	get_mac_binary "/dev/$part" "$offset"
 }
 
 mtd_get_part_size() {
-	local part_name=$1
-	local first dev size erasesize name
+	local mtdname="$1"
+	local dev size erasesize name
+
 	while read dev size erasesize name; do
-		name=${name#'"'}; name=${name%'"'}
-		if [ "$name" = "$part_name" ]; then
-			echo $((0x$size))
-			break
-		fi
+		case "$name" in
+			*"$mtdname"*) echo -n $((0x${size})) && break ;;
+		esac
 	done < /proc/mtd
 }
 
@@ -145,91 +158,126 @@ mmc_get_mac_binary() {
 }
 
 macaddr_add() {
-	local mac=$1
-	local val=$2
-	local oui=${mac%:*:*:*}
-	local nic=${mac#*:*:*:}
+	local mac="$1"
+	local val="${2:-1}"
+	local oui nic
 
-	nic=$(printf "%06x" $((0x${nic//:/} + val & 0xffffff)) | sed 's/^\(.\{2\}\)\(.\{2\}\)\(.\{2\}\)/\1:\2:\3/')
-	echo $oui:$nic
+	oui=$(macaddr_octet "$mac" 0)
+	nic=$(macaddr_octet "$mac" 3)
+	printf '%s%06x' "$oui" $((0x${nic} + val & 0xffffff)) | macaddr_canonicalize
 }
 
-macaddr_geteui() {
-	local mac=$1
-	local sep=$2
+macaddr_octet() {
+	local mac="$1"
+	local off="${2:-3}"
+	local len="${3:-3}"
+	local sep="$4"
+	local oct=""
 
-	echo ${mac:9:2}$sep${mac:12:2}$sep${mac:15:2}
+	while [ "$off" -ne 0 ]; do
+		mac="${mac#*$delimiter}"
+		off=$((off - 1))
+	done
+
+	while [ "$len" -ne 0 ]; do
+		oct="${oct}${oct:+$sep}${mac%%$delimiter*}"
+		mac="${mac#*$delimiter}"
+		len=$((len - 1))
+	done
+
+	echo -n "$oct"
 }
 
 macaddr_setbit() {
-	local mac=$1
-	local bit=${2:-0}
+	local hex="${1//$delimiter/}"
+	local bit="${2:-0}"
 
-	[ $bit -gt 0 -a $bit -le 48 ] || return
+	[ "$bit" -ge 0 ] && [ "$bit" -lt 48 ] || return
 
-	printf "%012x" $(( 0x${mac//:/} | 2**(48-bit) )) | sed -e 's/\(.\{2\}\)/\1:/g' -e 's/:$//'
+	printf '%012x' $((0x${hex} | (2**((${#hex} * 4 - 1) - bit)))) | macaddr_canonicalize
 }
 
 macaddr_unsetbit() {
-	local mac=$1
-	local bit=${2:-0}
+	local hex="${1//$delimiter/}"
+	local bit="${2:-0}"
 
-	[ $bit -gt 0 -a $bit -le 48 ] || return
+	[ "$bit" -ge 0 ] && [ "$bit" -lt 48 ] || return
 
-	printf "%012x" $(( 0x${mac//:/} & ~(2**(48-bit)) )) | sed -e 's/\(.\{2\}\)/\1:/g' -e 's/:$//'
+	printf '%012x' $((0x${hex} &~(2**((${#hex} * 4 - 1) - bit)))) | macaddr_canonicalize
 }
 
 macaddr_setbit_la() {
-	macaddr_setbit $1 7
+	local mac="$1"
+	local stdin; read -t 1 stdin
+
+	[ -z "$mac" ] && mac="$stdin"
+
+	macaddr_setbit "$mac" 6
 }
 
 macaddr_unsetbit_mc() {
-	local mac=$1
+	local mac="$1"
+	local stdin; read -t 1 stdin
 
-	printf "%02x:%s" $((0x${mac%%:*} & ~0x01)) ${mac#*:}
+	[ -z "$mac" ] && mac="$stdin"
+
+	macaddr_unsetbit "$mac" 7
 }
 
 macaddr_random() {
-	local randsrc=$(get_mac_binary /dev/urandom 0)
-	
-	echo "$(macaddr_unsetbit_mc "$(macaddr_setbit_la "${randsrc}")")"
+	local randmac
+
+	randmac=$(get_mac_binary "/dev/urandom")
+	echo -n "$randmac" | macaddr_unsetbit_mc | macaddr_setbit_la
 }
 
 macaddr_2bin() {
-	local mac=$1
+	local mac="$1"
+	local stdin; read -t 1 stdin
 
-	echo -ne \\x${mac//:/\\x}
+	[ -z "$mac" ] && mac="$stdin"
+
+	printf '%b' "\\x${mac//$delimiter/\\x}"
+}
+
+macaddr_split() {
+	local sub="$1"
+	local mac
+
+	[ $((${#sub} % 2)) -eq 1 ] &&
+		mac="${sub%${sub#?}}" && sub="${sub#?}"
+
+	while [ "${#sub}" -gt 2 ]; do
+		mac="${mac}${mac:+ }${sub%${sub#??}}"
+		sub="${sub#??}"
+	done
+
+	echo -n "${mac} ${sub%${sub#??}}"
 }
 
 macaddr_canonicalize() {
 	local mac="$1"
-	local canon=""
+	local hex octet octets canon
+	local stdin; read -t 1 stdin
 
-	mac=$(echo -n $mac | tr -d \")
-	[ ${#mac} -gt 17 ] && return
-	[ -n "${mac//[a-fA-F0-9\.: -]/}" ] && return
+	[ -z "$mac" ] && mac="$stdin"
 
-	for octet in ${mac//[\.:-]/ }; do
-		case "${#octet}" in
-		1)
-			octet="0${octet}"
-			;;
-		2)
-			;;
-		4)
-			octet="${octet:0:2} ${octet:2:2}"
-			;;
-		12)
-			octet="${octet:0:2} ${octet:2:2} ${octet:4:2} ${octet:6:2} ${octet:8:2} ${octet:10:2}"
-			;;
-		*)
-			return
-			;;
-		esac
-		canon=${canon}${canon:+ }${octet}
+	mac="${mac//$blockchar/}"
+	mac="${mac//$operators/}"
+	hex="${mac//$delimiter/}"
+
+	[ "${#hex}" -gt 10 ] && [ -z "${hex//$hexadecimal/}" ] || return
+	[ "${#hex}" -gt 12 ] && mac=$(echo "$hex" | head -c 12)
+
+	for octet in ${mac//$delimiter/ }; do
+		[ "${#octet}" -eq 2 ] ||
+			octet=$(macaddr_split "$octet")
+		octets="${octets}${octets:+ }${octet}"
 	done
 
-	[ ${#canon} -ne 17 ] && return
+	for octet in $octets; do
+		canon="${canon}${canon:+ 0x}${octet}"
+	done
 
-	printf "%02x:%02x:%02x:%02x:%02x:%02x" 0x${canon// / 0x} 2>/dev/null
+	printf '%02x:%02x:%02x:%02x:%02x:%02x' $canon
 }

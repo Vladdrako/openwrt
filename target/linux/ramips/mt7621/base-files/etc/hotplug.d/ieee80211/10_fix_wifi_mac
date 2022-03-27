@@ -37,7 +37,7 @@ case "$board" in
 		[ "$PHYNBR" = "0" ] && [ -n "$label_mac" ] && \
 		echo -n "$label_mac" > /sys${DEVPATH}/macaddress
 		[ "$PHYNBR" = "1" ] && [ -n "$label_mac" ] && \
-		macaddr_unsetbit "$label_mac" 6 > /sys${DEVPATH}/macaddress
+		macaddr_unsetbit "$label_mac" 5 > /sys${DEVPATH}/macaddress
 		;;
 	iptime,a3002mesh|\
 	iptime,a3004t)

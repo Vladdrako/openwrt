@@ -11,6 +11,18 @@ debug () {
 N="
 "
 
+# set of all printable delimiters in ASCII order
+delimiter="[ ,-./:;\_|]"
+
+# set of all block chars in ASCII order, without []
+blockchar="[\"\'\(\)\<\>\{\}]"
+
+# set of all shell operators in ASCII order
+operators="[\!\#$%&*+=?@^\`~]"
+
+# set of all hex chars
+hexadecimal="[0-9A-Fa-f]"
+
 _C=0
 NO_EXPORT=1
 LOAD_STATE=1
