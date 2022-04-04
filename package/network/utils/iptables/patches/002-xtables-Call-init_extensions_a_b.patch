@@ -1,3 +1,8 @@
+A modified version of this patch was commited upstream
+as part of a fixup series
+https://bugzilla.netfilter.org/show_bug.cgi?id=1593
+https://git.netfilter.org/iptables/commit/?id=0836524f093c0fd9c39604a46a949e43d9b47ef2
+
 --- a/iptables/xtables-monitor.c
 +++ b/iptables/xtables-monitor.c
 @@ -629,6 +629,8 @@ int xtables_monitor_main(int argc, char
