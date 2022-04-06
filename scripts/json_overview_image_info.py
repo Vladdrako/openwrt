@@ -65,6 +65,8 @@ if output:
 
     output["default_packages"] = sorted(default_packages.split())
 
-    output_path.write_text(json.dumps(output, sort_keys=True, separators=(",", ":")))
+    output_path.write_text(
+        json.dumps(output, sort_keys=True, separators=(",", ":"))
+    )
 else:
     print("JSON info file script could not find any JSON files for target")

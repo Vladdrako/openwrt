@@ -24,8 +24,8 @@ def get_titles():
     for prefix in ["", "ALT0_", "ALT1_", "ALT2_"]:
         title = {}
         for var in ["vendor", "model", "variant"]:
-            if getenv("DEVICE_{}{}".format(prefix, var.upper())):
-                title[var] = getenv("DEVICE_{}{}".format(prefix, var.upper()))
+            if getenv(f"DEVICE_{prefix}{var.upper()}"):
+                title[var] = getenv(f"DEVICE_{prefix}{var.upper()}")
 
         if title:
             titles.append(title)
@@ -41,7 +41,9 @@ hash_file = hashlib.sha256(file_path.read_bytes()).hexdigest()
 
 if file_path.with_suffix(file_path.suffix + ".sha256sum").exists():
     hash_unsigned = (
-        file_path.with_suffix(file_path.suffix + ".sha256sum").read_text().strip()
+        file_path.with_suffix(file_path.suffix + ".sha256sum")
+        .read_text()
+        .strip()
     )
 else:
     hash_unsigned = hash_file
