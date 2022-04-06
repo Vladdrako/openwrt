@@ -1154,6 +1154,11 @@ dnsmasq_start()
 
 	local instance_ifc instance_netdev
 	config_get instance_ifc "$cfg" interface
+	[ -n "$instance_ifc" ] && network_get_device instance_netdev "$instance_ifc" &&
+		[ -n "$instance_netdev" ] && procd_set_param netdev $instance_netdev
+
+	local instance_ifc instance_netdev
+	config_get instance_ifc "$cfg" interface
 	if [ -n "$instance_ifc" ]; then
 		network_get_device instance_netdev "$instance_ifc" && {
 			if [ -n "$instance_netdev" ]; then
