@@ -38,5 +38,7 @@ apply_defaults() {
 
 start() {
 	apply_defaults
-	cat /etc/sysctl.d/*.conf /etc/sysctl.conf | grep -v "^#" | while read line; do sysctl -qw $line; done
+	for CONF in /etc/sysctl.d/*.conf /etc/sysctl.conf; do
+		[ -f "$CONF" ] && sysctl -e -p "$CONF" >&-
+	done
 }

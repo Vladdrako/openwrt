@@ -113,7 +113,6 @@ hostapd_common_add_device_config() {
 	config_add_int rssi_reject_assoc_rssi
 	config_add_int rssi_ignore_probe_request
 	config_add_int maxassoc
-	config_add_boolean vendor_vht
 
 	config_add_string acs_chan_bias
 	config_add_array hostapd_options
@@ -131,7 +130,7 @@ hostapd_prepare_device_config() {
 
 	json_get_vars country country3 country_ie beacon_int:100 dtim_period:2 doth require_mode legacy_rates \
 		acs_chan_bias local_pwr_constraint spectrum_mgmt_required airtime_mode cell_density \
-		rts_threshold beacon_rate rssi_reject_assoc_rssi rssi_ignore_probe_request maxassoc vendor_vht
+		rts_threshold beacon_rate rssi_reject_assoc_rssi rssi_ignore_probe_request maxassoc
 
 	hostapd_set_log_options base_cfg
 
@@ -200,7 +199,6 @@ hostapd_prepare_device_config() {
 				set_default rate_list "24000 36000 48000 54000"
 				set_default basic_rate_list "24000"
 			fi
-			[ -n "$vendor_vht" ] && append base_cfg "vendor_vht=$vendor_vht" "$N"
 		;;
 		a)
 			if [ "$cell_density" -eq 1 ]; then
@@ -373,8 +371,6 @@ hostapd_common_add_bss_config() {
 
 	config_add_boolean fils
 	config_add_string fils_dhcp
-
-	config_add_int ocv
 }
 
 hostapd_set_vlan_file() {
@@ -547,7 +543,7 @@ hostapd_set_bss_options() {
 		airtime_bss_weight airtime_bss_limit airtime_sta_weight \
 		multicast_to_unicast proxy_arp per_sta_vif \
 		eap_server eap_user_file ca_cert server_cert private_key private_key_passwd server_id \
-		vendor_elements fils ocv
+		vendor_elements fils
 
 	set_default fils 0
 	set_default isolate 0
@@ -619,8 +615,6 @@ hostapd_set_bss_options() {
 			append bss_conf "radius_acct_interim_interval=$acct_interval" "$N"
 		json_for_each_item append_radius_acct_req_attr radius_acct_req_attr
 	}
-
-	[ -n "$ocv" ] && append bss_conf "ocv=$ocv" "$N"
 
 	case "$auth_type" in
 		sae|owe|eap192|eap-eap192)
@@ -1251,7 +1245,7 @@ wpa_supplicant_add_network() {
 	json_get_vars \
 		ssid bssid key \
 		basic_rate mcast_rate \
-		ieee80211w ieee80211r fils ocv \
+		ieee80211w ieee80211r fils \
 		multi_ap \
 		default_disabled
 
@@ -1302,8 +1296,6 @@ wpa_supplicant_add_network() {
 		[ "$multi_ap" = 1 ] && append network_data "multi_ap_backhaul_sta=1" "$N$T"
 		[ "$default_disabled" = 1 ] && append network_data "disabled=1" "$N$T"
 	}
-
-	[ -n "$ocv" ] && append network_data "ocv=$ocv" "$N$T"
 
 	case "$auth_type" in
 		none) ;;

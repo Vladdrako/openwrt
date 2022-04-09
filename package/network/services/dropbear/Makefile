@@ -23,6 +23,7 @@ PKG_CPE_ID:=cpe:/a:matt_johnston:dropbear_ssh_server
 
 PKG_BUILD_PARALLEL:=1
 PKG_ASLR_PIE_REGULAR:=1
+PKG_USE_MIPS16:=0
 PKG_FIXUP:=autoreconf
 PKG_FLAGS:=nonshared
 
@@ -32,9 +33,7 @@ PKG_CONFIG_DEPENDS:= \
 	CONFIG_DROPBEAR_ED25519 CONFIG_DROPBEAR_CHACHA20POLY1305 \
 	CONFIG_DROPBEAR_UTMP CONFIG_DROPBEAR_PUTUTLINE \
 	CONFIG_DROPBEAR_DBCLIENT CONFIG_DROPBEAR_SCP CONFIG_DROPBEAR_ASKPASS \
-	CONFIG_DROPBEAR_DBCLIENT_AGENTFORWARD CONFIG_DROPBEAR_AGENTFORWARD \
-	CONFIG_DROPBEAR_RSA CONFIG_DROPBEAR_AES128 CONFIG_DROPBEAR_AES256 \
-	DROPBEAR_DH_GROUP14_SHA1 DROPBEAR_DH_GROUP14_SHA256
+	CONFIG_DROPBEAR_DBCLIENT_AGENTFORWARD CONFIG_DROPBEAR_AGENTFORWARD
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -69,9 +68,9 @@ define Package/dropbear/description
 endef
 
 define Package/dropbear/conffiles
-$(if $(CONFIG_DROPBEAR_RSA),/etc/dropbear/dropbear_rsa_host_key)
 $(if $(CONFIG_DROPBEAR_ED25519),/etc/dropbear/dropbear_ed25519_host_key)
 $(if $(CONFIG_DROPBEAR_ECC),/etc/dropbear/dropbear_ecdsa_host_key)
+/etc/dropbear/dropbear_rsa_host_key
 /etc/config/dropbear
 endef
 
@@ -139,11 +138,7 @@ DB_OPT_CONFIG = \
 	DROPBEAR_CLI_ASKPASS_HELPER|CONFIG_DROPBEAR_ASKPASS|1|0 \
 	DROPBEAR_CLI_AGENTFWD|CONFIG_DROPBEAR_DBCLIENT_AGENTFORWARD|1|0 \
 	DROPBEAR_SVR_AGENTFWD|CONFIG_DROPBEAR_AGENTFORWARD|1|0 \
-	DROPBEAR_RSA|CONFIG_DROPBEAR_RSA|1|0 \
-	DROPBEAR_AES128|CONFIG_DROPBEAR_AES128|1|0 \
-	DROPBEAR_AES256|CONFIG_DROPBEAR_AES256|1|0 \
-	DROPBEAR_DH_GROUP14_SHA1|CONFIG_DROPBEAR_DH_GROUP14_SHA1|1|0 \
-	DROPBEAR_DH_GROUP14_SHA256|CONFIG_DROPBEAR_DH_GROUP14_SHA256|1|0
+
 
 TARGET_CFLAGS += -DARGTYPE=3 -ffunction-sections -fdata-sections -flto
 TARGET_LDFLAGS += -Wl,--gc-sections -flto=jobserver
@@ -205,18 +200,10 @@ define Package/dropbear/install
 	$(INSTALL_DIR) $(1)/usr/lib/opkg/info
 	$(INSTALL_DIR) $(1)/etc/dropbear
 	$(INSTALL_DIR) $(1)/lib/preinit
-
-ifdef CONFIG_DROPBEAR_ED25519
-	$(INSTALL_DATA) ./files/dropbear.failsafe.ed25519 $(1)/lib/preinit/99_10_failsafe_dropbear
-else ifdef CONFIG_DROPBEAR_ECC
-	$(INSTALL_DATA) ./files/dropbear.failsafe.ecc $(1)/lib/preinit/99_10_failsafe_dropbear
-else ifdef CONFIG_DROPBEAR_RSA
-	$(INSTALL_DATA) ./files/dropbear.failsafe.rsa $(1)/lib/preinit/99_10_failsafe_dropbear
-endif
-
-	$(if $(CONFIG_DROPBEAR_ED25519),touch $(1)/etc/dropbear/dropbear_ed25519_host_key,)
-	$(if $(CONFIG_DROPBEAR_ECC),touch $(1)/etc/dropbear/dropbear_ecdsa_host_key,)
-	$(if $(CONFIG_DROPBEAR_RSA),touch $(1)/etc/dropbear/dropbear_rsa_host_key,)
+	$(INSTALL_DATA) ./files/dropbear.failsafe $(1)/lib/preinit/99_10_failsafe_dropbear
+	$(if $(CONFIG_DROPBEAR_ED25519),touch $(1)/etc/dropbear/dropbear_ed25519_host_key)
+	$(if $(CONFIG_DROPBEAR_ECC),touch $(1)/etc/dropbear/dropbear_ecdsa_host_key)
+	touch $(1)/etc/dropbear/dropbear_rsa_host_key
 endef
 
 define Package/dropbearconvert/install

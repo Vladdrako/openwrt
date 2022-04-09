@@ -158,17 +158,11 @@ extra_command "enabled" "Check if service is started on boot"
 	}
 
 	stop() {
-		if service_running "$@"; then
-			procd_lock
-			stop_service "$@"
-			procd_kill "$(basename ${basescript:-$initscript})" "$1"
-			if eval "type service_stopped" 2>/dev/null >/dev/null; then
-				service_stopped
-			fi
-		else
-			procd_lock
-			procd_kill "$(basename ${basescript:-$initscript})" "$1"
-			echo "inactive"
+		procd_lock
+		stop_service "$@"
+		procd_kill "$(basename ${basescript:-$initscript})" "$1"
+		if eval "type service_stopped" 2>/dev/null >/dev/null; then
+			service_stopped
 		fi
 	}
 
