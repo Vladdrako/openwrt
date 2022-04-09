@@ -143,9 +143,6 @@ $(eval $(call nf_add,IPT_IPSEC,CONFIG_IP_NF_MATCH_AH, $(P_V4)ipt_ah))
 $(eval $(call nf_add,IPT_IPSEC,CONFIG_NETFILTER_XT_MATCH_ESP, $(P_XT)xt_esp))
 $(eval $(call nf_add,IPT_IPSEC,CONFIG_NETFILTER_XT_MATCH_POLICY, $(P_XT)xt_policy))
 
-# ipvs
-$(eval $(call nf_add,IPT_IPVS,CONFIG_NETFILTER_XT_MATCH_IPVS, $(P_XT)xt_ipvs))
-
 # flow offload support
 $(eval $(call nf_add,IPT_FLOW,CONFIG_NETFILTER_XT_TARGET_FLOWOFFLOAD, $(P_XT)xt_FLOWOFFLOAD))
 
@@ -261,10 +258,6 @@ $(eval $(call nf_add,IPT_LED,CONFIG_NETFILTER_XT_TARGET_LED, $(P_XT)xt_LED))
 $(eval $(call nf_add,IPT_TEE,CONFIG_NETFILTER_XT_TARGET_TEE, $(P_XT)xt_TEE))
 $(eval $(if $(NF_KMOD),$(call nf_add,IPT_TEE,CONFIG_NF_DUP_IPV4, $(P_V4)nf_dup_ipv4),))
 $(eval $(if $(NF_KMOD),$(call nf_add,IPT_TEE,CONFIG_NF_DUP_IPV6, $(P_V6)nf_dup_ipv6),))
-
-# tcpoptstrip
-
-$(eval $(call nf_add,IPT_TCPOPTSTRIP,CONFIG_NETFILTER_XT_TARGET_TCPOPTSTRIP, $(P_XT)xt_TCPOPTSTRIP))
 
 # u32
 
