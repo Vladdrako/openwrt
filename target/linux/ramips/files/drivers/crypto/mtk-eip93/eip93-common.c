@@ -8,10 +8,12 @@
 #include <crypto/aes.h>
 #include <crypto/ctr.h>
 #include <crypto/hmac.h>
-#include <crypto/sha.h>
+#include <crypto/sha1.h>
+#include <crypto/sha2.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>
+#include <linux/device.h>
 
 #include "eip93-cipher.h"
 #include "eip93-common.h"

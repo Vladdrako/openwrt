@@ -14,6 +14,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
+#include <linux/mod_devicetable.h>
 
 #include "eip93-main.h"
 #include "eip93-regs.h"

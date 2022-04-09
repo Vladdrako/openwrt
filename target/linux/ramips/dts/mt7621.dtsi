@@ -489,7 +489,7 @@
 
 	interrupt-parent = <&gic>;
 	interrupts = <GIC_SHARED 19 IRQ_TYPE_LEVEL_HIGH>;
-};
+	};
 
 	ethernet: ethernet@1e100000 {
 		compatible = "mediatek,mt7621-eth";
@@ -552,6 +552,7 @@
 				reset-names = "mcm";
 				interrupt-controller;
 				#interrupt-cells = <1>;
+				interrupt-parent = <&gic>;
 				interrupts = <GIC_SHARED 23 IRQ_TYPE_LEVEL_HIGH>;
 
 				ports {
