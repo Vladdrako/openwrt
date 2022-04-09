@@ -79,7 +79,7 @@
 		regulator-name = "usb_vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpios = <&gpio 12 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio 12 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 };
@@ -159,6 +159,7 @@
 
 &pcie0 {
 	wifi@0,0 {
+		compatible = "mediatek,mt76";
 		reg = <0x0000 0 0 0 0>;
 		mediatek,mtd-eeprom = <&factory 0x0000>;
 		ieee80211-freq-limit = <2400000 2500000>;
@@ -167,6 +168,7 @@
 
 &pcie1 {
 	wifi@0,0 {
+		compatible = "mediatek,mt76";
 		reg = <0x0000 0 0 0 0>;
 		mediatek,mtd-eeprom = <&factory 0x8000>;
 		ieee80211-freq-limit = <5000000 6000000>;
@@ -176,7 +178,6 @@
 &gmac0 {
 	nvmem-cells = <&macaddr_factory_e006>;
 	nvmem-cell-names = "mac-address";
-	phy-mode = "trgmii";
 };
 
 &switch0 {
@@ -201,10 +202,6 @@
 			label = "wan";
 			nvmem-cells = <&macaddr_factory_e000>;
 			nvmem-cell-names = "mac-address";
-		};
-		
-		port@6 {
-			phy-mode = "trgmii";
 		};
 	};
 };
