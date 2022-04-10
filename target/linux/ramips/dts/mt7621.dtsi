@@ -37,6 +37,21 @@
 		compatible = "mti,cpu-interrupt-controller";
 	};
 
+	reserved-memory {
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		ranges;
+
+		ramoops@3f00000 {
+			compatible = "ramoops";
+			reg = <0x3f00000 0x80000>;
+
+			record-size = <0x10000>;
+			console-size = <0x10000>;
+			ftrace-size = <0x20000>;
+		};
+	};
+
 	chosen {
 		bootargs = "console=ttyS0,57600";
 	};
@@ -88,6 +103,8 @@
 		gpio: gpio@600 {
 			#gpio-cells = <2>;
 			#interrupt-cells = <2>;
+			#address-cells = <2>;
+
 			compatible = "mediatek,mt7621-gpio";
 			gpio-controller;
 			gpio-ranges = <&pinctrl 0 0 95>;
@@ -414,6 +431,8 @@
 	};
 
 	gic: interrupt-controller@1fbc0000 {
+		#address-cells = <2>;
+
 		compatible = "mti,gic";
 		reg = <0x1fbc0000 0x2000>;
 
@@ -462,6 +481,16 @@
 		clock-names = "nfi_clk";
 	};
 
+	crypto: crypto@1e004000 {
+	status = "okay";
+
+	compatible = "mediatek,mtk-eip93";
+	reg = <0x1e004000 0x1000>;
+
+	interrupt-parent = <&gic>;
+	interrupts = <GIC_SHARED 19 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	ethernet: ethernet@1e100000 {
 		compatible = "mediatek,mt7621-eth";
 		reg = <0x1e100000 0x10000>;
@@ -500,6 +529,7 @@
 				speed = <1000>;
 				full-duplex;
 				pause;
+				asym-pause;
 			};
 		};
 
@@ -522,6 +552,7 @@
 				reset-names = "mcm";
 				interrupt-controller;
 				#interrupt-cells = <1>;
+				interrupt-parent = <&gic>;
 				interrupts = <GIC_SHARED 23 IRQ_TYPE_LEVEL_HIGH>;
 
 				ports {
@@ -562,12 +593,13 @@
 						reg = <6>;
 						label = "cpu";
 						ethernet = <&gmac0>;
-						phy-mode = "rgmii";
+						phy-mode = "trgmii";
 
 						fixed-link {
 							speed = <1000>;
 							full-duplex;
 							pause;
+							asym-pause;
 						};
 					};
 				};

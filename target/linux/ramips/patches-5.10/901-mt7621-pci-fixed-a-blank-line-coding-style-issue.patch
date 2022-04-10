@@ -1,0 +1,10 @@
+--- a/drivers/staging/mt7621-pci/pci-mt7621.c
++++ b/drivers/staging/mt7621-pci/pci-mt7621.c
+@@ -541,7 +541,6 @@
+ 
+ 			if (slot == 1 && tmp && !tmp->enabled)
+ 				phy_power_off(tmp->phy);
+-
+ 		}
+ 	}
+ }

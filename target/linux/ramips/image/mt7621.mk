@@ -725,6 +725,14 @@ define Device/humax_e10
 endef
 TARGET_DEVICES += humax_e10
 
+define Device/hoelxun_yyets-le2
+  DEVICE_VENDOR := Hoelxun
+  DEVICE_MODEL := YYeTs-LE2
+  DEVICE_PACKAGES := kmod-mt7603 kmod-mt76x2 kmod-usb3 wpad-basic
+  IMAGE_SIZE := 32448k
+endef
+TARGET_DEVICES += hoelxun_yyets-le2
+
 define Device/iodata_wn-ax1167gr
   $(Device/dsa-migration)
   $(Device/uimage-lzma-loader)
@@ -971,6 +979,15 @@ define Device/jcg_y2
   DEVICE_PACKAGES := kmod-mt7615e kmod-mt7615-firmware kmod-usb3
 endef
 TARGET_DEVICES += jcg_y2
+
+define Device/jdcloud_re-sp-01b
+  SOC := mt7621
+  IMAGE_SIZE := 27328k
+  DEVICE_VENDOR := JDCloud
+  DEVICE_MODEL := RE-SP-01B
+  DEVICE_PACKAGES := kmod-fs-ext4 kmod-mt7603 kmod-mt7615e kmod-sdhci-mt7620 kmod-usb3 wpad-basic
+endef
+TARGET_DEVICES += jdcloud_re-sp-01b
 
 define Device/lenovo_newifi-d1
   $(Device/dsa-migration)
@@ -1627,6 +1644,15 @@ define Device/tplink_tl-wpa8631p-v3
 endef
 TARGET_DEVICES += tplink_tl-wpa8631p-v3
 
+define Device/tplink_tl-wdr8620-v3
+  DEVICE_VENDOR := TP-Link
+  DEVICE_MODEL := TL-WDR8620
+  DEVICE_VARIANT := v3
+  DEVICE_PACKAGES := kmod-mt7615e kmod-mt7615-firmware kmod-usb3
+  IMAGE_SIZE := 16128k
+endef
+TARGET_DEVICES += tplink_tl-wdr8620-v3
+
 define Device/ubnt_edgerouter_common
   $(Device/dsa-migration)
   $(Device/uimage-lzma-loader)
@@ -1788,11 +1814,17 @@ endef
 
 define Device/xiaomi_mi-router-3g
   $(Device/xiaomi_nand_separate)
+  DEVICE_VENDOR := Xiaomi
   DEVICE_MODEL := Mi Router 3G
   IMAGE_SIZE := 124416k
   DEVICE_PACKAGES += kmod-mt7603 kmod-mt76x2 kmod-usb3 \
 	kmod-usb-ledtrig-usbport
   SUPPORTED_DEVICES += R3G mir3g xiaomi,mir3g
+  IMAGES += breed-factory.bin factory.bin
+  IMAGE/factory.bin := append-kernel | pad-to $$(KERNEL_SIZE) | append-ubi | check-size
+  IMAGE/breed-factory.bin := append-kernel | pad-to $$(KERNEL_SIZE) | \
+			     append-kernel | pad-to $$(KERNEL_SIZE) | \
+			     append-ubi | check-size
 endef
 TARGET_DEVICES += xiaomi_mi-router-3g
 
@@ -1818,10 +1850,15 @@ define Device/xiaomi_mi-router-3-pro
   IMAGE_SIZE := 255488k
   DEVICE_VENDOR := Xiaomi
   DEVICE_MODEL := Mi Router 3 Pro
-  IMAGES += factory.bin
+  IMAGES += kernel1.bin rootfs0.bin breed-factory.bin factory.bin
   IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
   IMAGE/factory.bin := append-kernel | pad-to $$(KERNEL_SIZE) | append-ubi | \
 	check-size
+  IMAGE/kernel1.bin := append-kernel
+  IMAGE/rootfs0.bin := append-ubi | check-size
+  IMAGE/breed-factory.bin := append-kernel | pad-to $$(KERNEL_SIZE) | \
+			     append-kernel | pad-to $$(KERNEL_SIZE) | \
+			     append-ubi | check-size
   DEVICE_PACKAGES := kmod-mt7615e kmod-mt7615-firmware kmod-usb3 \
 	kmod-usb-ledtrig-usbport uboot-envtools
   SUPPORTED_DEVICES += xiaomi,mir3p

@@ -1,0 +1,22 @@
+--- a/arch/mips/ralink/mt7621.c
++++ b/arch/mips/ralink/mt7621.c
+@@ -172,5 +172,19 @@
+ 	u32 xtal_clk, cpu_clk, bus_clk;
+ 	const static u32 prediv_tbl[] = {0, 1, 2, 2};
+ 
++	const u32 freq_mhz = 1120;  /* !!! 600 <= freq_mhz <= 1400 */
++	u32 r = (rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG0) >> XTAL_MODE_SEL_SHIFT) & XTAL_MODE_SEL_MASK;
++	u32 xtal_mhz = 20;
++	if (r >= 6)
++		xtal_mhz = 25;
++	r = rt_sysc_r32(SYSC_REG_CLKCFG0);
++	if (r & (0x1UL << CPU_CLK_SEL_SHIFT)) {
++		r = rt_memc_r32(MEMC_REG_CPU_PLL);
++		r &= ~(0x7ff);
++		r |=  (((freq_mhz / xtal_mhz) - 1) << 4) | 0x2;
++		rt_memc_w32(r, MEMC_REG_CPU_PLL);
++		udelay(100);
++	}
++
+ 	syscfg = rt_sysc_r32(SYSC_REG_SYSTEM_CONFIG0);
+ 	xtal_sel = (syscfg >> XTAL_MODE_SEL_SHIFT) & XTAL_MODE_SEL_MASK;

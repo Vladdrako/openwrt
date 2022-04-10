@@ -180,6 +180,14 @@
 				function = "uartlite";
 			};
 		};
+
+		pci_pins: pci {
+			pci {
+				groups = "pci";
+				function = "pci";
+			};
+		};
+
 	};
 
 	rstctrl: rstctrl {
@@ -193,11 +201,88 @@
 	};
 
 	pci: pci@440000 {
-		compatible = "ralink,rt288x-pci";
+		compatible = "ralink,rt3883-pci";
 		reg = <0x00440000 0x20000>;
-		#address-cells = <3>;
-		#size-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges; /* direct mapping */
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pci_pins>;
+
 		status = "disabled";
+
+		pciintc: interrupt-controller {
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+
+			interrupt-parent = <&cpuintc>;
+			interrupts = <4 23 24>;
+		};
+
+		host-bridge {
+			#address-cells = <3>;
+			#size-cells = <2>;
+			#interrupt-cells = <1>;
+
+			device_type = "pci";
+
+			bus-range = <0 255>;
+			ranges = <0x02000000 0 0 0x20000000 0 0x10000000 /* pci memory */
+				  0x01000000 0 0 0x00460000 0 0x00010000 /* io space */
+			>;
+
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map = <
+				/* IDSEL 17 */
+				0x8800 0 0 1 &pciintc 23
+				0x8800 0 0 2 &pciintc 23
+				0x8800 0 0 3 &pciintc 23
+				0x8800 0 0 4 &pciintc 23
+				/* IDSEL 18 */
+				0x9000 0 0 1 &pciintc 24
+				0x9000 0 0 2 &pciintc 24
+				0x9000 0 0 3 &pciintc 24
+				0x9000 0 0 4 &pciintc 24
+			>;
+
+			pci1: pci@800 {
+				reg = <0x800 0 0 0 0>;
+				device_type = "pci";
+				#interrupt-cells = <1>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+
+				status = "disabled";
+
+				interrupt-map-mask = <0x0 0 0 0>;
+				interrupt-map = <0x0 0 0 0 &pciintc 4>;
+
+				bus-range = <1 255>;
+				ranges;
+			};
+
+			pci17: pci@8800 {
+				reg = <0x8800 0 0 0 0>;
+				device_type = "pci";
+				#interrupt-cells = <1>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+
+				status = "disabled";
+			};
+
+			pci18: pci@9000 {
+				reg = <0x9000 0 0 0 0>;
+				device_type = "pci";
+				#interrupt-cells = <1>;
+				#address-cells = <3>;
+				#size-cells = <2>;
+
+				status = "disabled";
+			};
+		};
 	};
 
 	ethernet: ethernet@400000 {

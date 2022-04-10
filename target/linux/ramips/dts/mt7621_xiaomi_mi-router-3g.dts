@@ -88,6 +88,7 @@
 &gmac0 {
 	nvmem-cells = <&macaddr_factory_e006>;
 	nvmem-cell-names = "mac-address";
+	phy-mode = "trgmii";
 };
 
 &switch0 {
@@ -107,6 +108,10 @@
 		port@3 {
 			status = "okay";
 			label = "lan1";
+		};
+
+		port@6 {
+			phy-mode = "trgmii";
 		};
 	};
 };
