@@ -192,6 +192,14 @@ menuconfig TOOLCHAINOPTS
 	bool "Toolchain Options"  if DEVEL
 	depends on NEED_TOOLCHAIN
 
+config BUILD_NATIVE_ARCH
+	def_bool n
+	prompt "Build the toolchain with -march=native" if TOOLCHAINOPTS
+	help
+	  When building the toolchain, optimize for the CPU in this specific machine.
+	  Only choose Y if you're not going to run the compiled toolchain on any other
+	  system.
+
 menuconfig EXTRA_TARGET_ARCH
 	bool
 	prompt "Enable an extra toolchain target architecture" if TOOLCHAINOPTS
@@ -246,6 +254,14 @@ comment "Binary tools"
 	depends on TOOLCHAINOPTS
 
 source "toolchain/binutils/Config.in"
+
+config DWARVES
+	bool
+	prompt "Build pahole" if TOOLCHAINOPTS
+	depends on !HOST_OS_MACOS
+	default n
+	help
+	  Enable if you want to build pahole and the dwarves tools.
 
 comment "Compiler"
 	depends on TOOLCHAINOPTS

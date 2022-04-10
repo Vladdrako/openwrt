@@ -1,15 +1,15 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 DIR="$1"
 
 if [ -d "$DIR" ]; then
-	DIR="$(cd "$DIR"; pwd)"
+	DIR="$(cd "$DIR" || exit 1; pwd)"
 else
 	echo "Usage: $0 toolchain-dir"
 	exit 1
 fi
 
-echo -n "Locating cpp ... "
+printf "Locating cpp ... "
 for bin in bin usr/bin usr/local/bin; do
 	for cmd in "$DIR/$bin/"*-cpp; do
 		if [ -x "$cmd" ]; then
@@ -31,8 +31,8 @@ patch_specs() {
 	for lib in $(STAGING_DIR="$DIR" "$CPP" -x c -v /dev/null 2>&1 | sed -ne 's#:# #g; s#^LIBRARY_PATH=##p'); do
 		if [ -d "$lib" ]; then
 			grep -qs "STAGING_DIR" "$lib/specs" && rm -f "$lib/specs"
-			if [ $found -lt 1 ]; then
-				echo -n "Patching specs ... "
+			if [ "$found" -lt 1 ]; then
+				printf "Patching specs ... "
 				STAGING_DIR="$DIR" "$CPP" -dumpspecs | awk '
 					mode ~ "link" {
 						sub(/(%@?\{L.\})/, "& -L %:getenv(STAGING_DIR /usr/lib) -rpath-link %:getenv(STAGING_DIR /usr/lib)")
@@ -57,7 +57,7 @@ patch_specs() {
 		fi
 	done
 
-	[ $found -gt 0 ]
+	[ "$found" -gt 0 ]
 	return $?
 }
 
@@ -68,7 +68,7 @@ VERSION="${VERSION:-unknown}"
 case "${VERSION##* }" in
 	2.*|3.*|4.0.*|4.1.*|4.2.*)
 		echo "The compiler version does not support getenv() in spec files."
-		echo -n "Wrapping binaries instead ... "
+		printf "Wrapping binaries instead ... "
 
 		if "${0%/*}/ext-toolchain.sh" --toolchain "$DIR" --wrap "${CPP%/*}"; then
 			echo "ok"
