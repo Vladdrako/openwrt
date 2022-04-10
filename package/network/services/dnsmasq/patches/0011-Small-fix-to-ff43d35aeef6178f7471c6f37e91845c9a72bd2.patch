@@ -1,0 +1,42 @@
+From 9db275ebea5b5bb45bc06b4b6f042863b699bc58 Mon Sep 17 00:00:00 2001
+From: Simon Kelley <simon@thekelleys.org.uk>
+Date: Wed, 12 Jan 2022 23:00:16 +0000
+Subject: [PATCH 11/16] Small fix to ff43d35aeef6178f7471c6f37e91845c9a72bd2f
+
+---
+ src/cache.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cache.c b/src/cache.c
+index fb80d86..1ee19e0 100644
+--- a/src/cache.c
++++ b/src/cache.c
+@@ -2059,7 +2059,12 @@ void log_query(unsigned int flags, char *name, union all_addr *addr, char *arg,
+     }
+   else if (flags & F_AUTH)
+     source = "auth";
+-  else if (flags & F_SERVER)
++   else if (flags & F_DNSSEC)
++    {
++      source = arg;
++      verb = "to";
++    }
++   else if (flags & F_SERVER)
+     {
+       source = "forwarded";
+       verb = "to";
+@@ -2069,11 +2074,6 @@ void log_query(unsigned int flags, char *name, union all_addr *addr, char *arg,
+       source = arg;
+       verb = "from";
+     }
+-  else if (flags & F_DNSSEC)
+-    {
+-      source = arg;
+-      verb = "to";
+-    }
+   else if (flags & F_IPSET)
+     {
+       source = type ? "ipset add" : "nftset add";
+-- 
+2.34.1
+

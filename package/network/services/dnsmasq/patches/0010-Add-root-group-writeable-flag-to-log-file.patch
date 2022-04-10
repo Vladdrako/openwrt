@@ -1,0 +1,62 @@
+From 1f8f78a49b8fd6b2862a3882053b1c6e6e111e5c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Petr=20Men=C5=A1=C3=ADk?= <pemensik@redhat.com>
+Date: Mon, 10 Jan 2022 12:34:42 +0100
+Subject: [PATCH 10/16] Add root group writeable flag to log file
+
+Some systems strips even root process capability of writing to different
+users file. That include systemd under Fedora. When
+log-facility=/var/log/dnsmasq.log is used, log file with mode 0640
+is created. But restart then fails, because such log file can be used
+only when created new. Existing file cannot be opened by root when
+starting, causing fatal error. Avoid that by adding root group writeable flag.
+
+Ensure group is always root when granting write access. If it is
+anything else, administrator has to configure correct rights.
+---
+ src/log.c | 23 ++++++++++++++++++-----
+ 1 file changed, 18 insertions(+), 5 deletions(-)
+
+diff --git a/src/log.c b/src/log.c
+index 1ec3447..bcd6e52 100644
+--- a/src/log.c
++++ b/src/log.c
+@@ -100,10 +100,23 @@ int log_start(struct passwd *ent_pw, int errfd)
+   /* If we're running as root and going to change uid later,
+      change the ownership here so that the file is always owned by
+      the dnsmasq user. Then logrotate can just copy the owner.
+-     Failure of the chown call is OK, (for instance when started as non-root) */
+-  if (log_to_file && !log_stderr && ent_pw && ent_pw->pw_uid != 0 && 
+-      fchown(log_fd, ent_pw->pw_uid, -1) != 0)
+-    ret = errno;
++     Failure of the chown call is OK, (for instance when started as non-root).
++     
++     If we've created a file with group-id root, we also make
++     the file group-writable. This gives processes in the root group
++     write access to the file and avoids the problem that on some systems,
++     once the file is owned by the dnsmasq user, it can't be written
++     whilst dnsmasq is running as root during startup.
++ */
++  if (log_to_file && !log_stderr && ent_pw && ent_pw->pw_uid != 0)
++    {
++      struct stat ls;
++      if (getgid() == 0 && fstat(log_fd, &ls) == 0 && ls.st_gid == 0 &&
++	  (ls.st_mode & S_IWGRP) == 0)
++	(void)fchmod(log_fd, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
++      if (fchown(log_fd, ent_pw->pw_uid, -1) != 0)
++	ret = errno;
++    }
+ 
+   return ret;
+ }
+@@ -118,7 +131,7 @@ int log_reopen(char *log_file)
+       /* NOTE: umask is set to 022 by the time this gets called */
+       
+       if (log_file)
+-	log_fd = open(log_file, O_WRONLY|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP);      
++	log_fd = open(log_file, O_WRONLY|O_CREAT|O_APPEND, S_IRUSR|S_IWUSR|S_IRGRP);
+       else
+ 	{
+ #if defined(HAVE_SOLARIS_NETWORK) || defined(__ANDROID__)
+-- 
+2.34.1
+

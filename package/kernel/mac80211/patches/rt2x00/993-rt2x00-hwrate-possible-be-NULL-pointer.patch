@@ -1,0 +1,34 @@
+From 27e6159cd38fa22e24e46626de5e8fdb49198e9d Mon Sep 17 00:00:00 2001
+From: Chen Minqiang <ptpt52@gmail.com>
+Date: Thu, 16 Sep 2021 17:22:35 +0800
+Subject: [PATCH] ralink: rt2x00: hwrate possible be NULL pointer
+
+---
+ drivers/net/wireless/ralink/rt2x00/rt2x00queue.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/drivers/net/wireless/ralink/rt2x00/rt2x00queue.c b/drivers/net/wireless/ralink/rt2x00/rt2x00queue.c
+index fb1d31b2d52a..ee48dd981dad 100644
+--- a/drivers/net/wireless/ralink/rt2x00/rt2x00queue.c
++++ b/drivers/net/wireless/ralink/rt2x00/rt2x00queue.c
+@@ -477,6 +477,17 @@ static void rt2x00queue_create_tx_descriptor(struct rt2x00_dev *rt2x00dev,
+ 	rt2x00crypto_create_tx_descriptor(rt2x00dev, skb, txdesc);
+ 	rt2x00queue_create_tx_descriptor_seq(rt2x00dev, skb, txdesc);
+ 
++	if (!hwrate) {
++		if (!rt2x00_has_cap_flag(rt2x00dev, REQUIRE_HT_TX_DESC) ||
++				!(txrate->flags & IEEE80211_TX_RC_MCS)) {
++			rate = ieee80211_get_tx_rate(rt2x00dev->hw, tx_info);
++			if (!rate)
++				return;
++			BUG_ON(rate->hw_value >= 12);
++			hwrate = rt2x00_get_rate(rate->hw_value);
++		}
++	}
++
+ 	if (rt2x00_has_cap_flag(rt2x00dev, REQUIRE_HT_TX_DESC))
+ 		rt2x00queue_create_tx_descriptor_ht(rt2x00dev, skb, txdesc,
+ 						   sta, hwrate);
+-- 
+2.17.1
+

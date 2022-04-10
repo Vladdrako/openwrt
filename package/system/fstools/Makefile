@@ -15,12 +15,10 @@ PKG_SOURCE_URL=$(PROJECT_GIT)/project/fstools.git
 PKG_MIRROR_HASH:=e4d8fcdf8f83749553be109c7c39141cc4495ac46d476c8d2dc6a0d8dccfb741
 PKG_SOURCE_DATE:=2021-11-16
 PKG_SOURCE_VERSION:=77c02889177c43df8ebe07bce4d55b7f7358118f
-CMAKE_INSTALL:=1
 
 PKG_LICENSE:=GPL-2.0
 PKG_LICENSE_FILES:=
 
-PKG_USE_MIPS16:=0
 PKG_FLAGS:=nonshared
 
 PKG_BUILD_DEPENDS := util-linux
@@ -35,6 +33,7 @@ TARGET_LDFLAGS += $(if $(CONFIG_USE_GLIBC),-lrt)
 CMAKE_OPTIONS += $(if $(CONFIG_FSTOOLS_UBIFS_EXTROOT),-DCMAKE_UBIFS_EXTROOT=y)
 CMAKE_OPTIONS += $(if $(CONFIG_FSTOOLS_OVL_MOUNT_FULL_ACCESS_TIME),-DCMAKE_OVL_MOUNT_FULL_ACCESS_TIME=y)
 CMAKE_OPTIONS += $(if $(CONFIG_FSTOOLS_OVL_MOUNT_COMPRESS_ZLIB),-DCMAKE_OVL_MOUNT_COMPRESS_ZLIB=y)
+CMAKE_OPTIONS += $(if $(CONFIG_FSTOOLS_OVL_MOUNT_COMPRESS_ZSTD),-DCMAKE_OVL_MOUNT_COMPRESS_ZSTD=y)
 
 define Package/fstools
   SECTION:=base
@@ -60,12 +59,23 @@ define Package/fstools/config
 		help
 			This option enables the full access time accounting (warning: it will increase the flash writes).
 
-	config FSTOOLS_OVL_MOUNT_COMPRESS_ZLIB
+	choice
 		depends on PACKAGE_fstools
-		bool "Compress using zlib"
-		default n
+		optional
+		prompt "Overlay compression"
+
+	config FSTOOLS_OVL_MOUNT_COMPRESS_ZSTD
+		bool "zstd"
+		help
+			This option enables the compression using zstd on the storage device.
+
+	config FSTOOLS_OVL_MOUNT_COMPRESS_ZLIB
+		bool "zlib"
 		help
 			This option enables the compression using zlib on the storage device.
+
+	endchoice
+
 endef
 
 define Package/snapshot-tool
@@ -114,8 +124,6 @@ define Package/block-mount/install
 
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/block $(1)/sbin/
 	$(INSTALL_DATA) $(PKG_INSTALL_DIR)/usr/lib/libblkid-tiny.so $(1)/lib/
-	$(LN) ../../sbin/block $(1)/usr/sbin/swapon
-	$(LN) ../../sbin/block $(1)/usr/sbin/swapoff
 
 endef
 
