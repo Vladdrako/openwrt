@@ -42,6 +42,7 @@ ramips_setup_interfaces()
 	glinet,gl-mt1300|\
 	iptime,a3002mesh|\
 	jcg,q20|\
+	jdcloud,re-sp-01b|\
 	lenovo,newifi-d1|\
 	mikrotik,routerboard-m33g|\
 	renkforce,ws-wn530hp3-a|\
@@ -139,12 +140,6 @@ ramips_setup_macs()
 		lan_mac=$(mtd_get_mac_ascii u-boot-env ethaddr)
 		wan_mac=$(mtd_get_mac_ascii u-boot-env wanaddr)
 		label_mac=$wan_mac
-		;;
-	hiwifi,hc5962)
-		lan_mac=$(mtd_get_mac_ascii bdinfo "Vfac_mac ")
-		label_mac=$lan_mac
-		[ -n "$lan_mac" ] || lan_mac=$(cat /sys/class/net/eth0/address)
-		wan_mac=$(macaddr_add "$lan_mac" 1)
 		;;
 	iodata,wnpr2600g)
 		wan_mac=$(mtd_get_mac_ascii u-boot-env wanaddr)
