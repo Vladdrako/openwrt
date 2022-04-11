@@ -36,7 +36,7 @@ Signed-off-by: Rafał Miłecki <zajec5@gmail.com>
  	struct brcmf_fw *fwctx;
 +	struct completion completion;
 +	unsigned long time_left;
- 	char *alt_path = NULL;
+ 	char *alt_path;
  	int ret;
  
 @@ -710,6 +715,9 @@ int brcmf_fw_get_firmwares(struct device
@@ -48,8 +48,8 @@ Signed-off-by: Rafał Miłecki <zajec5@gmail.com>
 +	fwctx->completion = &completion;
  
  	/* First try alternative board-specific path if any */
- 	if (fwctx->req->board_type)
-@@ -728,6 +736,12 @@ int brcmf_fw_get_firmwares(struct device
+ 	alt_path = brcm_alt_fw_path(first->path, fwctx->req->board_type);
+@@ -726,6 +734,12 @@ int brcmf_fw_get_firmwares(struct device
  	if (ret < 0)
  		brcmf_fw_request_done(NULL, fwctx);
  
