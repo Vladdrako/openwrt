@@ -304,7 +304,7 @@ nand_upgrade_tar() {
 	local has_env=0
 
 	[ "$kernel_length" != 0 -a -n "$kernel_mtd" ] && {
-		tar xf "$tar_file" ${board_dir}/kernel -O | mtd write - $CI_KERNPART
+		mtd erase $CI_KERNPART
 		test -n "$CI_KERNPART_EXT" && \
 		tar xf "$tar_file" ${board_dir}/kernel -O | mtd write - $CI_KERNPART_EXT
 	}
@@ -318,6 +318,11 @@ nand_upgrade_tar() {
 		local root_ubivol="$( nand_find_volume $ubidev $CI_ROOTPART )"
 		tar xf "$tar_file" ${board_dir}/root -O | \
 			ubiupdatevol /dev/$root_ubivol -s $rootfs_length -
+	}
+
+	[ "$kernel_length" != 0 -a -n "$kernel_mtd" ] && {
+		tar xf "$tar_file" ${board_dir}/kernel -O | \
+			mtd -n write - $CI_KERNPART
 	}
 
 	[ "$has_kernel" = "1" ] && {
