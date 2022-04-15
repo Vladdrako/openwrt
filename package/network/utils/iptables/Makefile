@@ -10,7 +10,7 @@ include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=iptables
 PKG_VERSION:=1.8.7
-PKG_RELEASE:=6
+PKG_RELEASE:=7
 
 PKG_SOURCE_URL:=https://netfilter.org/projects/iptables/files
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
@@ -104,43 +104,43 @@ endef
 define Package/xtables-nft
 $(call Package/iptables/Default)
   TITLE:=IP firewall administration tool nft
-  DEPENDS:=@IPTABLES_NFTABLES +libnftnl +libiptext +IPV6:libiptext6 +libiptext-nft +kmod-nft-compat
+  DEPENDS:=+libnftnl +libiptext +IPV6:libiptext6 +libiptext-nft +kmod-nft-compat
 endef
 
-define Package/arptables-nft
+define Package/arptables
 $(call Package/iptables/Default)
   DEPENDS:=+kmod-nft-arp +xtables-nft +kmod-arptables
   TITLE:=ARP firewall administration tool nft
-  PROVIDES:=arptables
+  PROVIDES:=arptables-nft
   ALTERNATIVES:=\
     300:/usr/sbin/arptables:/usr/sbin/xtables-nft-multi \
     300:/usr/sbin/arptables-restore:/usr/sbin/xtables-nft-multi \
     300:/usr/sbin/arptables-save:/usr/sbin/xtables-nft-multi
 endef
 
-define Package/ebtables-nft
+define Package/ebtables
 $(call Package/iptables/Default)
   DEPENDS:=+kmod-nft-bridge +xtables-nft +kmod-ebtables
   TITLE:=Bridge firewall administration tool nft
-  PROVIDES:=ebtables
+  PROVIDES:=ebtables-nft
   ALTERNATIVES:=\
     300:/usr/sbin/ebtables:/usr/sbin/xtables-nft-multi \
     300:/usr/sbin/ebtables-restore:/usr/sbin/xtables-nft-multi \
     300:/usr/sbin/ebtables-save:/usr/sbin/xtables-nft-multi
 endef
 
-define Package/iptables-nft
+define Package/iptables
 $(call Package/iptables/Default)
   TITLE:=IP firewall administration tool nft
   DEPENDS:=+kmod-ipt-core +xtables-nft
-  PROVIDES:=iptables
+  PROVIDES:=iptables-nft
   ALTERNATIVES:=\
     300:/usr/sbin/iptables:/usr/sbin/xtables-nft-multi \
     300:/usr/sbin/iptables-restore:/usr/sbin/xtables-nft-multi \
     300:/usr/sbin/iptables-save:/usr/sbin/xtables-nft-multi
 endef
 
-define Package/iptables-nft/description
+define Package/iptables/description
 Extra iptables nftables nft binaries.
   iptables-nft
   iptables-nft-restore
@@ -495,18 +495,18 @@ $(call Package/iptables/Default)
     200:/usr/sbin/ip6tables-save:/usr/sbin/xtables-legacy-multi
 endef
 
-define Package/ip6tables-nft
+define Package/ip6tables
 $(call Package/iptables/Default)
   DEPENDS:=@IPV6 +kmod-ip6tables +xtables-nft
   TITLE:=IP firewall administration tool nft
-  PROVIDES:=ip6tables
+  PROVIDES:=ip6tables-nft
   ALTERNATIVES:=\
     300:/usr/sbin/ip6tables:/usr/sbin/xtables-nft-multi \
     300:/usr/sbin/ip6tables-restore:/usr/sbin/xtables-nft-multi \
     300:/usr/sbin/ip6tables-save:/usr/sbin/xtables-nft-multi
 endef
 
-define Package/ip6tables-nft/description
+define Package/ip6tables/description
 Extra ip6tables nftables nft binaries.
   ip6tables-nft
   ip6tables-nft-restore
@@ -575,7 +575,7 @@ define Package/libiptext-nft
  CATEGORY:=Libraries
  TITLE:=IPv4/IPv6 firewall - shared libiptext nft library
  ABI_VERSION:=0
- DEPENDS:=@IPTABLES_NFTABLES +libxtables
+ DEPENDS:=+libxtables
 endef
 
 define Package/libxtables
@@ -594,12 +594,6 @@ define Package/libxtables/config
 	default n
 	help
 		This enable connlabel support in iptables.
-
-  config IPTABLES_NFTABLES
-	bool "Enable Nftables support"
-	default y
-	help
-		This enable nftables support in iptables.
 endef
 
 TARGET_CPPFLAGS := \
@@ -624,7 +618,6 @@ CONFIGURE_ARGS += \
 	--with-xtlibdir=/usr/lib/iptables \
 	--with-xt-lock-name=/var/run/xtables.lock \
 	$(if $(CONFIG_IPTABLES_CONNLABEL),,--disable-connlabel) \
-	$(if $(CONFIG_IPTABLES_NFTABLES),,--disable-nftables) \
 	$(if $(CONFIG_IPV6),,--disable-ipv6)
 
 MAKE_FLAGS := \
@@ -688,21 +681,21 @@ define Package/xtables-nft/install
 	$(CP) $(PKG_INSTALL_DIR)/usr/sbin/xtables-nft-multi $(1)/usr/sbin/
 endef
 
-define Package/arptables-nft/install
+define Package/arptables/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(CP) $(PKG_INSTALL_DIR)/usr/sbin/arptables-nft{,-restore,-save} $(1)/usr/sbin/
 	$(INSTALL_DIR) $(1)/usr/lib/iptables
 	$(CP) $(PKG_BUILD_DIR)/extensions/libarpt_*.so $(1)/usr/lib/iptables/
 endef
 
-define Package/ebtables-nft/install
+define Package/ebtables/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(CP) $(PKG_INSTALL_DIR)/usr/sbin/ebtables-nft{,-restore,-save} $(1)/usr/sbin/
 	$(INSTALL_DIR) $(1)/usr/lib/iptables
 	$(CP) $(PKG_BUILD_DIR)/extensions/libebt_*.so $(1)/usr/lib/iptables/
 endef
 
-define Package/iptables-nft/install
+define Package/iptables/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(CP) $(PKG_INSTALL_DIR)/usr/sbin/iptables-nft{,-restore,-save} $(1)/usr/sbin/
 	$(CP) $(PKG_INSTALL_DIR)/usr/sbin/iptables{,-restore}-translate $(1)/usr/sbin/
@@ -713,7 +706,7 @@ define Package/ip6tables-legacy/install
 	$(CP) $(PKG_INSTALL_DIR)/usr/sbin/ip6tables-legacy{,-restore,-save} $(1)/usr/sbin/
 endef
 
-define Package/ip6tables-nft/install
+define Package/ip6tables/install
 	$(INSTALL_DIR) $(1)/usr/sbin
 	$(CP) $(PKG_INSTALL_DIR)/usr/sbin/ip6tables-nft{,-restore,-save} $(1)/usr/sbin/
 	$(CP) $(PKG_INSTALL_DIR)/usr/sbin/ip6tables{,-restore}-translate $(1)/usr/sbin/
@@ -773,9 +766,9 @@ $(eval $(call BuildPackage,libiptext-nft))
 $(eval $(call BuildPackage,xtables-legacy))
 $(eval $(call BuildPackage,iptables-legacy))
 $(eval $(call BuildPackage,xtables-nft))
-$(eval $(call BuildPackage,arptables-nft))
-$(eval $(call BuildPackage,ebtables-nft))
-$(eval $(call BuildPackage,iptables-nft))
+$(eval $(call BuildPackage,arptables))
+$(eval $(call BuildPackage,ebtables))
+$(eval $(call BuildPackage,iptables))
 $(eval $(call BuildPlugin,iptables-mod-conntrack-extra,$(IPT_CONNTRACK_EXTRA-m)))
 $(eval $(call BuildPlugin,iptables-mod-conntrack-label,$(IPT_CONNTRACK_LABEL-m)))
 $(eval $(call BuildPlugin,iptables-mod-extra,$(IPT_EXTRA-m)))
@@ -800,7 +793,7 @@ $(eval $(call BuildPlugin,iptables-mod-trace,$(IPT_DEBUG-m)))
 $(eval $(call BuildPlugin,iptables-mod-nfqueue,$(IPT_NFQUEUE-m)))
 $(eval $(call BuildPlugin,iptables-mod-checksum,$(IPT_CHECKSUM-m)))
 $(eval $(call BuildPackage,ip6tables-legacy))
-$(eval $(call BuildPackage,ip6tables-nft))
+$(eval $(call BuildPackage,ip6tables))
 $(eval $(call BuildPlugin,ip6tables-extra,$(IPT_IPV6_EXTRA-m)))
 $(eval $(call BuildPlugin,ip6tables-mod-nat,$(IPT_NAT6-m)))
 

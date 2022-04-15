@@ -7,7 +7,6 @@
 # Copyright (C) 2013-2015 OpenWrt.org
 """
 
-from __future__ import print_function
 
 import sys
 import os
@@ -58,7 +57,9 @@ def parseVer_12(match, filepath):
         patchlevel = ord(patchlevel[0])
     else:
         patchlevel = 0
-    progversion = (int(match.group(2)) << 64) | (int(match.group(3)) << 48) | patchlevel
+    progversion = (
+        (int(match.group(2)) << 64) | (int(match.group(3)) << 48) | patchlevel
+    )
     return (progname, progversion)
 
 
@@ -111,14 +112,26 @@ extensions = (
 versionRegex = (
     (re.compile(r"(gcc[-_]\d+)\.(\d+)\.(\d+)"), parseVer_12),  # gcc.1.2
     (re.compile(r"(linux[-_]\d+\.\d+)\.(\d+)"), parseVer_r),  # linux.1
-    (re.compile(r"(.+)[-_](\d+)\.(\d+)\.(\d+)\.(\d+)"), parseVer_1234),  # xxx-1.2.3.4
+    (
+        re.compile(r"(.+)[-_](\d+)\.(\d+)\.(\d+)\.(\d+)"),
+        parseVer_1234,
+    ),  # xxx-1.2.3.4
     (
         re.compile(r"(.+)[-_](\d\d\d\d)-?(\d\d)-?(\d\d)-"),
         parseVer_ymd_GIT_SHASUM,
     ),  # xxx-YYYY-MM-DD-GIT_SHASUM
-    (re.compile(r"(.+)[-_](\d\d\d\d)-?(\d\d)-?(\d\d)"), parseVer_ymd),  # xxx-YYYY-MM-DD
-    (re.compile(r"(.+)[-_]([0-9a-fA-F]{40,40})"), parseVer_GIT),  # xxx-GIT_SHASUM
-    (re.compile(r"(.+)[-_](\d+)\.(\d+)\.(\d+)(\w?)"), parseVer_123),  # xxx-1.2.3a
+    (
+        re.compile(r"(.+)[-_](\d\d\d\d)-?(\d\d)-?(\d\d)"),
+        parseVer_ymd,
+    ),  # xxx-YYYY-MM-DD
+    (
+        re.compile(r"(.+)[-_]([0-9a-fA-F]{40,40})"),
+        parseVer_GIT,
+    ),  # xxx-GIT_SHASUM
+    (
+        re.compile(r"(.+)[-_](\d+)\.(\d+)\.(\d+)(\w?)"),
+        parseVer_123,
+    ),  # xxx-1.2.3a
     (re.compile(r"(.+)[-_](\d+)_(\d+)_(\d+)"), parseVer_123),  # xxx-1_2_3
     (re.compile(r"(.+)[-_](\d+)\.(\d+)(\w?)"), parseVer_12),  # xxx-1.2a
     (re.compile(r"(.+)[-_]r?(\d+)"), parseVer_r),  # xxx-r1111
@@ -231,7 +244,7 @@ def main(argv):
                 sep = "\t\t"
                 if len(name) >= 8:
                     sep = "\t"
-                print("%s%s(%s)" % (name, sep, regex.pattern))
+                print(f"{name}{sep}({regex.pattern})")
             return 0
 
     # Create a directory listing and parse the file names.
