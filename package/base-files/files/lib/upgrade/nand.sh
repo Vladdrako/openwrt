@@ -237,11 +237,6 @@ nand_upgrade_ubinized() {
 	local ubi_file="$1"
 	local mtdnum="$(find_mtd_index "$CI_UBIPART")"
 
-	[ ! "$mtdnum" ] && {
-		CI_UBIPART="rootfs"
-		mtdnum="$(find_mtd_index "$CI_UBIPART")"
-	}
-
 	if [ ! "$mtdnum" ]; then
 		echo "cannot find mtd device $CI_UBIPART"
 		umount -a
@@ -249,10 +244,11 @@ nand_upgrade_ubinized() {
 	fi
 
 	local mtddev="/dev/mtd${mtdnum}"
-	ubidetach -p "${mtddev}" || true
+	ubidetach -p "${mtddev}" || :
 	sync
 	ubiformat "${mtddev}" -y -f "${ubi_file}"
 	ubiattach -p "${mtddev}"
+
 	nand_do_upgrade_success
 }
 
@@ -335,7 +331,7 @@ nand_upgrade_tar() {
 nand_do_upgrade() {
 	local file_type=$(identify $1)
 
-	[ ! "$(find_mtd_index "$CI_UBIPART")" ] && CI_UBIPART="rootfs"
+	[ ! "$(find_mtd_index "$CI_UBIPART")" ] && CI_UBIPART=rootfs
 
 	case "$file_type" in
 		"fit")		nand_upgrade_fit $1;;
