@@ -357,7 +357,7 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
 +	if ((dev->flags & IFF_LOOPBACK) ||
 +	    dev->type != ARPHRD_ETHER || dev->addr_len != ETH_ALEN ||
 +	    !is_valid_ether_addr(dev->dev_addr))
-+		{printk("test %d",dev->type); return;}
++		return;
 +
 +	n = dst_neigh_lookup(dst, daddr);
 +	if (!n)
