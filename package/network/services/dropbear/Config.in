@@ -48,6 +48,13 @@ config DROPBEAR_ECC_FULL
 
 		Increases binary size by about 4 kB (MIPS).
 
+config DROPBEAR_SK_ECDSA
+	bool "U2F security key support for ECDSA"
+	default y
+	depends on DROPBEAR_ECC
+	help
+		Support U2F security keys for ECDSA public key authentication.
+
 config DROPBEAR_ED25519
 	bool "Ed25519 support"
 	default y if !SMALL_FLASH
@@ -56,6 +63,13 @@ config DROPBEAR_ED25519
 		  ssh-ed25519
 
 		Increases binary size by about 12 kB (MIPS).
+
+config DROPBEAR_SK_ED25519
+	bool "U2F security key support for Ed25519"
+	default y
+	depends on DROPBEAR_ED25519
+	help
+		Support U2F security keys for Ed25519 public key authentication.
 
 config DROPBEAR_AUTOSEL_PK
 	def_bool y
@@ -120,6 +134,23 @@ config DROPBEAR_AUTOSEL_KEX
 
 endmenu
 
+menu "Message integrity (HMAC) algorithm selection"
+
+config DROPBEAR_SHA1_HMAC
+	bool "SHA-1 HMAC"
+	default y
+
+config DROPBEAR_SHA2_256_HMAC
+	bool "SHA-256 HMAC"
+	default y
+
+config DROPBEAR_AUTOSEL_HMAC
+	def_bool y
+	depends on !DROPBEAR_SHA1_HMAC
+	select DROPBEAR_SHA2_256_HMAC
+
+endmenu
+
 config DROPBEAR_ZLIB
 	bool "Enable compression"
 	default n
@@ -170,5 +201,13 @@ config DROPBEAR_ASKPASS
 config DROPBEAR_AGENTFORWARD
 	bool "Enable agent forwarding"
 	default y
+
+config DROPBEAR_REEXEC
+	bool "Re-execute for new connections"
+	default y
+	help
+		Instead of forking, re-execute the dropbear process for each incoming connection.
+		This allows ASLR to randomise address space for each connection as a security
+		mitigation.
 
 endmenu
