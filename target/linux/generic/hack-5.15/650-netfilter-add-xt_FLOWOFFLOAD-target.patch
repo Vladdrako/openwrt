@@ -249,9 +249,6 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
 +
 +		hlist_del(&hook->list);
 +		spin_unlock_bh(&hooks_lock);
-+		if (table->ft.flags & NF_FLOWTABLE_HW_OFFLOAD)
-+			table->ft.type->setup(&table->ft, hook->ops.dev,
-+					      FLOW_BLOCK_UNBIND);
 +		nf_unregister_net_hook(hook->net, &hook->ops);
 +		kfree(hook);
 +		goto restart;
@@ -403,9 +400,9 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
 +			route->tuple[!dir].in.num_encaps++;
 +			route->tuple[!dir].in.encap[n_encaps].id = path->encap.id;
 +			route->tuple[!dir].in.encap[n_encaps].proto = path->encap.proto;
-+			if (path->type == DEV_PATH_PPPOE)
-+				memcpy(route->tuple[dir].out.h_dest,
-+				       path->encap.h_dest, ETH_ALEN);
++				if (path->type == DEV_PATH_PPPOE)
++				{memcpy(route->tuple[dir].out.h_dest,path->encap.h_dest, ETH_ALEN);
++				memcpy(route->tuple[dir].out.h_source,path->encap.h_src, ETH_ALEN); }
 +			break;
 +		case DEV_PATH_BRIDGE:
 +			switch (path->bridge.vlan_mode) {
