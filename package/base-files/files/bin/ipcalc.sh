@@ -1,5 +1,6 @@
-#!/usr/bin/awk -f
+#!/bin/sh
 
+awk -f - $* <<EOF
 function bitcount(c) {
 	c=and(rshift(c, 1),0x55555555)+and(c,0x55555555)
 	c=and(rshift(c, 2),0x33333333)+and(c,0x33333333)
@@ -43,14 +44,13 @@ BEGIN {
 	}
 
 	network=and(ipaddr,netmask)
-	prefix=32-bitcount(compl32(netmask))
 	broadcast=or(network,compl32(netmask))
 
 	print "IP="int2ip(ipaddr)
 	print "NETMASK="int2ip(netmask)
 	print "BROADCAST="int2ip(broadcast)
 	print "NETWORK="int2ip(network)
-	print "PREFIX="prefix
+	print "PREFIX="32-bitcount(compl32(netmask))
 
 	# range calculations:
 	# ipcalc <ip> <netmask> <start> <num>
@@ -61,23 +61,12 @@ BEGIN {
 	start=or(network,and(ip2int(ARGV[3]),compl32(netmask)))
 	limit=network+1
 	if (start<limit) start=limit
-	if (start==ipaddr) start=ipaddr+1
 
 	end=start+ARGV[4]
 	limit=or(network,compl32(netmask))-1
 	if (end>limit) end=limit
-	if (end==ipaddr) end=ipaddr-1
-
-	if (start>end) {
-		print "network ("int2ip(network)"/"prefix") too small" > "/dev/stderr"
-		exit(1)
-	}
-
-	if (ipaddr > start && ipaddr < end) {
-		print "ipaddr inside range" > "/dev/stderr"
-		exit(1)
-	}
 
 	print "START="int2ip(start)
 	print "END="int2ip(end)
 }
+EOF
