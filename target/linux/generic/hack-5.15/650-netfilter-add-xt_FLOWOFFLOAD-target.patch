@@ -249,6 +249,9 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
 +
 +		hlist_del(&hook->list);
 +		spin_unlock_bh(&hooks_lock);
++		if (table->ft.flags & NF_FLOWTABLE_HW_OFFLOAD)
++			table->ft.type->setup(&table->ft, hook->ops.dev,
++					      FLOW_BLOCK_UNBIND);
 +		nf_unregister_net_hook(hook->net, &hook->ops);
 +		kfree(hook);
 +		goto restart;
