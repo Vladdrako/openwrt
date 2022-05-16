@@ -1,0 +1,11 @@
+--- a/configure
++++ b/configure
+@@ -279,7 +279,7 @@
+ }
+ EOF
+ 
+-    $CC -o $TMPDIR/libbpf_test $TMPDIR/libbpf_test.c $LIBBPF_CFLAGS $LIBBPF_LDLIBS $LDFLAGS >/dev/null 2>&1
++    $CC -o $TMPDIR/libbpf_test $TMPDIR/libbpf_test.c $LIBBPF_CFLAGS $LIBBPF_LDLIBS $LDFLAGS $INTL >/dev/null 2>&1
+     local ret=$?
+ 
+     rm -f $TMPDIR/libbpf_test.c $TMPDIR/libbpf_test

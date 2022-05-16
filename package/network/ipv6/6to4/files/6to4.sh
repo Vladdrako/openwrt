@@ -65,8 +65,8 @@ proto_6to4_setup() {
 	proto_add_ipv6_address "$local6" 16
 	proto_add_ipv6_prefix "$prefix6::/48"
 
-	proto_add_ipv6_route "::" 0 "::192.88.99.1" "" "" "$local6/16"
-	proto_add_ipv6_route "::" 0 "::192.88.99.1" "" "" "$prefix6::/48"
+	proto_add_ipv6_route "::" 0 "::139.18.25.33" "" "" "$local6/16"
+	proto_add_ipv6_route "::" 0 "::139.18.25.33" "" "" "$prefix6::/48"
 
 	proto_add_tunnel
 	json_add_string mode sit
