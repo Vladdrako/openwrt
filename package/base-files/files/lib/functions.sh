@@ -74,7 +74,7 @@ config () {
 	append CONFIG_SECTIONS "$name"
 	export ${NO_EXPORT:+-n} CONFIG_SECTION="$name"
 	config_set "$CONFIG_SECTION" "TYPE" "${cfgtype}"
-	[ -n "$NO_CALLBACK" ] || config_cb "$cfgtype" "$name"
+	config_cb "$cfgtype" "$name"
 }
 
 option () {
@@ -82,7 +82,7 @@ option () {
 	local value="$*"
 
 	config_set "$CONFIG_SECTION" "${varname}" "${value}"
-	[ -n "$NO_CALLBACK" ] || option_cb "$varname" "$*"
+	option_cb "$varname" "$*"
 }
 
 list() {
@@ -96,7 +96,7 @@ list() {
 	config_set "$CONFIG_SECTION" "${varname}_ITEM$len" "$value"
 	config_set "$CONFIG_SECTION" "${varname}_LENGTH" "$len"
 	append "CONFIG_${CONFIG_SECTION}_${varname}" "$value" "$LIST_SEP"
-	[ -n "$NO_CALLBACK" ] || list_cb "$varname" "$*"
+	list_cb "$varname" "$*"
 }
 
 config_unset() {
