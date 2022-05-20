@@ -8,12 +8,14 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=f2fs-tools
-PKG_VERSION:=1.14.0
-PKG_RELEASE:=3
+PKG_VERSION:=1.15
+PKG_RELEASE:=1
 
-PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
-PKG_SOURCE_URL:=https://git.kernel.org/pub/scm/linux/kernel/git/jaegeuk/f2fs-tools.git/snapshot/
-PKG_HASH:=619263d4e2022152a1472c1d912eaae104f20bd227ce0bb9d41d1d6608094bd1
+PKG_SOURCE_URL:=https://git.kernel.org/pub/scm/linux/kernel/git/jaegeuk/f2fs-tools.git
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_DATE:=2021-11-12
+PKG_SOURCE_VERSION:=972d71073af32a1854aeece018746a9f8021dd14
+PKG_MIRROR_HASH:=
 
 PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
 PKG_LICENSE:=GPL-2.0-only
@@ -29,7 +31,7 @@ define Package/f2fs-tools/Default
   SECTION:=utils
   CATEGORY:=Utilities
   SUBMENU:=Filesystem
-  DEPENDS:=+libf2fs
+  DEPENDS:=+libf2fs +liblzo +liblz4
   URL:=http://git.kernel.org/cgit/linux/kernel/git/jaegeuk/f2fs-tools.git
   VARIANT:=default
 endef
