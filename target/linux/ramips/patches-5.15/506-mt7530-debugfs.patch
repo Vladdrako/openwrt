@@ -1,3 +1,5 @@
+diff --git a/drivers/net/dsa/mt7530.c b/drivers/net/dsa/mt7530.c
+index dfba0da6a18f..577205568b30 100644
 --- a/drivers/net/dsa/mt7530.c
 +++ b/drivers/net/dsa/mt7530.c
 @@ -3,6 +3,7 @@
@@ -8,8 +10,8 @@
  #include <linux/etherdevice.h>
  #include <linux/if_bridge.h>
  #include <linux/iopoll.h>
-@@ -300,6 +301,28 @@ mt7530_clear(struct mt7530_priv *priv, u
- 	mt7530_rmw(priv, reg, val, 0);
+@@ -2326,6 +2327,28 @@ mt7530_irq_init(struct mt7530_priv *priv)
+ 	return 0;
  }
  
 +static u32 debugfs_regnum;
@@ -35,9 +37,9 @@
 +DEFINE_DEBUGFS_ATTRIBUTE(mt7530_debugfs_ops, mt7530_debugfs_regval_get, mt7530_debugfs_regval_set, "0x%08llx\n");
 +
  static int
- mt7530_fdb_cmd(struct mt7530_priv *priv, enum mt7530_fdb_cmd cmd, u32 *rsp)
+ mt7530_setup(struct dsa_switch *ds)
  {
-@@ -2688,9 +2711,15 @@ mt7530_setup(struct dsa_switch *ds)
+@@ -2335,9 +2358,15 @@ mt7530_setup(struct dsa_switch *ds)
  	struct mt7530_dummy_poll p;
  	phy_interface_t interface;
  	struct device_node *dn;

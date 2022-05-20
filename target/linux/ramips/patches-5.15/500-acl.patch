@@ -1,16 +1,8 @@
-From fd5027824aae61236233623e37800b5889065a75 Mon Sep 17 00:00:00 2001
-From: DENG Qingfang <dqfext@gmail.com>
-Date: Thu, 5 Aug 2021 12:02:47 +0800
-Subject: [PATCH 2/2] acl
-
----
- drivers/net/dsa/mt7530.c | 512 +++++++++++++++++++++++++++++++++++++++
- drivers/net/dsa/mt7530.h |  58 +++++
- 2 files changed, 570 insertions(+)
-
+diff --git a/drivers/net/dsa/mt7530.c b/drivers/net/dsa/mt7530.c
+index 9f265eec51e2..4c84beb4b57b 100644
 --- a/drivers/net/dsa/mt7530.c
 +++ b/drivers/net/dsa/mt7530.c
-@@ -1747,6 +1747,515 @@ mt7530_port_vlan_del(struct dsa_switch *
+@@ -1568,6 +1568,507 @@ mt7530_port_vlan_del(struct dsa_switch *ds, int port,
  	return 0;
  }
  
@@ -308,17 +300,9 @@ Subject: [PATCH 2/2] acl
 +
 +	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS_RANGE)) {
 +		struct flow_match_ports match;
-+		const __be16 *src_dst_port;
-+		const __be16 *src_dst_mask;
 +
 +		flow_rule_match_ports(rule, &match);
-+		dev_info(priv->dev, "in flow_match_ports_range\n");
-+
-+		src_dst_port = (__be16*) match.key;
-+		src_dst_mask = (__be16*) match.mask;
-+
-+		for (i = 0; i < 2; i++)
-+			dev_info(priv->dev, "key: %u, mask: %u\n", ntohs(src_dst_port[i]), ntohs(src_dst_mask[i]));
++		dev_info(priv->dev, "in flow_match_ports\n");
 +		/* TODO: figure out how it works */
 +	}
 +
@@ -526,8 +510,8 @@ Subject: [PATCH 2/2] acl
  static int mt753x_mirror_port_get(unsigned int id, u32 val)
  {
  	return (id == ID_MT7531) ? MT7531_MIRROR_PORT_GET(val) :
-@@ -3223,6 +3732,9 @@ static const struct dsa_switch_ops mt753
- 	.port_vlan_filtering	= mt7530_port_vlan_filtering,
+@@ -2814,6 +3315,9 @@ static const struct dsa_switch_ops mt7530_switch_ops = {
+ 	.port_vlan_prepare	= mt7530_port_vlan_prepare,
  	.port_vlan_add		= mt7530_port_vlan_add,
  	.port_vlan_del		= mt7530_port_vlan_del,
 +	.cls_flower_add		= mt7530_cls_flower_add,
@@ -536,9 +520,11 @@ Subject: [PATCH 2/2] acl
  	.port_mirror_add	= mt753x_port_mirror_add,
  	.port_mirror_del	= mt753x_port_mirror_del,
  	.port_policer_add	= mt7530_port_policer_add,
+diff --git a/drivers/net/dsa/mt7530.h b/drivers/net/dsa/mt7530.h
+index a69e027927d2..a34779a8ed8c 100644
 --- a/drivers/net/dsa/mt7530.h
 +++ b/drivers/net/dsa/mt7530.h
-@@ -138,6 +138,15 @@ enum mt7530_vlan_cmd {
+@@ -137,6 +137,15 @@ enum mt7530_vlan_cmd {
  	 */
  	MT7530_VTCR_RD_VID = 0,
  	MT7530_VTCR_WR_VID = 1,
@@ -554,9 +540,9 @@ Subject: [PATCH 2/2] acl
  };
  
  /* Register for setup vlan and acl write data */
-@@ -163,6 +172,35 @@ enum mt7530_fid {
- 	FID_BRIDGED = 1,
- };
+@@ -153,6 +162,35 @@ enum mt7530_vlan_cmd {
+ #define  PORT_MEM_SHFT			16
+ #define  PORT_MEM_MASK			0xff
  
 +/* ACL rule table */
 +#define  BIT_CMP(x)			(((x) & 0xffff) << 16)
@@ -590,7 +576,7 @@ Subject: [PATCH 2/2] acl
  #define MT7530_VAWD2			0x98
  /* Egress Tag Control */
  #define  ETAG_CTRL_P(p, x)		(((x) & 0x3) << ((p) << 1))
-@@ -174,6 +212,22 @@ enum mt7530_vlan_egress_attr {
+@@ -164,6 +202,22 @@ enum mt7530_vlan_egress_attr {
  	MT7530_VLAN_EGRESS_STACK = 3,
  };
  
@@ -613,7 +599,7 @@ Subject: [PATCH 2/2] acl
  /* Register for address age control */
  #define MT7530_AAC			0xa0
  /* Disable ageing */
-@@ -211,6 +265,7 @@ enum mt7530_stp_state {
+@@ -201,6 +255,7 @@ enum mt7530_stp_state {
  
  /* Register for port control */
  #define MT7530_PCR_P(x)			(0x2004 + ((x) * 0x100))
@@ -621,7 +607,7 @@ Subject: [PATCH 2/2] acl
  #define  PORT_TX_MIR			BIT(9)
  #define  PORT_RX_MIR			BIT(8)
  #define  PORT_VLAN(x)			((x) & 0x3)
-@@ -254,6 +309,9 @@ enum mt7530_port_mode {
+@@ -243,6 +298,9 @@ enum mt7530_port_mode {
  enum mt7530_vlan_port_eg_tag {
  	MT7530_VLAN_EG_DISABLED = 0,
  	MT7530_VLAN_EG_CONSISTENT = 1,

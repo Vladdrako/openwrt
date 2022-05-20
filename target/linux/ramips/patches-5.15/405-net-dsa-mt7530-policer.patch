@@ -1,16 +1,6 @@
-From da577a73e50ba78cfb3cd1f2c66b7a3c2fe00453 Mon Sep 17 00:00:00 2001
-From: DENG Qingfang <dqfext@gmail.com>
-Date: Thu, 24 Dec 2020 00:15:10 +0800
-Subject: [PATCH 1/2] mt7530 port policer
-
----
- drivers/net/dsa/mt7530.c | 36 ++++++++++++++++++++++++++++++++++++
- drivers/net/dsa/mt7530.h |  9 +++++++++
- 2 files changed, 45 insertions(+)
-
 --- a/drivers/net/dsa/mt7530.c
 +++ b/drivers/net/dsa/mt7530.c
-@@ -1820,6 +1820,40 @@ static void mt753x_port_mirror_del(struc
+@@ -1717,6 +1717,40 @@ static void mt753x_port_mirror_del(struc
  	}
  }
  
@@ -51,7 +41,7 @@ Subject: [PATCH 1/2] mt7530 port policer
  static enum dsa_tag_protocol
  mtk_get_tag_protocol(struct dsa_switch *ds, int port,
  		     enum dsa_tag_protocol mp)
-@@ -3191,6 +3225,8 @@ static const struct dsa_switch_ops mt753
+@@ -3086,6 +3120,8 @@ static const struct dsa_switch_ops mt753
  	.port_vlan_del		= mt7530_port_vlan_del,
  	.port_mirror_add	= mt753x_port_mirror_add,
  	.port_mirror_del	= mt753x_port_mirror_del,
@@ -62,7 +52,7 @@ Subject: [PATCH 1/2] mt7530 port policer
  	.phylink_mac_config	= mt753x_phylink_mac_config,
 --- a/drivers/net/dsa/mt7530.h
 +++ b/drivers/net/dsa/mt7530.h
-@@ -200,6 +200,15 @@ enum mt7530_stp_state {
+@@ -197,6 +197,15 @@ enum mt7530_stp_state {
  	MT7530_STP_FORWARDING  = 3
  };
  

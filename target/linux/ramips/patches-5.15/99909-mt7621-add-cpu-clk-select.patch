@@ -1,0 +1,88 @@
+--- a/drivers/clk/ralink/clk-mt7621.c	2022-04-20 10:34:22.000000000 +0300
++++ b/drivers/clk/ralink/clk-mt7621.c	2022-05-03 21:08:56.445557618 +0300
+@@ -87,6 +87,34 @@
+ 	GATE(MT7621_CLK_SHXC, "shxc", "50m", BIT(30))
+ };
+ 
++static unsigned int cpu_clock_new = 0;   /* 600MHz <= cpu_clock_in_hz <= 1400MHz */
++
++static int __init set_cpuclock_mhz(char *freq)
++{
++	ssize_t ret;
++	if (!freq)
++		return 0;
++	ret = kstrtouint(freq, 10, &cpu_clock_new);
++	if (ret)
++		return 0;
++	if (cpu_clock_new < 600) {
++		if (cpu_clock_new != 0)
++			cpu_clock_new = 600;
++	}
++	if (cpu_clock_new > 1400)
++		cpu_clock_new = 1400;
++
++	cpu_clock_new = cpu_clock_new * 1000000;
++
++	return 1;
++}
++__setup("mt7621clk_mhz=", set_cpuclock_mhz);
++static int __init set_cpufreq(char *freq)
++{
++	return set_cpuclock_mhz(freq);
++}
++__setup("mt7621freq=", set_cpufreq);
++
+ static inline struct mt7621_gate *to_mt7621_gate(struct clk_hw *hw)
+ {
+ 	return container_of(hw, struct mt7621_gate, hw);
+@@ -250,7 +278,7 @@
+ 	struct regmap *sysc = clk->priv->sysc;
+ 	struct regmap *memc = clk->priv->memc;
+ 	u32 clkcfg, clk_sel, curclk, ffiv, ffrac;
+-	u32 pll, prediv, fbdiv;
++	u32 pll, prediv = 1, fbdiv = 1;
+ 	unsigned long cpu_clk;
+ 
+ 	regmap_read(sysc, SYSC_REG_CLKCFG0, &clkcfg);
+@@ -265,15 +293,37 @@
+ 		cpu_clk = 500000000;
+ 		break;
+ 	case 1:
+-		regmap_read(memc, MEMC_REG_CPU_PLL, &pll);
+-		fbdiv = FIELD_GET(CPU_PLL_FBDIV_MASK, pll);
+-		prediv = FIELD_GET(CPU_PLL_PREDIV_MASK, pll);
+-		cpu_clk = ((fbdiv + 1) * xtal_clk) >> prediv_tbl[prediv];
++		if (cpu_clock_new != 0) {
++			do {
++				regmap_read(memc, MEMC_REG_CPU_PLL, &pll);
++				fbdiv = FIELD_GET(CPU_PLL_FBDIV_MASK, pll);
++				prediv = FIELD_GET(CPU_PLL_PREDIV_MASK, pll);
++				cpu_clk = ((fbdiv + 1) * xtal_clk) >> prediv_tbl[prediv];
++				if (xtal_clk == 0 || cpu_clk == cpu_clock_new)
++					break;
++				if (cpu_clk > cpu_clock_new) {
++					cpu_clk = cpu_clock_new;
++					clk_sel = 0;
++				}
++				if (cpu_clk < cpu_clock_new) {
++					cpu_clk += xtal_clk >> prediv_tbl[prediv];
++					clk_sel = 1;
++				}
++				clkcfg = (pll & ~0x7FF) | 0x2;
++				clkcfg |= ((cpu_clk / (xtal_clk >> prediv_tbl[prediv])) - 1) << 4;
++				regmap_write(memc, MEMC_REG_CPU_PLL, clkcfg);
++				udelay(10);
++			} while (clk_sel != 0);
++		}
++
+ 		break;
+ 	default:
+ 		cpu_clk = xtal_clk;
+ 	}
+ 
++	pr_info("CPU clock: %dMHz, XTAL clock: %dMHz\n",
++		cpu_clk / 1000000, xtal_clk / 1000000);
++
+ 	return cpu_clk / ffiv * ffrac;
+ }
+ 
