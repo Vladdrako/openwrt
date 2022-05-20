@@ -8,8 +8,13 @@
 #include <crypto/aes.h>
 #include <crypto/ctr.h>
 #include <crypto/hmac.h>
+#include <linux/version.h>
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0) 
 #include <crypto/sha1.h>
 #include <crypto/sha2.h>
+#else
+#include <crypto/sha.h>
+#endif
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/scatterlist.h>

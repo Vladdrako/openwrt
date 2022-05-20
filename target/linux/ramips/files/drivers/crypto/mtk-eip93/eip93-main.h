@@ -12,6 +12,7 @@
 #include <crypto/internal/rng.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/device.h>
+#include <linux/of.h>
 #include <linux/interrupt.h>
 
 #define MTK_RING_SIZE			512
