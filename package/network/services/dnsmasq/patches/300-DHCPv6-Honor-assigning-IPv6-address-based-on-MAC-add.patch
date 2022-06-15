@@ -163,4 +163,4 @@ MAC addresses. It does not change assignment based on DUID.
 +	    if (check_address(state, config, addr))
  	      return 1;
  	  }
-       } 
+       }
