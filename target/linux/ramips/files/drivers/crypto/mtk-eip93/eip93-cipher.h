@@ -24,6 +24,7 @@ struct mtk_crypto_ctx {
 	bool				in_first;
 	bool				out_first;
 	struct crypto_shash		*shash;
+	struct crypto_skcipher *fallback;
 };
 
 struct mtk_cipher_reqctx {
@@ -45,6 +46,7 @@ struct mtk_cipher_reqctx {
 	struct saState_s		*saState_ctr;
 	dma_addr_t			saState_base_ctr;
 	uint32_t			saState_ctr_idx;
+	struct skcipher_request fallback_req; // keep at the end
 };
 
 int check_valid_request(struct mtk_cipher_reqctx *rctx);

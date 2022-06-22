@@ -18,6 +18,8 @@
 #include "eip93-common.h"
 #include "eip93-regs.h"
 
+#define MTK_AES_SW_MAX_LEN 512
+
 void mtk_skcipher_handle_result(struct crypto_async_request *async, int err)
 {
 	struct mtk_crypto_ctx *ctx = crypto_tfm_ctx(async->tfm);
@@ -29,6 +31,13 @@ void mtk_skcipher_handle_result(struct crypto_async_request *async, int err)
 	mtk_handle_result(mtk, rctx, req->iv);
 
 	skcipher_request_complete(req, err);
+}
+
+static inline bool mtk_skcipher_is_fallback(const struct crypto_tfm *tfm,
+					    u32 flags)
+{
+	return (tfm->__crt_alg->cra_flags & CRYPTO_ALG_NEED_FALLBACK) &&
+	       !IS_RFC3686(flags);
 }
 
 static int mtk_skcipher_send_req(struct crypto_async_request *async)
@@ -53,11 +62,21 @@ static int mtk_skcipher_cra_init(struct crypto_tfm *tfm)
 	struct mtk_crypto_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct mtk_alg_template *tmpl = container_of(tfm->__crt_alg,
 				struct mtk_alg_template, alg.skcipher.base);
+	bool fallback = mtk_skcipher_is_fallback(tfm, tmpl->flags);
 
-	crypto_skcipher_set_reqsize(__crypto_skcipher_cast(tfm),
-					sizeof(struct mtk_cipher_reqctx));
+	if (fallback) {
+		ctx->fallback = crypto_alloc_skcipher(
+			crypto_tfm_alg_name(tfm), 0, CRYPTO_ALG_NEED_FALLBACK);
+		if (IS_ERR(ctx->fallback))
+			return PTR_ERR(ctx->fallback);
+	}
 
-	memset(ctx, 0, sizeof(*ctx));
+	crypto_skcipher_set_reqsize(
+		__crypto_skcipher_cast(tfm),
+		sizeof(struct mtk_cipher_reqctx) +
+			(fallback ? crypto_skcipher_reqsize(ctx->fallback) :
+					  0));
+
 	ctx->mtk = tmpl->mtk;
 
 	ctx->sa_in = kzalloc(sizeof(struct saRecord_s), GFP_KERNEL);
@@ -86,6 +105,8 @@ static void mtk_skcipher_cra_exit(struct crypto_tfm *tfm)
 			sizeof(struct saRecord_s), DMA_TO_DEVICE);
 	kfree(ctx->sa_in);
 	kfree(ctx->sa_out);
+
+	crypto_free_skcipher(ctx->fallback);
 }
 
 static int mtk_skcipher_setkey(struct crypto_skcipher *ctfm, const u8 *key,
@@ -128,6 +149,14 @@ static int mtk_skcipher_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 #if IS_ENABLED(CONFIG_CRYPTO_DEV_EIP93_AES)
 	if (flags & MTK_ALG_AES) {
 		struct crypto_aes_ctx aes;
+		bool fallback = mtk_skcipher_is_fallback(tfm, flags);
+
+		if (fallback && !IS_RFC3686(flags)) {
+			err = crypto_skcipher_setkey(ctx->fallback, key,
+						     keylen);
+			if (err)
+				return err;
+		}
 
 		ctx->blksize = AES_BLOCK_SIZE;
 		err = aes_expandkey(&aes, key, keylen);
@@ -160,15 +189,37 @@ static int mtk_skcipher_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 	return err;
 }
 
-static int mtk_skcipher_crypt(struct skcipher_request *req)
+static int mtk_skcipher_crypt(struct skcipher_request *req, bool encrypt)
 {
 	struct mtk_cipher_reqctx *rctx = skcipher_request_ctx(req);
 	struct crypto_async_request *async = &req->base;
 	struct mtk_crypto_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
+	bool fallback = mtk_skcipher_is_fallback(req->base.tfm, rctx->flags);
 
 	if (!req->cryptlen)
 		return 0;
+
+	/*
+	 * ECB and CBC algorithms require message lengths to be
+	 * multiples of block size.
+	 */
+	if (IS_ECB(rctx->flags) || IS_CBC(rctx->flags))
+		if (!IS_ALIGNED(req->cryptlen,
+				crypto_skcipher_blocksize(skcipher)))
+			return -EINVAL;
+
+	if (fallback && req->cryptlen <= MTK_AES_SW_MAX_LEN) {
+		skcipher_request_set_tfm(&rctx->fallback_req, ctx->fallback);
+		skcipher_request_set_callback(&rctx->fallback_req,
+					      req->base.flags,
+					      req->base.complete,
+					      req->base.data);
+		skcipher_request_set_crypt(&rctx->fallback_req, req->src,
+					   req->dst, req->cryptlen, req->iv);
+		return encrypt ? crypto_skcipher_encrypt(&rctx->fallback_req) :
+				       crypto_skcipher_decrypt(&rctx->fallback_req);
+	}
 
 	rctx->assoclen = 0;
 	rctx->textsize = req->cryptlen;
@@ -195,7 +246,7 @@ static int mtk_skcipher_encrypt(struct skcipher_request *req)
 	rctx->flags |= MTK_ENCRYPT;
 	rctx->saRecord_base = ctx->sa_base_out;
 
-	return mtk_skcipher_crypt(req);
+	return mtk_skcipher_crypt(req, true);
 }
 
 static int mtk_skcipher_decrypt(struct skcipher_request *req)
@@ -209,7 +260,7 @@ static int mtk_skcipher_decrypt(struct skcipher_request *req)
 	rctx->flags |= MTK_DECRYPT;
 	rctx->saRecord_base = ctx->sa_base_in;
 
-	return mtk_skcipher_crypt(req);
+	return mtk_skcipher_crypt(req, false);
 }
 
 /* Available algorithms in this module */
