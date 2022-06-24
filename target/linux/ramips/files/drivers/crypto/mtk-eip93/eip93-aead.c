@@ -76,8 +76,6 @@ static int mtk_aead_cra_init(struct crypto_tfm *tfm)
 	u32 flags = tmpl->flags;
 	char *alg_base;
 
-	memset(ctx, 0, sizeof(*ctx));
-
 	crypto_aead_set_reqsize(__crypto_aead_cast(tfm),
 			sizeof(struct mtk_cipher_reqctx));
 

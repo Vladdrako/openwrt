@@ -18,7 +18,8 @@
 #include "eip93-common.h"
 #include "eip93-regs.h"
 
-#define MTK_AES_SW_MAX_LEN 512
+#define MTK_AES_128_SW_MAX_LEN 512
+#define MTK_GENERIC_SW_MAX_LEN 256
 
 void mtk_skcipher_handle_result(struct crypto_async_request *async, int err)
 {
@@ -126,6 +127,8 @@ static int mtk_skcipher_setkey(struct crypto_skcipher *ctfm, const u8 *key,
 	if (!key || !keylen)
 		return err;
 
+	ctx->keylen = keylen;
+
 #if IS_ENABLED(CONFIG_CRYPTO_DEV_EIP93_AES)
 	if (IS_RFC3686(flags)) {
 		if (len < CTR_RFC3686_NONCE_SIZE)
@@ -209,7 +212,9 @@ static int mtk_skcipher_crypt(struct skcipher_request *req, bool encrypt)
 				crypto_skcipher_blocksize(skcipher)))
 			return -EINVAL;
 
-	if (fallback && req->cryptlen <= MTK_AES_SW_MAX_LEN) {
+	if (fallback &&
+	    req->cryptlen <= (AES_KEYSIZE_128 ? MTK_AES_128_SW_MAX_LEN :
+						      MTK_GENERIC_SW_MAX_LEN)) {
 		skcipher_request_set_tfm(&rctx->fallback_req, ctx->fallback);
 		skcipher_request_set_callback(&rctx->fallback_req,
 					      req->base.flags,

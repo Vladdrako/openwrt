@@ -24,6 +24,7 @@ struct mtk_crypto_ctx {
 	bool				in_first;
 	bool				out_first;
 	struct crypto_shash		*shash;
+	unsigned int keylen;
 	struct crypto_skcipher *fallback;
 };
 
