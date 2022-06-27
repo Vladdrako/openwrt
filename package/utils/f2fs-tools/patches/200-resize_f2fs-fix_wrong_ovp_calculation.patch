@@ -34,9 +34,9 @@ Signed-off-by: Jaegeuk Kim <jaegeuk@kernel.org>
 
 --- a/lib/libf2fs_zoned.c
 +++ b/lib/libf2fs_zoned.c
-@@ -495,6 +495,9 @@ uint32_t f2fs_get_usable_segments(struct
- 	int i, j;
- 	uint32_t usable_segs = 0, zone_segs;
+@@ -508,6 +508,9 @@ uint32_t f2fs_get_usable_segments(struct
+ 	if (c.func == RESIZE)
+ 		return get_sb(segment_count_main);
  
 +	if (c.func == RESIZE)
 +		return get_sb(segment_count_main);

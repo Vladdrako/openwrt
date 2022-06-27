@@ -8,14 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=f2fs-tools
-PKG_VERSION:=1.15
+PKG_VERSION:=1.15.0
 PKG_RELEASE:=1
 
-PKG_SOURCE_URL:=https://git.kernel.org/pub/scm/linux/kernel/git/jaegeuk/f2fs-tools.git
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_DATE:=2021-11-12
-PKG_SOURCE_VERSION:=972d71073af32a1854aeece018746a9f8021dd14
-PKG_MIRROR_HASH:=
+PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
+PKG_SOURCE_URL:=https://git.kernel.org/pub/scm/linux/kernel/git/jaegeuk/f2fs-tools.git/snapshot/
+PKG_HASH:=147d471040b44900283ce2c935f1d35d13d7f40008e7cb8fab2b69f54da01a4f
 
 PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
 PKG_LICENSE:=GPL-2.0-only
