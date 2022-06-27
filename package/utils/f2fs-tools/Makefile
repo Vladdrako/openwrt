@@ -29,7 +29,7 @@ define Package/f2fs-tools/Default
   SECTION:=utils
   CATEGORY:=Utilities
   SUBMENU:=Filesystem
-  DEPENDS:=+libf2fs +liblzo +liblz4
+  DEPENDS:=+libf2fs
   URL:=http://git.kernel.org/cgit/linux/kernel/git/jaegeuk/f2fs-tools.git
   VARIANT:=default
 endef
