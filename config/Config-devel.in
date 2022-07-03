@@ -77,6 +77,7 @@ menuconfig DEVEL
 	config KERNEL_CFLAGS
 		string "Kernel extra CFLAGS" if DEVEL
 		default "-fno-reorder-blocks" if TARGET_ramips
+		default "-falign-functions=32" if TARGET_bcm53xx
 		default ""
 
 	config EXTERNAL_KERNEL_TREE
