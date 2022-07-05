@@ -160,13 +160,6 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups = "i2c", "jtag", "uart2", "uart3", "wdt";
-		function = "gpio";
-	};
-};
-
 &switch0 {
 	ports {
 		port@0 {

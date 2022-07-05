@@ -150,9 +150,3 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups = "jtag", "wdt";
-		function = "gpio";
-	};
-};

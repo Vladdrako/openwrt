@@ -147,13 +147,6 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups = "uart3";
-		function = "gpio";
-	};
-};
-
 &spi0 {
 	status = "okay";
 

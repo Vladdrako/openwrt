@@ -80,13 +80,6 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups = "i2c", "wdt";
-		function = "gpio";
-	};
-};
-
 &switch0 {
 	ports {
 		port@0 {

@@ -104,13 +104,6 @@
 	nvmem-cell-names = "mac-address";
 };
 
-&state_default {
-	gpio {
-		groups = "wdt", "jtag";
-		function = "gpio";
-	};
-};
-
 &factory {
 	compatible = "nvmem-cells";
 	#address-cells = <1>;

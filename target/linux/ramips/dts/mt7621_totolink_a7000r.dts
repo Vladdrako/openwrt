@@ -134,13 +134,6 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups = "i2c", "wdt";
-		function = "gpio";
-	};
-};
-
 &factory {
 	compatible = "nvmem-cells";
 	#address-cells = <1>;

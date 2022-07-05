@@ -122,13 +122,6 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups = "uart3", "wdt";
-		function = "gpio";
-	};
-};
-
 &factory {
 	compatible = "nvmem-cells";
 	#address-cells = <1>;

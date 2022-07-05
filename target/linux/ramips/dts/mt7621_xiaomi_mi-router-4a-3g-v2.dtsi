@@ -156,13 +156,6 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups = "jtag", "uart2", "uart3", "wdt";
-		function = "gpio";
-	};
-};
-
 &factory {
 	compatible = "nvmem-cells";
 	#address-cells = <1>;

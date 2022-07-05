@@ -100,13 +100,6 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups = "i2c", "uart3", "jtag", "wdt";
-		function = "gpio";
-	};
-};
-
 &gmac0 {
 	nvmem-cells = <&macaddr_uboot_1fc20>;
 	nvmem-cell-names = "mac-address";
