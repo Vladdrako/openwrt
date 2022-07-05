@@ -148,6 +148,12 @@
 	status = "okay";
 };
 
+&rgmii2_pins {
+	rgmii2 {
+		function = "gpio";
+	};
+};
+
 &switch0 {
 	ports {
 		port@0 {
