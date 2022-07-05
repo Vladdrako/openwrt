@@ -30,13 +30,6 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups = "uart2", "rgmii2";
-		function = "gpio";
-	};
-};
-
 &pinctrl {
 	i2s_pins: i2s {
 		i2s {
@@ -110,10 +103,6 @@
 
 &sdhci {
 	status = "okay";
-};
-
-&ethernet {
-	pinctrl-0 = <&mdio_pins>, <&rgmii1_pins>;
 };
 
 &gmac0 {

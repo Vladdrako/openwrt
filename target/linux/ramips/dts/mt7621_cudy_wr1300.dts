@@ -191,13 +191,6 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups = "wdt", "i2c", "jtag";
-		function = "gpio";
-	};
-};
-
 &bdinfo {
 	compatible = "nvmem-cells";
 	#address-cells = <1>;

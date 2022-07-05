@@ -113,18 +113,6 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups =  "i2c", "rgmii2", "uart2", "uart3", "jtag", "wdt";
-		function = "gpio";
-	};
-};
-
-&ethernet {
-	pinctrl-names = "default";
-	pinctrl-0 = <&rgmii1_pins &mdio_pins>;
-};
-
 &pcie {
 	status = "okay";
 };
@@ -149,10 +137,6 @@
 		mac-address-increment = <2>;
 		ieee80211-freq-limit = <5000000 6000000>;
 	};
-};
-
-&ethernet {
-	pinctrl-0 = <&mdio_pins>, <&rgmii1_pins>;
 };
 
 &gmac0 {

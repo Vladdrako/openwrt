@@ -204,13 +204,6 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups = "wdt", "uart2", "jtag";
-		function = "gpio";
-	};
-};
-
 &xhci_ehci_port1 {
 	#address-cells = <1>;
 	#size-cells = <0>;

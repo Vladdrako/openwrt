@@ -166,13 +166,6 @@
 	status = "disabled";
 };
 
-&state_default {
-	gpio {
-		groups = "i2c", "uart3", "jtag", "wdt";
-		function = "gpio";
-	};
-};
-
 &factory {
 	compatible = "nvmem-cells";
 	#address-cells = <1>;

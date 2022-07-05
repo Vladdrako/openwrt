@@ -126,13 +126,6 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups = "rgmii2", "wdt";
-		function = "gpio";
-	};
-};
-
 &pcie {
 	status = "okay";
 };
@@ -158,10 +151,6 @@
 		mac-address-increment = <1>;
 		ieee80211-freq-limit = <5000000 6000000>;
 	};
-};
-
-&ethernet {
-	pinctrl-0 = <&mdio_pins>, <&rgmii1_pins>;
 };
 
 &gmac0 {

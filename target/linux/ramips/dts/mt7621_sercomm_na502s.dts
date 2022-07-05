@@ -199,10 +199,6 @@
 	};
 };
 
-&ethernet {
-	pinctrl-0 = <&mdio_pins>, <&rgmii1_pins>;
-};
-
 &gmac0 {
 	nvmem-cells = <&macaddr_factory_e000>;
 	nvmem-cell-names = "mac-address";
@@ -295,13 +291,6 @@
 		nvmem-cell-names = "mac-address";
 		mac-address-increment = <2>;
 		ieee80211-freq-limit = <2400000 2500000>;
-	};
-};
-
-&state_default {
-	gpio {
-		groups = "jtag", "rgmii2";
-		function = "gpio";
 	};
 };
 

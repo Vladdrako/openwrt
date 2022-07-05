@@ -150,13 +150,6 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups = "i2c", "uart2", "uart3", "jtag", "wdt";
-		function = "gpio";
-	};
-};
-
 &pcie {
 	status = "okay";
 };

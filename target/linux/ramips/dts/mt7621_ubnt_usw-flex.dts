@@ -90,13 +90,6 @@
 	};
 };
 
-&state_default {
-	gpio {
-		groups = "i2c", "uart2", "uart3", "jtag";
-		function = "gpio";
-	};
-};
-
 &spi0 {
 	status = "okay";
 
