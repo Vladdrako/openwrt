@@ -8,12 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=memtester
-PKG_VERSION:=4.1.3
+PKG_VERSION:=4.5.1
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=http://pyropus.ca/software/memtester/old-versions/
-PKG_MD5SUM:=e562451620cf5343016950462bc0dc38
+PKG_MD5SUM:=1bc22c01e987d6a67fac39dc5656a4d3
 
 include $(INCLUDE_DIR)/package.mk
 
