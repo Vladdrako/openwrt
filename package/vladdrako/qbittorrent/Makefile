@@ -8,13 +8,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=qBittorrent
-PKG_VERSION:=4.4.0
+PKG_VERSION:=4.4.3.12
 PKG_RELEASE=0
 
 PKG_SOURCE_URL:=https://github.com/c0re100/qBittorrent-Enhanced-Edition.git
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_DATE:=2021-11-27
-PKG_SOURCE_VERSION:=21c1ca4e495923a2cddfbd8cd09523bc332957d8
+PKG_SOURCE_DATE:=2022-06-01
+PKG_SOURCE_VERSION:=683ecc7a7379b6e1cf87e06e8fc77967b5076224
 PKG_MIRROR_HASH:=
 PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 
@@ -28,6 +28,7 @@ PKG_USE_MIPS16:=0
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/cmake.mk
+include $(INCLUDE_DIR)/nls.mk
 
 define Package/qBittorrent
   SUBMENU:=BitTorrent
