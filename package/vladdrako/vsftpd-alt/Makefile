@@ -28,12 +28,8 @@ define Package/vsftpd-alt/Default
   TITLE:=A fast and secure FTP server (with aio support)
   URL:=http://vsftpd.beasts.org/
   MAINTAINER:=Cezary Jackiewicz <cezary@eko.one.pl>
-  DEPENDS=+libuci 
-  #+PACKAGE_libpam:libpam 
+  DEPENDS=+libuci +libopenssl
 endef
-
-TARGET_CFLAGS += -ffunction-sections -fdata-sections -flto
-TARGET_LDFLAGS += -Wl,--gc-sections,--as-needed,--no-undefined,--no-allow-shlib-undefined
 
 define Package/vsftpd-alt/conffiles
 /etc/vsftpd.conf
@@ -48,6 +44,8 @@ endef
 
 ifneq ($(CONFIG_USE_MUSL),)
   NLSSTRING:=-lcrypt
+else ifneq ($(CONFIG_USE_GLIBC),)
+  NLSSTRING:=-lcrypt
 else
   NLSSTRING:=-lcrypt -lnsl
 endif
@@ -59,10 +57,12 @@ $(call Package/vsftpd-alt/Default)
 endef
 
 define Build/Compile
+	$(SED) 's/#undef VSF_BUILD_SSL/#define VSF_BUILD_SSL/' $(PKG_BUILD_DIR)/builddefs.h
+	$(SED) 's/-lcrypt -lnsl/-lcrypt -lnsl -lssl -lcrypto/' $(PKG_BUILD_DIR)/Makefile
 	$(SED) 's/-lcrypt -lnsl/$(NLSSTRING)/' $(PKG_BUILD_DIR)/Makefile
 	$(MAKE) -C $(PKG_BUILD_DIR) \
 		CC="$(TARGET_CC)" \
-		CFLAGS="$(TARGET_CFLAGS)" \
+		CFLAGS="$(TARGET_CFLAGS) $(TARGET_CPPFLAGS)" \
 		LDFLAGS="$(TARGET_LDFLAGS)" \
 		vsftpd
 endef
