@@ -791,14 +791,6 @@ define Device/humax_e10
 endef
 TARGET_DEVICES += humax_e10
 
-define Device/hoelxun_yyets-le2
-  DEVICE_VENDOR := Hoelxun
-  DEVICE_MODEL := YYeTs-LE2
-  DEVICE_PACKAGES := kmod-mt7603 kmod-mt76x2 kmod-usb3 wpad-basic
-  IMAGE_SIZE := 32448k
-endef
-TARGET_DEVICES += hoelxun_yyets-le2
-
 define Device/iodata_wn-ax1167gr
   $(Device/dsa-migration)
   $(Device/uimage-lzma-loader)
@@ -1767,15 +1759,6 @@ define Device/tplink_tl-wpa8631p-v3
   IMAGE_SIZE := 7232k
 endef
 TARGET_DEVICES += tplink_tl-wpa8631p-v3
-
-define Device/tplink_tl-wdr8620-v3
-  DEVICE_VENDOR := TP-Link
-  DEVICE_MODEL := TL-WDR8620
-  DEVICE_VARIANT := v3
-  DEVICE_PACKAGES := kmod-mt7615e kmod-mt7615-firmware kmod-usb3
-  IMAGE_SIZE := 16128k
-endef
-TARGET_DEVICES += tplink_tl-wdr8620-v3
 
 define Device/ubnt_edgerouter_common
   $(Device/dsa-migration)
