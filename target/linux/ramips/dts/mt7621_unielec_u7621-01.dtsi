@@ -99,3 +99,9 @@
 	};
 };
 
+&state_default {
+	gpio {
+		groups = "jtag", "uart2", "wdt";
+		function = "gpio";
+	};
+};

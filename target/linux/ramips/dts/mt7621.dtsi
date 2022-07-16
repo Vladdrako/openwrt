@@ -283,6 +283,11 @@
 
 	pinctrl: pinctrl {
 		compatible = "ralink,rt2880-pinmux";
+		pinctrl-names = "default";
+		pinctrl-0 = <&state_default>;
+
+		state_default: pinctrl0 {
+		};
 
 		i2c_pins: i2c_pins {
 			i2c_pins {

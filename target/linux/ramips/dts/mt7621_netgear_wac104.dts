@@ -129,6 +129,13 @@
 	};
 };
 
+&state_default {
+	gpio {
+		groups = "uart3", "jtag", "wdt";
+		function = "gpio";
+	};
+};
+
 &switch0 {
 	ports {
 		port@0 {

@@ -152,6 +152,10 @@
 	};
 };
 
+&ethernet {
+	pinctrl-0 = <&mdio_pins>, <&rgmii1_pins>;
+};
+
 &switch0 {
 	ports {
 		port@0 {
@@ -178,6 +182,13 @@
 			status = "okay";
 			label = "wan";
 		};
+	};
+};
+
+&state_default {
+	gpio {
+		groups = "i2c", "uart2", "uart3", "rgmii2", "sdhci";
+		function = "gpio";
 	};
 };
 
