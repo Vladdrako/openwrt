@@ -68,11 +68,11 @@ config WOLFSSL_HAS_DEVCRYPTO
 
 config WOLFSSL_ASM_CAPABLE
 	bool
-	default x86_64 || (aarch64 && !TARGET_bcm27xx)
+	default x86_64
 
 choice
 	prompt "Hardware Acceleration"
-	default WOLFSSL_HAS_NO_HW
+	default WOLFSSL_HAS_CPU_CRYPTO if WOLFSSL_ASM_CAPABLE
 
 	config WOLFSSL_HAS_NO_HW
 		bool "None"
