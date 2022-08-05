@@ -20,13 +20,23 @@ HOST_BUILD_DIR:=$(BUILD_DIR_HOST)/u-boot-$(PKG_VERSION)
 
 include $(INCLUDE_DIR)/host-build.mk
 
+define Host/Configure
+	$(MAKE) -C $(HOST_BUILD_DIR) \
+		HOSTCFLAGS="$(HOST_CFLAGS)" \
+		HOSTLDFLAGS="$(HOST_LDFLAGS)" \
+		PKG_CONFIG_EXTRAARGS="--static" \
+		V=$(if $(findstring c,$(OPENWRT_VERBOSE)),1) \
+		tools-only_config
+
+	sed -i 's/CONFIG_TOOLS_MKEFICAPSULE=y/# CONFIG_TOOLS_MKEFICAPSULE is not set/' $(HOST_BUILD_DIR)/.config
+endef
+
 define Host/Compile
 	$(MAKE) -C $(HOST_BUILD_DIR) \
 		HOSTCFLAGS="$(HOST_CFLAGS)" \
 		HOSTLDFLAGS="$(HOST_LDFLAGS)" \
 		PKG_CONFIG_EXTRAARGS="--static" \
 		V=$(if $(findstring c,$(OPENWRT_VERBOSE)),1) \
-		tools-only_config \
 		tools-only
 endef
 
