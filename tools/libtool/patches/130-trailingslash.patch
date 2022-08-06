@@ -19,8 +19,8 @@ Signed-off-by: Eneas U de Queiroz <cotequeiroz@gmail.com>
 
 --- a/build-aux/ltmain.in
 +++ b/build-aux/ltmain.in
-@@ -2381,8 +2381,15 @@ func_mode_install ()
- 	func_append dir "$objdir"
+@@ -2241,8 +2241,15 @@ func_mode_install ()
+ 	dir="$dir$objdir"
  
  	if test -n "$relink_command"; then
 +      # Strip any trailing slash from the destination.
