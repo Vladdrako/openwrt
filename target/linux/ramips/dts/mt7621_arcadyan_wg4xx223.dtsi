@@ -190,3 +190,9 @@
 	};
 };
 
+&state_default {
+	gpio {
+		groups = "i2c", "jtag";
+		function = "gpio";
+	};
+};

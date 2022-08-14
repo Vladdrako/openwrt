@@ -168,6 +168,13 @@
 	};
 };
 
+&state_default {
+	gpio {
+		groups = "jtag", "wdt";
+		function = "gpio";
+	};
+};
+
 &factory {
 	compatible = "nvmem-cells";
 	#address-cells = <1>;

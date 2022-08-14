@@ -109,6 +109,13 @@
 	};
 };
 
+&state_default {
+	gpio {
+		groups = "uart2", "wdt";
+		function = "gpio";
+	};
+};
+
 &sdhci {
 	status = "okay";
 };
