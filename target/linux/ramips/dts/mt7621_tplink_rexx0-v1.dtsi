@@ -134,7 +134,7 @@
 
 &state_default {
 	gpio {
-		groups = "wdt";
+		groups = "rgmii2", "wdt";
 		function = "gpio";
 	};
 };
@@ -163,6 +163,10 @@
 		mac-address-increment = <2>;
 		ieee80211-freq-limit = <5000000 6000000>;
 	};
+};
+
+&ethernet {
+	pinctrl-0 = <&mdio_pins>, <&rgmii1_pins>;
 };
 
 &gmac0 {
