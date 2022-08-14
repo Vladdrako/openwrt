@@ -43,9 +43,3 @@
 		};
 	};
 };
-
-&rgmii2_pins {
-	rgmii2 {
-		function = "gpio";
-	};
-};
