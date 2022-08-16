@@ -103,8 +103,6 @@
 		gpio: gpio@600 {
 			#gpio-cells = <2>;
 			#interrupt-cells = <2>;
-			#address-cells = <2>;
-
 			compatible = "mediatek,mt7621-gpio";
 			gpio-controller;
 			gpio-ranges = <&pinctrl 0 0 95>;
@@ -431,8 +429,6 @@
 	};
 
 	gic: interrupt-controller@1fbc0000 {
-		#address-cells = <2>;
-
 		compatible = "mti,gic";
 		reg = <0x1fbc0000 0x2000>;
 
@@ -515,8 +511,10 @@
 
 		mediatek,ethsys = <&sysc>;
 
+#ifdef DTS_LEGACY
 		pinctrl-names = "default";
 		pinctrl-0 = <&mdio_pins>, <&rgmii1_pins>, <&rgmii2_pins>;
+#endif
 
 		gmac0: mac@0 {
 			compatible = "mediatek,eth-mac";
@@ -550,7 +548,6 @@
 				reset-names = "mcm";
 				interrupt-controller;
 				#interrupt-cells = <1>;
-				interrupt-parent = <&gic>;
 				interrupts = <GIC_SHARED 23 IRQ_TYPE_LEVEL_HIGH>;
 
 				ports {
