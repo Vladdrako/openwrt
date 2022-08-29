@@ -8,12 +8,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=readline
-PKG_VERSION:=8.1
-PKG_RELEASE:=2
+PKG_VERSION:=8.1.2
+PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=@GNU/readline
-PKG_HASH:=f8ceb4ee131e3232226a17f51b164afc46cd0b9e6cef344be87c65962cb82b02
+PKG_HASH:=7589a2381a8419e68654a47623ce7dfcb756815c8fee726b98f90bf668af7bc6
 
 PKG_LICENSE:=GPL-3.0-or-later
 PKG_LICENSE_FILES:=COPYING
@@ -33,7 +33,7 @@ define Package/libreadline
   TITLE:=Command lines edition library
   DEPENDS:=+libncursesw
   URL:=http://cnswww.cns.cwru.edu/php/chet/readline/rltop.html
-  ABI_VERSION:=$(PKG_ABI_VERSION)
+  ABI_VERSION:=8
 endef
 
 define Package/libreadline/description
