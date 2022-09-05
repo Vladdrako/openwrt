@@ -8,13 +8,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=dnsmasq
-PKG_UPSTREAM_VERSION:=2.87test8
+PKG_UPSTREAM_VERSION:=2.87test9
 PKG_VERSION:=$(subst test,~~test,$(subst rc,~rc,$(PKG_UPSTREAM_VERSION)))
 PKG_RELEASE:=$(AUTORELEASE)
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_UPSTREAM_VERSION).tar.xz
 PKG_SOURCE_URL:=http://thekelleys.org.uk/dnsmasq/test-releases/
-PKG_HASH:=cb7245f4726d5692dd27d8c5f8ece8b88c9995fc0d649fd76d2870f80b852369
+PKG_HASH:=325d2b953e06273cd7e0ed921b464203a4a26fae7a1afedd9b26528d25951fdf
 
 PKG_LICENSE:=GPL-2.0
 PKG_LICENSE_FILES:=COPYING
@@ -136,7 +136,7 @@ Package/dnsmasq-full/conffiles = $(Package/dnsmasq/conffiles)
 TARGET_CFLAGS += -flto -libidn2
 TARGET_LDFLAGS += -flto=jobserver
 
-COPTS = -DHAVE_POLL_H -DHAVE_LIBIDN2 \
+COPTS = -DHAVE_UBUS -DHAVE_POLL_H \
 	$(if $(CONFIG_IPV6),,-DNO_IPV6)
 
 ifeq ($(BUILD_VARIANT),nodhcpv6)
@@ -188,6 +188,7 @@ define Package/dnsmasq/install
 	$(INSTALL_DATA) ./files/dnsmasq_acl.json $(1)/usr/share/acl.d/
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/50-dnsmasq-migrate-resolv-conf-auto.sh $(1)/etc/uci-defaults
+	$(INSTALL_BIN) ./files/50-dnsmasq-migrate-ipset.sh $(1)/etc/uci-defaults
 endef
 
 Package/dnsmasq-dhcpv6/install = $(Package/dnsmasq/install)
