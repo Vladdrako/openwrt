@@ -81,7 +81,7 @@ define Package/tc-mod-iptables
 $(call Package/iproute2/Default)
   TITLE:=Traffic control module - iptables action
   VARIANT:=tciptables
-  DEPENDS:=+libxtables
+  DEPENDS:=+libxtables +libbpf
 endef
 
 define Package/genl
