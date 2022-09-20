@@ -156,6 +156,24 @@ tplink,re650-v2)
 tplink,tl-wpa8631p-v3)
 	ucidef_set_led_netdev "lan" "LAN" "green:lan" "br-lan"
 	;;
+xiaomi,mi-router-3-pro)
+	ucidef_set_led_netdev "wan_green" "WAN (green)" "green:wan" "wan" "link"
+	ucidef_set_led_netdev "lan1_green" "LAN1 (green)" "green:lan1" "lan1" "link"
+	ucidef_set_led_netdev "lan2_green" "LAN2 (green)" "green:lan2" "lan2" "link"
+	ucidef_set_led_netdev "lan3_green" "LAN3 (green)" "green:lan3" "lan3" "link"
+	ucidef_set_led_netdev "wan_amber" "WAN (amber)" "amber:wan" "wan" "tx rx"
+	ucidef_set_led_netdev "lan1_amber" "LAN1 (amber)" "amber:lan1" "lan1" "tx rx"
+	ucidef_set_led_netdev "lan2_amber" "LAN2 (amber)" "amber:lan2" "lan2" "tx rx"
+	ucidef_set_led_netdev "lan3_amber" "LAN3 (amber)" "amber:lan3" "lan3" "tx rx"
+	;;
+xiaomi,mi-router-3g)
+	ucidef_set_led_netdev "wan_green" "WAN (green)" "green:wan" "wan" "link"
+	ucidef_set_led_netdev "lan1_green" "LAN1 (green)" "green:lan1" "lan1" "link"
+	ucidef_set_led_netdev "lan2_green" "LAN2 (green)" "green:lan2" "lan2" "link"
+	ucidef_set_led_netdev "wan_amber" "WAN (amber)" "amber:wan" "wan" "tx rx"
+	ucidef_set_led_netdev "lan1_amber" "LAN1 (amber)" "amber:lan1" "lan1" "tx rx"
+	ucidef_set_led_netdev "lan2_amber" "LAN2 (amber)" "amber:lan2" "lan2" "tx rx"
+	;;
 xiaomi,mi-router-ac2100)
 	ucidef_set_led_netdev "wan-blue" "WAN (blue)" "blue:wan" "wan"
 	;;
