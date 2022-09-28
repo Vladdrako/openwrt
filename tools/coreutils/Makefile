@@ -36,4 +36,9 @@ define Host/Install
 	ln -sf ginstall $(1)/bin/install
 endef
 
+define Host/Uninstall
+	rm -f $(STAGING_DIR_HOST)/bin/install
+	-$(call Host/Compile/Default,uninstall)
+endef
+
 $(eval $(call HostBuild))
