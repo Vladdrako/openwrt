@@ -12,6 +12,7 @@ use warnings;
 use File::Basename;
 use File::Copy;
 use Text::ParseWords;
+use Tie::IxHash;
 
 @ARGV > 2 or die "Syntax: $0 <target dir> <filename> <hash> <url filename> [<mirror> ...]\n";
 
@@ -25,6 +26,7 @@ my @mirrors;
 my $ok;
 
 my $check_certificate = $ENV{DOWNLOAD_CHECK_CERTIFICATE} eq "y";
+my $preferred_tool = $ENV{DOWNLOAD_TOOL_PREFER};
 
 $url_filename or $url_filename = $filename;
 
@@ -85,6 +87,39 @@ sub tool_present {
 	return $present
 }
 
+tie my %tool_list, 'Tie::IxHash';
+%tool_list = (
+	"aria2c" => { "tool_name" => "aria2c", "compare_line" => "aria3" },
+	"curl" => { "tool_name" => "curl", "compare_line" => "curl1" },
+	"wget" => { "tool_name" => "wget", "compare_line" => "GNU Wget" },
+);
+
+sub select_tool {
+	my %tool;
+
+	if ($preferred_tool) {
+		$preferred_tool =~ tr/"//d;
+		%tool = %{ $tool_list{"$preferred_tool"} };
+
+		delete %tool_list{"$preferred_tool"};
+
+		if (tool_present($tool{"tool_name"}, $tool{"compare_line"})) {
+			return $tool{"tool_name"};
+		}
+	}
+
+	foreach my $tool_key (keys %tool_list) {
+		%tool = %{ $tool_list{$tool_key} };
+
+		if (tool_present($tool{"tool_name"}, $tool{"compare_line"})) {
+			return $tool{"tool_name"};
+		}
+	}
+
+	# No tool found, fallback to wget
+	return "wget";
+}
+
 sub download_cmd {
 	my $url = shift;
 	my $filename = shift;
@@ -92,8 +127,9 @@ sub download_cmd {
 
 	my @chArray = ('a'..'z', 'A'..'Z', 0..9);
 	my $rfn = join '', "${filename}_", map{ $chArray[int rand @chArray] } 0..9;
+	my $tool = select_tool();
 
-	if (tool_present('aria2c', 'aria2')) {
+	if ($tool eq "aria2c") {
 		@mirrors=();
 		return join(" ", "[ -d $ENV{'TMPDIR'}/aria2c ] || mkdir $ENV{'TMPDIR'}/aria2c;",
 			"touch $ENV{'TMPDIR'}/aria2c/${rfn}_spp;",
@@ -104,7 +140,7 @@ sub download_cmd {
 			"-d $ENV{'TMPDIR'}/aria2c -o $rfn;",
 			"cat $ENV{'TMPDIR'}/aria2c/$rfn;",
 			"rm $ENV{'TMPDIR'}/aria2c/$rfn $ENV{'TMPDIR'}/aria2c/${rfn}_spp");
-	} elsif (tool_present('curl', 'curl')) {
+	} elsif ($tool eq "curl") {
 		return (qw(curl -f --connect-timeout 20 --retry 5 --location),
 			$check_certificate ? () : '--insecure',
 			shellwords($ENV{CURL_OPTIONS} || ''),
