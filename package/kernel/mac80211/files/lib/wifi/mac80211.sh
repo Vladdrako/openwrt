@@ -2,14 +2,33 @@
 
 append DRIVERS "mac80211"
 
+check_board_phy() {
+	local name="$2"
+
+	json_get_var phy_path path
+	[ "$path" = "$phy_path" ] && board_dev="$name"
+}
+
 lookup_phy() {
-	[ -n "$phy" ] && {
-		[ -d /sys/class/ieee80211/$phy ] && return
-	}
+	board_dev=
+	json_for_each_item check_board_phy wlan
+	[ -n "$board_dev" ] && dev="$board_dev"
+
+	case "$phy" in
+		phy*) [ -d /sys/class/ieee80211/$phy ] && return 0;;
+		*) return 0;;
+	esac
 
 	local devpath
 	config_get devpath "$device" path
 	[ -n "$devpath" ] && {
+		board_dev=
+		json_for_each_item check_board_phy wlan
+		[ -n "$board_dev" ] && {
+			phy="$board_dev"
+			return 0;
+		}
+
 		phy="$(iwinfo nl80211 phyname "path=$devpath")"
 		[ -n "$phy" ] && return
 	}
@@ -21,19 +40,18 @@ lookup_phy() {
 
 			[ "$macaddr" = "$(cat ${_phy}/macaddress)" ] || continue
 			phy="${_phy##*/}"
-			return
+			return 0
 		done
 	}
-	phy=
-	return
+
+	return 1
 }
 
 find_mac80211_phy() {
 	local device="$1"
 
 	config_get phy "$device" phy
-	lookup_phy
-	[ -n "$phy" -a -d "/sys/class/ieee80211/$phy" ] || {
+	lookup_phy || {
 		echo "PHY for wifi device $1 not found"
 		return 1
 	}
@@ -149,14 +167,13 @@ detect_mac80211() {
 	config_load wireless
 	config_foreach check_devidx wifi-device
 
+	json_load_file /etc/board.json
+	json_select wlan
+
 	for _dev in /sys/class/ieee80211/*; do
 		[ -e "$_dev" ] || continue
 
 		dev="${_dev##*/}"
-
-		found=0
-		config_foreach check_mac80211_device wifi-device
-		[ "$found" -gt 0 ] && continue
 
 		mode_band=""
 		channel=""
@@ -165,11 +182,19 @@ detect_mac80211() {
 
 		get_band_defaults "$dev"
 
+		path="$(iwinfo nl80211 path "$dev")"
+		board_dev=
+		json_for_each_item check_board_phy wlan
+		[ -n "$board_dev" ] && dev="$board_dev"
+
+		found=0
+		config_foreach check_mac80211_device wifi-device
+		[ "$found" -gt 0 ] && continue
+
 		name="radio${devidx}"
 		devidx=$(($devidx + 1))
 		case "$dev" in
 			phy*)
-				path="$(iwinfo nl80211 path "$dev")"
 				if [ -n "$path" ]; then
 					dev_id="set wireless.${name}.path='$path'"
 				else
