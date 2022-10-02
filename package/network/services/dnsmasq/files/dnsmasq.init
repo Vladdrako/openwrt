@@ -539,6 +539,15 @@ dhcp_add() {
 	# Override interface netmask with dhcp config if applicable
 	config_get netmask "$cfg" netmask "${subnet##*/}"
 
+	#check for an already active dhcp server on the interface, unless 'force' is set
+	config_get_bool force "$cfg" force 0
+	[ $force -gt 0 ] || dhcp_check "$ifname" || {
+		logger -t dnsmasq \
+			"found already running DHCP-server on interface '$ifname'" \
+			"refusing to start, use 'option force 1' to override"
+		return 0
+	}
+
 	config_get start "$cfg" start 100
 	config_get limit "$cfg" limit 150
 	config_get leasetime "$cfg" leasetime 12h
@@ -793,13 +802,25 @@ dnsmasq_ipset_add() {
 	}
 
 	add_nftset() {
-		nftsets="${nftsets:+$nftsets,}inet#fw4#$1"
+		local IFS=,
+		for set in $1; do
+			local family=$(echo "$set" | sed -nre 's#^.*[^0-9]([46])$#\1#p')
+			[ -n "$family" ] || \
+				family=$(nft -t list set inet "$table" "$set" 2>&1 | sed -nre 's#^\t\ttype .*\bipv([46])_addr\b.*$#\1#p')
+
+			[ -n "$family" ] || \
+				logger -t dnsmasq "Cannot infer address family from non-existent nftables set '$set'"
+
+			nftsets="${nftsets:+$nftsets,}${family:+$family#}inet#$table#$set"
+		done
 	}
 
 	add_domain() {
 		# leading '/' is expected
 		domains="$domains/$1"
 	}
+
+	config_get table "$cfg" table 'fw4'
 
 	config_list_foreach "$cfg" "name" add_ipset
 	config_list_foreach "$cfg" "name" add_nftset
@@ -852,12 +873,6 @@ dnsmasq_start()
 	# if we did this last, we could override auto-generated config
 	[ -f "${dnsmasqconffile}" ] && {
 		xappend "--conf-file=${dnsmasqconffile}"
-	}
-
-	config_get_bool boguspriv "$cfg" boguspriv 1
-	[ "$boguspriv" -gt 0 ] && {
-		xappend "--bogus-priv"
-		[ -r "$RFC6761FILE" ] && xappend "--conf-file=$RFC6761FILE"
 	}
 
 	$PROG --version | grep -osqE "^Compile time options:.* DHCPv6( |$)" && DHCPv6CAPABLE=1 || DHCPv6CAPABLE=0
@@ -934,12 +949,7 @@ dnsmasq_start()
 	append_bool "$cfg" rapidcommit "--dhcp-rapid-commit"
 	append_bool "$cfg" scriptarp "--script-arp"
 
-	append_bool "$cfg" filter_aaaa "--filter-aaaa"
-
 	append_parm "$cfg" logfacility "--log-facility"
-
-	append_parm "$cfg" mini_ttl "--min-ttl"
-
 	config_get logfacility "$cfg" "logfacility"
 	append_parm "$cfg" cachesize "--cache-size"
 	append_parm "$cfg" dnsforwardmax "--dns-forward-max"
@@ -972,8 +982,8 @@ dnsmasq_start()
 		xappend "--addn-hosts=$HOSTFILE"
 		append EXTRA_MOUNT "$HOSTFILE"
 	else
-		xappend "--addn-hosts=$(dirname $HOSTFILE)"
-		append EXTRA_MOUNT "$(dirname $HOSTFILE)"
+		xappend "--addn-hosts=$HOSTFILE_DIR"
+		append EXTRA_MOUNT "$HOSTFILE_DIR"
 	fi
 	config_list_foreach "$cfg" "addnhosts" append_addnhosts
 	config_list_foreach "$cfg" "bogusnxdomain" append_bogusnxdomain
@@ -1077,6 +1087,7 @@ dnsmasq_start()
 
 	xappend "--dhcp-broadcast=tag:needs-broadcast"
 
+
 	config_get dnsmasqconfdir "$cfg" confdir "/tmp/dnsmasq.d"
 	xappend "--conf-dir=$dnsmasqconfdir"
 	dnsmasqconfdir="${dnsmasqconfdir%%,*}"
@@ -1118,6 +1129,11 @@ dnsmasq_start()
 	config_foreach filter_dnsmasq mxhost dhcp_mx_add "$cfg"
 	echo >> $CONFIGFILE_TMP
 
+	config_get_bool boguspriv "$cfg" boguspriv 1
+	[ "$boguspriv" -gt 0 ] && {
+		xappend "--bogus-priv"
+		[ -r "$RFC6761FILE" ] && xappend "--conf-file=$RFC6761FILE"
+	}
 
 	if [ "$DNSMASQ_DHCP_VER" -gt 4 ] ; then
 		# Enable RA feature for when/if it is constructed,
@@ -1180,20 +1196,6 @@ dnsmasq_start()
 	esac
 
 	procd_close_instance
-
-	config_get_bool dns_redirect "$cfg" dns_redirect 0
-	config_get dns_port "$cfg" port 53
-	if [ "$dns_redirect" = 1 ]; then
-		cat <<-EOF > /tmp/dnsmasq-dns-redirect.nft
-			table inet dnsmasq {
-				chain prerouting {
-					type nat hook prerouting priority -105; policy accept;
-					meta nfproto {ipv4, ipv6} udp dport 53 counter redirect to :$dns_port comment "DNSMASQ";
-				}
-			}
-		EOF
-		nft -f /tmp/dnsmasq-dns-redirect.nft
-	fi
 }
 
 dnsmasq_stop()
@@ -1209,15 +1211,6 @@ dnsmasq_stop()
 	[ "$localuse" -gt 0 ] && ln -sf "/tmp/resolv.conf.d/resolv.conf.auto" /tmp/resolv.conf
 
 	rm -f ${BASEDHCPSTAMPFILE}.${cfg}.*.dhcp
-}
-
-nftables_clear()
-{
-	nft --check list table inet dnsmasq > /dev/null 2>&1
-	if [ $? -eq "0" ]; then
-		echo "Remove dnsmasq nat table"
-		nft delete table inet dnsmasq
-	fi
 }
 
 add_interface_trigger()
@@ -1290,7 +1283,6 @@ start_service() {
 }
 
 reload_service() {
-	nftables_clear
 	rc_procd start_service "$@"
 	procd_send_signal dnsmasq "$@"
 }
@@ -1317,5 +1309,4 @@ stop_service() {
 	else
 		config_foreach dnsmasq_stop dnsmasq
 	fi
-	nftables_clear
 }
