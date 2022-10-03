@@ -4,7 +4,7 @@ IMAGE_KERNEL = $(word 1,$^)
 IMAGE_ROOTFS = $(word 2,$^)
 
 define ModelNameLimit16
-$(shell printf %.16s "$(word 2, $(subst _, ,$(1)))")
+$(shell expr substr "$(word 2, $(subst _, ,$(1)))" 1 16)
 endef
 
 define rootfs_align
@@ -108,7 +108,7 @@ define Build/append-squashfs-fakeroot-be
 	$(STAGING_DIR_HOST)/bin/mksquashfs-lzma \
 		$@.fakefs $@.fakesquashfs \
 		-noappend -root-owned -be -nopad -b 65536 \
-		$(if $(SOURCE_DATE_EPOCH),-all-time $(SOURCE_DATE_EPOCH))
+		$(if $(SOURCE_DATE_EPOCH),-fixed-time $(SOURCE_DATE_EPOCH))
 	cat $@.fakesquashfs >> $@
 endef
 
