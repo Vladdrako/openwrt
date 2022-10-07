@@ -17,30 +17,6 @@ menuconfig DEVEL
 		  Store built firmware images and filesystem images in this directory.
 		  If not set, uses './bin/$(BOARD)'
 
-	choice
-		prompt "Preferred Download tool" if DEVEL
-		default DOWNLOAD_TOOL_PREFER_ARIA2C
-		help
-		  Set the preferred tool to use to download package on the buildroot.
-		  If the tool is not present in the system, the system will fallback
-		  to the others until it find one.
-
-		config DOWNLOAD_TOOL_PREFER_ARIA2C
-			bool "aria2c"
-		config DOWNLOAD_TOOL_PREFER_CURL
-			bool "curl"
-		config DOWNLOAD_TOOL_PREFER_WGET
-			bool "wget"
-	endchoice
-
-	if DEVEL
-		config DOWNLOAD_TOOL_PREFER
-			string
-			default "aria2c" if DOWNLOAD_TOOL_PREFER_ARIA2C
-			default "curl" if DOWNLOAD_TOOL_PREFER_CURL
-			default "wget" if DOWNLOAD_TOOL_PREFER_WGET
-	endif
-
 	config DOWNLOAD_FOLDER
 		string "Download folder" if DEVEL
 		default ""
