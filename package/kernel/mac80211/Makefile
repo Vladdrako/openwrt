@@ -297,9 +297,6 @@ define Build/Prepare
 	mkdir -p $(PKG_BUILD_DIR)
 	$(PKG_UNPACK)
 	$(Build/Patch)
-	$(TAR) -C $(PKG_BUILD_DIR) -xzf $(DL_DIR)/$(IPW2100_NAME)-$(IPW2100_VERSION).tgz
-	$(TAR) -C $(PKG_BUILD_DIR) -xzf $(DL_DIR)/$(IPW2200_NAME)-$(IPW2200_VERSION).tgz
-	$(TAR) -C $(PKG_BUILD_DIR) -xjf $(DL_DIR)/$(ZD1211FW_NAME)-$(ZD1211FW_VERSION).tar.bz2
 	rm -rf \
 		$(PKG_BUILD_DIR)/include/linux/ssb \
 		$(PKG_BUILD_DIR)/include/linux/bcma \
