@@ -105,17 +105,17 @@ endef
 define Build/append-squashfs-fakeroot-be
 	rm -rf $@.fakefs $@.fakesquashfs
 	mkdir $@.fakefs
-	$(STAGING_DIR_HOST)/bin/mksquashfs-lzma \
+	$(STAGING_DIR_HOST)/bin/mksquashfs \
 		$@.fakefs $@.fakesquashfs \
-		-noappend -root-owned -be -nopad -b 65536 \
-		$(if $(SOURCE_DATE_EPOCH),-fixed-time $(SOURCE_DATE_EPOCH))
+		-comp lzma -noappend -root-owned -be -nopad -b 65536 \
+		$(if $(SOURCE_DATE_EPOCH),-all-time $(SOURCE_DATE_EPOCH))
 	cat $@.fakesquashfs >> $@
 endef
 
 define Build/append-squashfs4-fakeroot
 	rm -rf $@.fakefs $@.fakesquashfs
 	mkdir $@.fakefs
-	$(STAGING_DIR_HOST)/bin/mksquashfs4 \
+	$(STAGING_DIR_HOST)/bin/mksquashfs \
 		$@.fakefs $@.fakesquashfs \
 		-nopad -noappend -root-owned
 	cat $@.fakesquashfs >> $@
