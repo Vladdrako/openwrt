@@ -766,7 +766,7 @@ mac80211_prepare_vif() {
 	json_add_string ifname "$ifname"
 	json_close_object
 
-	[ "$mode" = "ap" ] && {
+	[ "$mode" == "ap" ] && {
 		[ -z "$wpa_psk_file" ] && hostapd_set_psk "$ifname"
 		[ -z "$vlan_file" ] && hostapd_set_vlan "$ifname"
 	}
@@ -868,7 +868,7 @@ mac80211_setup_supplicant() {
 	if [ "$add_sp" = "1" ]; then
 		wpa_supplicant_run "$ifname" "$hostapd_ctrl"
 	else
-		[ "${NEW_MD5_SP}" = "${OLD_MD5_SP}" ] || ubus call $spobj reload
+		[ "${NEW_MD5_SP}" == "${OLD_MD5_SP}" ] || ubus call $spobj reload
 	fi
 	uci -q -P /var/state set wireless._${phy}.md5_${ifname}="${NEW_MD5_SP}"
 	return 0
@@ -1073,10 +1073,10 @@ get_freq() {
 	iw "$phy" info | awk -v band="$band" -v channel="[$channel]" '
 
 $1 ~ /Band/ {
-	band_match = band = $2
+	band_match = band == $2
 }
 
-band_match && $3 = "MHz" && $4 = channel {
+band_match && $3 == "MHz" && $4 == channel {
 	print $2
 	exit
 }
