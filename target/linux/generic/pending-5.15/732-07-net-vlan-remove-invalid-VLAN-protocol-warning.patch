@@ -1,0 +1,24 @@
+From: Felix Fietkau <nbd@nbd.name>
+Date: Fri, 28 Oct 2022 10:53:08 +0200
+Subject: [PATCH] net: vlan: remove invalid VLAN protocol warning
+
+On MTK SoC ethernet, using NETIF_F_HW_VLAN_CTAG_RX in combination with hardware
+special tag parsing can pass the special tag port metadata as VLAN protocol ID.
+When the results is added as a skb hwaccel VLAN tag, it triggers a warning from
+vlan_do_receive before calling the DSA tag receive function.
+Remove this warning in order to properly pass the tag to the DSA receive function,
+which will parse and clear it.
+
+Signed-off-by: Felix Fietkau <nbd@nbd.name>
+---
+
+--- a/net/8021q/vlan.h
++++ b/net/8021q/vlan.h
+@@ -44,7 +44,6 @@ static inline int vlan_proto_idx(__be16
+ 	case htons(ETH_P_8021AD):
+ 		return VLAN_PROTO_8021AD;
+ 	default:
+-		WARN(1, "invalid VLAN protocol: 0x%04x\n", ntohs(proto));
+ 		return -EINVAL;
+ 	}
+ }
