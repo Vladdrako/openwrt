@@ -1,0 +1,96 @@
+From: Felix Fietkau <nbd@nbd.name>
+Date: Fri, 28 Oct 2022 11:01:12 +0200
+Subject: [PATCH] net: ethernet: mtk_eth_soc: fix VLAN rx hardware
+ acceleration
+
+- enable VLAN untagging for PDMA rx
+- make it possible to disable the feature via ethtool
+- pass VLAN tag to the DSA driver
+- untag special tag on PDMA only if no non-DSA devices are in use
+
+Signed-off-by: Felix Fietkau <nbd@nbd.name>
+---
+
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -1967,16 +1967,9 @@ static int mtk_poll_rx(struct napi_struc
+ 						htons(RX_DMA_VPID(trxd.rxd4)),
+ 						RX_DMA_VID(trxd.rxd4));
+ 			} else if (trxd.rxd2 & RX_DMA_VTAG) {
+-				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
++				__vlan_hwaccel_put_tag(skb, htons(RX_DMA_VPID(trxd.rxd3)),
+ 						       RX_DMA_VID(trxd.rxd3));
+ 			}
+-
+-			/* If the device is attached to a dsa switch, the special
+-			 * tag inserted in VLAN field by hw switch can * be offloaded
+-			 * by RX HW VLAN offload. Clear vlan info.
+-			 */
+-			if (netdev_uses_dsa(netdev))
+-				__vlan_hwaccel_clear_tag(skb);
+ 		}
+ 
+ 		skb_record_rx_queue(skb, 0);
+@@ -2793,15 +2786,17 @@ static netdev_features_t mtk_fix_feature
+ 
+ static int mtk_set_features(struct net_device *dev, netdev_features_t features)
+ {
+-	int err = 0;
+-
+-	if (!((dev->features ^ features) & NETIF_F_LRO))
+-		return 0;
++	struct mtk_mac *mac = netdev_priv(dev);
++	struct mtk_eth *eth = mac->hw;
++	netdev_features_t diff = dev->features ^ features;
+ 
+-	if (!(features & NETIF_F_LRO))
++	if ((diff & NETIF_F_LRO) && !(features & NETIF_F_LRO))
+ 		mtk_hwlro_netdev_disable(dev);
+ 
+-	return err;
++	/* Set RX VLAN offloading */
++	mtk_w32(eth, !!(features & NETIF_F_HW_VLAN_CTAG_RX), MTK_CDMP_EG_CTRL);
++
++	return 0;
+ }
+ 
+ /* wait for DMA to finish whatever it is doing before we start using it again */
+@@ -3124,6 +3119,15 @@ static int mtk_open(struct net_device *d
+ 	else
+ 		refcount_inc(&eth->dma_refcnt);
+ 
++	/* Hardware special tag parsing needs to be disabled if at least
++	 * one MAC does not use DSA.
++	 */
++	if (!netdev_uses_dsa(dev)) {
++		u32 val = mtk_r32(eth, MTK_CDMP_IG_CTRL);
++		val &= ~MTK_CDMP_STAG_EN;
++		mtk_w32(eth, val, MTK_CDMP_IG_CTRL);
++	}
++
+ 	phylink_start(mac->phylink);
+ 	netif_tx_start_all_queues(dev);
+ 
+@@ -3417,6 +3421,10 @@ static int mtk_hw_init(struct mtk_eth *e
+ 	 */
+ 	val = mtk_r32(eth, MTK_CDMQ_IG_CTRL);
+ 	mtk_w32(eth, val | MTK_CDMQ_STAG_EN, MTK_CDMQ_IG_CTRL);
++	if (!MTK_HAS_CAPS(eth->soc->caps, MTK_NETSYS_V2)) {
++		val = mtk_r32(eth, MTK_CDMP_IG_CTRL);
++		mtk_w32(eth, val | MTK_CDMP_STAG_EN, MTK_CDMP_IG_CTRL);
++	}
+ 
+ 	/* Enable RX VLan Offloading */
+ 	mtk_w32(eth, 1, MTK_CDMP_EG_CTRL);
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
+@@ -93,6 +93,9 @@
+ #define MTK_CDMQ_IG_CTRL	0x1400
+ #define MTK_CDMQ_STAG_EN	BIT(0)
+ 
++/* CDMQ Exgress Control Register */
++#define MTK_CDMQ_EG_CTRL	0x1404
++
+ /* CDMP Ingress Control Register */
+ #define MTK_CDMP_IG_CTRL	0x400
+ #define MTK_CDMP_STAG_EN	BIT(0)
