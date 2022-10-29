@@ -110,4 +110,3 @@ Submitted-by: Yousong Zhou <yszhou4tech@gmail.com>
  		kfree(mac);
  		return -EINVAL;
  	}
- 
