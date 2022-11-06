@@ -47,8 +47,8 @@
  	.port_mirror_del	= mt753x_port_mirror_del,
 +	.port_policer_add	= mt7530_port_policer_add,
 +	.port_policer_del	= mt7530_port_policer_del,
- 	.phylink_validate	= mt753x_phylink_validate,
- 	.phylink_mac_link_state	= mt753x_phylink_mac_link_state,
+ 	.phylink_get_caps	= mt753x_phylink_get_caps,
+ 	.phylink_mac_select_pcs	= mt753x_phylink_mac_select_pcs,
  	.phylink_mac_config	= mt753x_phylink_mac_config,
 --- a/drivers/net/dsa/mt7530.h
 +++ b/drivers/net/dsa/mt7530.h
