@@ -326,6 +326,8 @@
 	clkctrl: clkctrl {
 		compatible = "ralink,rt2880-clock";
 		#clock-cells = <1>;
+
+		status = "disabled";
 	};
 
 	usbphy: usbphy {
