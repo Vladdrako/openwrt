@@ -1,6 +1,6 @@
 --- a/include/net/cfg80211.h
 +++ b/include/net/cfg80211.h
-@@ -4083,6 +4083,7 @@ struct mgmt_frame_regs {
+@@ -4081,6 +4081,7 @@ struct mgmt_frame_regs {
   *	(as advertised by the nl80211 feature flag.)
   * @get_tx_power: store the current TX power into the dbm variable;
   *	return 0 if successful
@@ -8,7 +8,7 @@
   *
   * @rfkill_poll: polls the hw rfkill line, use cfg80211 reporting
   *	functions to adjust rfkill hw state
-@@ -4433,6 +4434,7 @@ struct cfg80211_ops {
+@@ -4431,6 +4432,7 @@ struct cfg80211_ops {
  				enum nl80211_tx_power_setting type, int mbm);
  	int	(*get_tx_power)(struct wiphy *wiphy, struct wireless_dev *wdev,
  				int *dbm);
@@ -36,19 +36,19 @@
  	u8 ps_dtim_period;
 --- a/include/uapi/linux/nl80211.h
 +++ b/include/uapi/linux/nl80211.h
-@@ -2751,6 +2751,9 @@ enum nl80211_commands {
+@@ -2749,6 +2749,9 @@ enum nl80211_commands {
+  *	When used with %NL80211_CMD_FRAME_TX_STATUS, indicates the ack RX
+  *	timestamp. When used with %NL80211_CMD_FRAME RX notification, indicates
   *	the incoming frame RX timestamp.
-  * @NL80211_ATTR_TD_BITMAP: Transition Disable bitmap, for subsequent
-  *	(re)associations.
 + * @NL80211_ATTR_WIPHY_ANTENNA_GAIN: Configured antenna gain. Used to reduce
 + *	transmit power to stay within regulatory limits. u32, dBi.
 + *
   * @NUM_NL80211_ATTR: total number of nl80211_attrs available
   * @NL80211_ATTR_MAX: highest attribute number currently defined
   * @__NL80211_ATTR_AFTER_LAST: internal use
-@@ -3280,6 +3283,8 @@ enum nl80211_attrs {
+@@ -3277,6 +3280,8 @@ enum nl80211_attrs {
+ 	NL80211_ATTR_TX_HW_TIMESTAMP,
  	NL80211_ATTR_RX_HW_TIMESTAMP,
- 	NL80211_ATTR_TD_BITMAP,
  
 +	NL80211_ATTR_WIPHY_ANTENNA_GAIN,
 +
@@ -57,7 +57,7 @@
  	__NL80211_ATTR_AFTER_LAST,
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -3000,6 +3000,19 @@ static int ieee80211_get_tx_power(struct
+@@ -2998,6 +2998,19 @@ static int ieee80211_get_tx_power(struct
  	return 0;
  }
  
@@ -77,7 +77,7 @@
  static void ieee80211_rfkill_poll(struct wiphy *wiphy)
  {
  	struct ieee80211_local *local = wiphy_priv(wiphy);
-@@ -4883,6 +4896,7 @@ const struct cfg80211_ops mac80211_confi
+@@ -4881,6 +4894,7 @@ const struct cfg80211_ops mac80211_confi
  	.set_wiphy_params = ieee80211_set_wiphy_params,
  	.set_tx_power = ieee80211_set_tx_power,
  	.get_tx_power = ieee80211_get_tx_power,
@@ -87,7 +87,7 @@
  	CFG80211_TESTMODE_DUMP(ieee80211_testmode_dump)
 --- a/net/mac80211/ieee80211_i.h
 +++ b/net/mac80211/ieee80211_i.h
-@@ -1524,6 +1524,7 @@ struct ieee80211_local {
+@@ -1521,6 +1521,7 @@ struct ieee80211_local {
  	int dynamic_ps_forced_timeout;
  
  	int user_power_level; /* in dBm, for all interfaces */
