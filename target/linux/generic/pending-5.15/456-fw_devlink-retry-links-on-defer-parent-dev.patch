@@ -1,0 +1,152 @@
+--- a/drivers/base/core.c
++++ b/drivers/base/core.c
+@@ -1049,68 +1049,6 @@ static void device_links_missing_supplie
+ }
+ 
+ /**
+- * device_links_check_suppliers - Check presence of supplier drivers.
+- * @dev: Consumer device.
+- *
+- * Check links from this device to any suppliers.  Walk the list of the device's
+- * links to suppliers and see if all of them are available.  If not, simply
+- * return -EPROBE_DEFER.
+- *
+- * We need to guarantee that the supplier will not go away after the check has
+- * been positive here.  It only can go away in __device_release_driver() and
+- * that function  checks the device's links to consumers.  This means we need to
+- * mark the link as "consumer probe in progress" to make the supplier removal
+- * wait for us to complete (or bad things may happen).
+- *
+- * Links without the DL_FLAG_MANAGED flag set are ignored.
+- */
+-int device_links_check_suppliers(struct device *dev)
+-{
+-	struct device_link *link;
+-	int ret = 0;
+-	struct fwnode_handle *sup_fw;
+-
+-	/*
+-	 * Device waiting for supplier to become available is not allowed to
+-	 * probe.
+-	 */
+-	mutex_lock(&fwnode_link_lock);
+-	if (dev->fwnode && !list_empty(&dev->fwnode->suppliers) &&
+-	    !fw_devlink_is_permissive()) {
+-		sup_fw = list_first_entry(&dev->fwnode->suppliers,
+-					  struct fwnode_link,
+-					  c_hook)->supplier;
+-		dev_err_probe(dev, -EPROBE_DEFER, "wait for supplier %pfwP\n",
+-			      sup_fw);
+-		mutex_unlock(&fwnode_link_lock);
+-		return -EPROBE_DEFER;
+-	}
+-	mutex_unlock(&fwnode_link_lock);
+-
+-	device_links_write_lock();
+-
+-	list_for_each_entry(link, &dev->links.suppliers, c_node) {
+-		if (!(link->flags & DL_FLAG_MANAGED))
+-			continue;
+-
+-		if (link->status != DL_STATE_AVAILABLE &&
+-		    !(link->flags & DL_FLAG_SYNC_STATE_ONLY)) {
+-			device_links_missing_supplier(dev);
+-			dev_err_probe(dev, -EPROBE_DEFER,
+-				      "supplier %s not ready\n",
+-				      dev_name(link->supplier));
+-			ret = -EPROBE_DEFER;
+-			break;
+-		}
+-		WRITE_ONCE(link->status, DL_STATE_CONSUMER_PROBE);
+-	}
+-	dev->links.status = DL_DEV_PROBING;
+-
+-	device_links_write_unlock();
+-	return ret;
+-}
+-
+-/**
+  * __device_links_queue_sync_state - Queue a device for sync_state() callback
+  * @dev: Device to call sync_state() on
+  * @list: List head to queue the @dev on
+@@ -2127,6 +2065,80 @@ static void fw_devlink_link_device(struc
+ 	mutex_unlock(&fwnode_link_lock);
+ }
+ 
++/**
++ * device_links_check_suppliers - Check presence of supplier drivers.
++ * @dev: Consumer device.
++ *
++ * Check links from this device to any suppliers.  Walk the list of the device's
++ * links to suppliers and see if all of them are available.  If not, simply
++ * return -EPROBE_DEFER. If a supplier fails to become available and is flagged
++ * as having a parent device, retry all fwnode/device links to the consumer device,
++ * which will be handled differently because of the flags.
++ *
++ * We need to guarantee that the supplier will not go away after the check has
++ * been positive here.  It only can go away in __device_release_driver() and
++ * that function  checks the device's links to consumers.  This means we need to
++ * mark the link as "consumer probe in progress" to make the supplier removal
++ * wait for us to complete (or bad things may happen).
++ *
++ * Links without the DL_FLAG_MANAGED flag set are ignored.
++ */
++int device_links_check_suppliers(struct device *dev)
++{
++	struct device_link *link;
++	int ret = 0;
++	struct fwnode_handle *sup_fw;
++
++	/*
++	 * Device waiting for supplier to become available is not allowed to
++	 * probe.
++	 */
++	mutex_lock(&fwnode_link_lock);
++	if (dev->fwnode && !list_empty(&dev->fwnode->suppliers) &&
++	    !fw_devlink_is_permissive()) {
++		sup_fw = list_first_entry(&dev->fwnode->suppliers,
++					  struct fwnode_link,
++					  c_hook)->supplier;
++		dev_err_probe(dev, -EPROBE_DEFER, "wait for supplier %pfwP\n",
++			      sup_fw);
++		mutex_unlock(&fwnode_link_lock);
++		return -EPROBE_DEFER;
++	}
++	mutex_unlock(&fwnode_link_lock);
++
++	device_links_write_lock();
++
++	list_for_each_entry(link, &dev->links.suppliers, c_node) {
++		if (!(link->flags & DL_FLAG_MANAGED))
++			continue;
++
++		if (link->status != DL_STATE_AVAILABLE &&
++		    !(link->flags & DL_FLAG_SYNC_STATE_ONLY)) {
++			dev_err_probe(dev, -EPROBE_DEFER,
++				      "supplier %s not ready\n",
++				      dev_name(link->supplier));
++			/* supplier may be child firmware node of device */
++			if (link->supplier->fwnode->flags & FWNODE_FLAG_PARENT_IS_DEV) {
++				link->supplier->fwnode->flags |= FWNODE_FLAG_NOT_DEVICE;
++				dev->fwnode->flags &= ~(FWNODE_FLAG_LINKS_ADDED);
++				device_links_write_unlock();
++				device_links_purge(dev);
++				fw_devlink_link_device(dev);
++				device_links_write_lock();
++			} else {
++				device_links_missing_supplier(dev);
++			}
++			ret = -EPROBE_DEFER;
++			break;
++		}
++		WRITE_ONCE(link->status, DL_STATE_CONSUMER_PROBE);
++	}
++	dev->links.status = DL_DEV_PROBING;
++
++	device_links_write_unlock();
++	return ret;
++}
++
+ /* Device links support end. */
+ 
+ int (*platform_notify)(struct device *dev) = NULL;
