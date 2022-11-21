@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=ustream-ssl
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL=$(PROJECT_GIT)/project/ustream-ssl.git
@@ -32,6 +32,7 @@ define Package/libustream-openssl
   DEPENDS += +PACKAGE_libustream-openssl:libopenssl
   VARIANT:=openssl
   PROVIDES:=libustream-ssl
+  CONFLICTS := libustream-wolfssl libustream-mbedtls
 endef
 
 define Package/libustream-wolfssl
