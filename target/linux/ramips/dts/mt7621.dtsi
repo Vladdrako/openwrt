@@ -378,6 +378,8 @@
 	clkctrl: clkctrl {
 		compatible = "ralink,rt2880-clock";
 		#clock-cells = <1>;
+
+		status = "disabled";
 	};
 
 	sdhci: sdhci@1e130000 {
