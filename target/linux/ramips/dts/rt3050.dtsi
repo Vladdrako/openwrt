@@ -289,8 +289,6 @@
 	clkctrl: clkctrl {
 		compatible = "ralink,rt2880-clock";
 		#clock-cells = <1>;
-
-		status = "disabled";
 	};
 
 	usbphy: usbphy {
@@ -302,8 +300,6 @@
 		reset-names = "host";
 		clocks = <&clkctrl 18>;
 		clock-names = "host";
-
-		status = "disabled";
 	};
 
 	ethernet: ethernet@10100000 {
