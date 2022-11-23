@@ -1369,12 +1369,14 @@ wpa_supplicant_add_network() {
 
 			key_mgmt="$wpa_key_mgmt"
 
-			if [ "$_w_mode" = "mesh" -o "$auth_type" = "sae" ]; then
+			if [ "$_w_mode" = "mesh" ] || [ "$auth_type" = "sae" ]; then
 				passphrase="sae_password=\"${key}\""
-			elif [ ${#key} -eq 64 ]; then
-				passphrase="psk=${key}"
 			else
-				passphrase="psk=\"${key}\""
+				if [ ${#key} -eq 64 ]; then
+					passphrase="psk=${key}"
+				else
+					passphrase="psk=\"${key}\""
+				fi
 			fi
 			append network_data "$passphrase" "$N$T"
 		;;
