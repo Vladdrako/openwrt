@@ -431,7 +431,7 @@ define Device/cudy_m1800
   DEVICE_MODEL := M1800
   IMAGE_SIZE := 16064k
   UIMAGE_NAME := R17
-  DEVICE_PACKAGES := kmod-mt7915e
+  DEVICE_PACKAGES := kmod-mt7915-firmware
 endef
 TARGET_DEVICES += cudy_m1800
 
