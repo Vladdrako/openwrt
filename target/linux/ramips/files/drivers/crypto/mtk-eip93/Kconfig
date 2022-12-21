@@ -48,10 +48,10 @@ config CRYPTO_DEV_EIP93_AEAD
 	select CRYPTO_DEV_EIP93_HMAC
 	select CRYPTO_DEV_EIP93_AES
 	select CRYPTO_AEAD
-	select CRYPTO_AUTHENC
-	select CRYPTO_MD5
-	select CRYPTO_SHA1
-	select CRYPTO_SHA256
+#	select CRYPTO_AUTHENC
+#	select CRYPTO_MD5
+#	select CRYPTO_SHA1
+#	select CRYPTO_SHA256
 	help
   	  Selecting this will offload AEAD authenc(hmac(x), cipher(y))
 	  crypto to the EIP-93 crypto engine. When legacy DES is selected,
