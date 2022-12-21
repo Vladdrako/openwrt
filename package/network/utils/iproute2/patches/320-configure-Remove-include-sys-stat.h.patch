@@ -1,7 +1,7 @@
-From e5d5535d63a38169dad64cf6816b6d7cc334ccf3 Mon Sep 17 00:00:00 2001
+From 3a3a2f6be704c970938eb8dac4eb0118f1c2fb06 Mon Sep 17 00:00:00 2001
 From: Hauke Mehrtens <hauke@hauke-m.de>
 Date: Wed, 21 Dec 2022 23:26:28 +0100
-Subject: [PATCH] configure: Remove include <sys/stat.h>
+Subject: [PATCH iproute2 v2] configure: Remove include <sys/stat.h>
 
 The check_name_to_handle_at() function in the configure script is
 including sys/stat.h. This include fails with glibc 2.36 like this:
@@ -24,6 +24,8 @@ compilation terminated.
 Just removing the include works, the manpage of name_to_handle_at() says
 only fcntl.h is needed.
 
+Fixes: c5b72cc56bf8 ("lib/fs: fix issue when {name,open}_to_handle_at() is not implemented")
+Tested-by: Heiko Thiery <heiko.thiery@gmail.com>
 Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
 ---
  configure | 1 -
