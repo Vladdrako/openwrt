@@ -29,11 +29,9 @@
  	unsigned int count;
  	struct xattr_list *xattr_list;
  	int i;
-@@ -136,6 +137,7 @@ void write_xattr(char *pathname, unsigne
- 	free_xattr(xattr_list, count);
+@@ -136,4 +137,5 @@ void write_xattr(char *pathname, unsigne
+ 	}
  
- 	return !failed;
+ 	free_xattr(xattr_list, count);
 +#endif
  }
- 
- 
