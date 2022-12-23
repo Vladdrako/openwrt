@@ -116,7 +116,6 @@ hostapd_common_add_device_config() {
 	config_add_int rssi_reject_assoc_rssi
 	config_add_int rssi_ignore_probe_request
 	config_add_int maxassoc
-	config_add_boolean vendor_vht
 
 	config_add_string acs_chan_bias
 	config_add_array hostapd_options
@@ -134,8 +133,7 @@ hostapd_prepare_device_config() {
 
 	json_get_vars country country3 country_ie beacon_int:100 doth require_mode legacy_rates \
 		acs_chan_bias local_pwr_constraint spectrum_mgmt_required airtime_mode cell_density \
-		rts_threshold beacon_rate rssi_reject_assoc_rssi rssi_ignore_probe_request maxassoc \
-		vendor_vht
+		rts_threshold beacon_rate rssi_reject_assoc_rssi rssi_ignore_probe_request maxassoc
 
 	hostapd_set_log_options base_cfg
 
@@ -204,7 +202,6 @@ hostapd_prepare_device_config() {
 				set_default rate_list "24000 36000 48000 54000"
 				set_default basic_rate_list "24000"
 			fi
-			[ -n "$vendor_vht" ] && append base_cfg "vendor_vht=$vendor_vht" "$N"
 		;;
 		a)
 			if [ "$cell_density" -eq 1 ]; then
@@ -790,7 +787,7 @@ hostapd_set_bss_options() {
 		;;
 	esac
 
-	local auth_algs="$((($auth_mode_shared << 1) | $auth_mode_open))"
+	local auth_algs=$((($auth_mode_shared << 1) | $auth_mode_open))
 	append bss_conf "auth_algs=${auth_algs:-1}" "$N"
 	append bss_conf "wpa=$wpa" "$N"
 	[ -n "$wpa_pairwise" ] && append bss_conf "wpa_pairwise=$wpa_pairwise" "$N"
@@ -1206,6 +1203,11 @@ _wpa_supplicant_common() {
 	_config="${_rpath}-$ifname.conf"
 }
 
+wpa_supplicant_teardown_interface() {
+	_wpa_supplicant_common "$1"
+	rm -rf "$_rpath/$1" "$_config"
+}
+
 wpa_supplicant_prepare_interface() {
 	local ifname="$1"
 	_w_driver="$2"
@@ -1250,6 +1252,7 @@ wpa_supplicant_prepare_interface() {
 	else
 		[ -e "$multiap_flag_file" ] && rm "$multiap_flag_file"
 	fi
+	wpa_supplicant_teardown_interface "$ifname"
 	cat > "$_config" <<EOF
 ${scan_list:+freq_list=$scan_list}
 $ap_scan
@@ -1369,12 +1372,14 @@ wpa_supplicant_add_network() {
 
 			key_mgmt="$wpa_key_mgmt"
 
-			if [ "$_w_mode" = "mesh" -o "$auth_type" = "sae" ]; then
-				passphrase="sae_password=\"${key}\""
-			elif [ ${#key} -eq 64 ]; then
+			if [ ${#key} -eq 64 ]; then
 				passphrase="psk=${key}"
 			else
-				passphrase="psk=\"${key}\""
+				if [ "$_w_mode" = "mesh" ]; then
+					passphrase="sae_password=\"${key}\""
+				else
+					passphrase="psk=\"${key}\""
+				fi
 			fi
 			append network_data "$passphrase" "$N$T"
 		;;

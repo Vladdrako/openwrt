@@ -206,6 +206,7 @@ set_wifi_down() {
 }
 
 scan_wifi() {
+	local cfgfile="$1"
 	DEVICES=
 	config_cb() {
 		local type="$1"
@@ -231,7 +232,7 @@ scan_wifi() {
 			;;
 		esac
 	}
-	config_load "${1:-wireless}"
+	config_load "${cfgfile:-wireless}"
 }
 
 DEVICES=

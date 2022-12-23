@@ -92,6 +92,5 @@ if PACKAGE_libwolfssl
 			bool "/dev/crypto - full"
 			select WOLFSSL_HAS_DEVCRYPTO
 	endchoice
-
 endif
 endmenu

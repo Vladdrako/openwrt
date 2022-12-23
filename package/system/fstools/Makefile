@@ -20,6 +20,7 @@ CMAKE_INSTALL:=1
 PKG_LICENSE:=GPL-2.0
 PKG_LICENSE_FILES:=
 
+PKG_USE_MIPS16:=0
 PKG_FLAGS:=nonshared
 
 PKG_BUILD_DEPENDS := util-linux
@@ -30,15 +31,15 @@ PKG_MAINTAINER:=John Crispin <john@phrozen.org>
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/cmake.mk
 
+TARGET_LDFLAGS += $(if $(CONFIG_USE_GLIBC),-lrt)
 CMAKE_OPTIONS += $(if $(CONFIG_FSTOOLS_UBIFS_EXTROOT),-DCMAKE_UBIFS_EXTROOT=y)
 CMAKE_OPTIONS += $(if $(CONFIG_FSTOOLS_OVL_MOUNT_FULL_ACCESS_TIME),-DCMAKE_OVL_MOUNT_FULL_ACCESS_TIME=y)
 CMAKE_OPTIONS += $(if $(CONFIG_FSTOOLS_OVL_MOUNT_COMPRESS_ZLIB),-DCMAKE_OVL_MOUNT_COMPRESS_ZLIB=y)
-CMAKE_OPTIONS += $(if $(CONFIG_FSTOOLS_OVL_MOUNT_COMPRESS_ZSTD),-DCMAKE_OVL_MOUNT_COMPRESS_ZSTD=y)
 
 define Package/fstools
   SECTION:=base
   CATEGORY:=Base system
-  DEPENDS:=+ubox +NAND_SUPPORT:ubi-utils
+  DEPENDS:=+ubox +USE_GLIBC:librt +NAND_SUPPORT:ubi-utils
   TITLE:=OpenWrt filesystem tools
   MENU:=1
 endef
@@ -59,23 +60,12 @@ define Package/fstools/config
 		help
 			This option enables the full access time accounting (warning: it will increase the flash writes).
 
-	choice
-		depends on PACKAGE_fstools
-		optional
-		prompt "Overlay compression"
-
-	config FSTOOLS_OVL_MOUNT_COMPRESS_ZSTD
-		bool "zstd"
-		help
-			This option enables the compression using zstd on the storage device.
-
 	config FSTOOLS_OVL_MOUNT_COMPRESS_ZLIB
-		bool "zlib"
+		depends on PACKAGE_fstools
+		bool "Compress using zlib"
+		default n
 		help
 			This option enables the compression using zlib on the storage device.
-
-	endchoice
-
 endef
 
 define Package/snapshot-tool
@@ -128,6 +118,8 @@ define Package/block-mount/install
 
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/block $(1)/sbin/
 	$(INSTALL_DATA) $(PKG_INSTALL_DIR)/usr/lib/libblkid-tiny.so $(1)/lib/
+	$(LN) ../../sbin/block $(1)/usr/sbin/swapon
+	$(LN) ../../sbin/block $(1)/usr/sbin/swapoff
 
 endef
 

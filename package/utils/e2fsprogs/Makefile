@@ -144,6 +144,7 @@ endef
 
 TARGET_CFLAGS += $(FPIC) -ffunction-sections -fdata-sections -flto
 
+TARGET_LDFLAGS += $(if $(CONFIG_USE_GLIBC),-lrt)
 TARGET_LDFLAGS += -flto
 
 CONFIGURE_ARGS += \

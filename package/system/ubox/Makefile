@@ -18,10 +18,12 @@ PKG_MAINTAINER:=John Crispin <john@phrozen.org>
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/cmake.mk
 
+TARGET_LDFLAGS += $(if $(CONFIG_USE_GLIBC),-lrt)
+
 define Package/ubox
   SECTION:=base
   CATEGORY:=Base system
-  DEPENDS:=+libubox +ubusd +ubus +libubus +libuci
+  DEPENDS:=+libubox +ubusd +ubus +libubus +libuci +USE_GLIBC:librt
   TITLE:=OpenWrt system helper toolbox
   ALTERNATIVES:=\
     100:/sbin/rmmod:/sbin/kmodloader \
@@ -44,7 +46,7 @@ endef
 define Package/logd
   SECTION:=base
   CATEGORY:=Base system
-  DEPENDS:=+libubox +libubus +libblobmsg-json
+  DEPENDS:=+libubox +libubus +libblobmsg-json +USE_GLIBC:librt
   TITLE:=OpenWrt system log implementation
   USERID:=logd=514:logd=514
 endef
