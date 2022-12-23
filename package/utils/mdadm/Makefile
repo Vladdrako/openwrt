@@ -28,7 +28,7 @@ define Package/mdadm
   SUBMENU:=Disc
   TITLE:=A tool for managing Soft RAID under Linux
   URL:=https://www.kernel.org/pub/linux/utils/raid/mdadm/
-  DEPENDS:=+libpthread +kmod-md-mod +kmod-md-raid0 +kmod-md-raid10 +kmod-md-raid1
+  DEPENDS:=+libpthread +libudev +kmod-md-mod +kmod-md-raid0 +kmod-md-raid10 +kmod-md-raid1
 endef
 
 define Package/mdadm/description

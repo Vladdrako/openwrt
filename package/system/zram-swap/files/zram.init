@@ -5,26 +5,6 @@ START=15
 extra_command "compact" "Trigger compaction for all zram swap devices"
 extra_command "status" "Print out information & statistics about zram swap devices"
 
-ram_getsize()
-{
-	local line
-
-	while read line; do case "$line" in MemTotal:*) set $line; echo "$2"; break ;; esac; done </proc/meminfo
-}
-
-zram_getsize()	# in megabytes
-{
-	local zram_size="$( uci -q get system.@system[0].zram_size_mb )"
-	local ram_size="$( ram_getsize )"
-
-	if [ -z "$zram_size" ]; then
-		# e.g. 6mb for 16mb-routers or 61mb for 128mb-routers
-		echo $(( ram_size / 2048 ))
-	else
-		echo "$zram_size"
-	fi
-}
-
 zram_dev()
 {
 	local idx="$1"
@@ -54,14 +34,31 @@ zram_getdev()
 	echo $zdev
 }
 
-zram_comp_algo()
+zram_setup_dev()
 {
 	local dev="$1"
 	local zram_comp_algo="$( uci -q get system.@system[0].zram_comp_algo )"
+	local zram_exp_ratio="$( uci -q get system.@system[0].zram_comp_ratio )"
+	local zram_ram_percent="$( uci -q get system.@system[0].zram_ram_percentage )"
+	local zram_priority="$( uci -q get system.@system[0].zram_priority )"
 
 	if [ -z "$zram_comp_algo" ]; then
 		# default to lzo, which is always available
 		zram_comp_algo="lzo"
+	fi
+
+	if [ -z "$zram_exp_ratio" ]; then
+		 # default to a 2:1 compression ratio
+		zram_exp_ratio="2"
+	fi
+
+	if [ -z "$zram_ram_percent" ]; then
+		# default to 10 % of the total RAM
+		zram_ram_percent="10"
+	fi
+
+	if [ -z "$zram_priority" ]; then
+		zram_priority="100"
 	fi
 
 	if [ $(grep -c "$zram_comp_algo" /sys/block/$( basename $dev )/comp_algorithm) -ne 0 ]; then
@@ -70,6 +67,14 @@ zram_comp_algo()
 	else
 		logger -s -t zram_comp_algo -p daemon.debug "compression algorithm '$zram_comp_algo' is not supported for '$dev'"
 	fi
+
+	local zram_size=$(awk -v zer="$zram_exp_ratio" -v zrp="$zram_ram_percent" '(/MemTotal:/) {printf("%.0f\n", $2 * 1024 * (zrp / 100) * zer)}' /proc/meminfo)
+
+	echo $zram_size > "/sys/block/$( basename "$dev" )/disksize"
+
+	busybox mkswap "$dev"
+	busybox swapon -d -p $zram_priority "$dev"
+
 }
 
 #print various stats info about zram swap device
@@ -142,20 +147,7 @@ start()
 		return 1
 	}
 
-	local zram_size="$( zram_getsize )"
-	local zram_priority="$( uci -q get system.@system[0].zram_priority )"
-
-	if [ -z "$zram_priority" ]; then
-		zram_priority="100"
-	fi
-
-	logger -s -t zram_start -p daemon.debug "activating '$zram_dev' for swapping ($zram_size MiB)"
-
-	zram_reset "$zram_dev" "enforcing defaults"
-	zram_comp_algo "$zram_dev"
-	echo $(( $zram_size * 1024 * 1024 )) >"/sys/block/$( basename "$zram_dev" )/disksize"
-	busybox mkswap "$zram_dev"
-	busybox swapon -d -p $zram_priority "$zram_dev"
+	zram_setup_dev "$zram_dev"
 }
 
 stop()

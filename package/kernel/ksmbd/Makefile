@@ -23,6 +23,7 @@ define KernelPackage/fs-ksmbd
 	URL:=https://github.com/cifsd-team/cifsd
 	FILES:=$(PKG_BUILD_DIR)/ksmbd.ko
 	DEPENDS:= \
+		@LINUX_5_10 \
 		+kmod-nls-base \
 		+kmod-nls-utf8 \
 		+kmod-crypto-md4 \

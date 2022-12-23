@@ -1,0 +1,80 @@
+From 79bbe974dcb5e1494fbe0cc12f5265dc8ae068cf Mon Sep 17 00:00:00 2001
+From: Rui Salvaterra <rsalvaterra@gmail.com>
+Date: Fri, 7 Jan 2022 20:39:47 +0000
+Subject: [PATCH] iptables: remove support for pre-git kernel versions
+
+We don't need this at all.
+
+Signed-off-by: Rui Salvaterra <rsalvaterra@gmail.com>
+---
+ extensions/libip6t_DNAT.c |  1 -
+ extensions/libip6t_SNAT.c |  1 -
+ extensions/libipt_DNAT.c  |  8 ++------
+ extensions/libipt_SNAT.c  |  8 ++------
+ include/xtables.h         |  8 --------
+ libxtables/xtables.c      | 17 -----------------
+ 6 files changed, 4 insertions(+), 39 deletions(-)
+
+--- a/extensions/libip6t_SNAT.c
++++ b/extensions/libip6t_SNAT.c
+@@ -10,7 +10,6 @@
+ #include <string.h>
+ #include <stdlib.h>
+ #include <xtables.h>
+-#include <iptables.h>
+ #include <limits.h> /* INT_MAX in ip_tables.h */
+ #include <linux/netfilter_ipv6/ip6_tables.h>
+ #include <linux/netfilter/nf_nat.h>
+--- a/extensions/libipt_SNAT.c
++++ b/extensions/libipt_SNAT.c
+@@ -3,7 +3,6 @@
+ #include <string.h>
+ #include <stdlib.h>
+ #include <xtables.h>
+-#include <iptables.h>
+ #include <limits.h> /* INT_MAX in ip_tables.h */
+ #include <linux/netfilter_ipv4/ip_tables.h>
+ #include <linux/netfilter/nf_nat.h>
+--- a/include/xtables.h
++++ b/include/xtables.h
+@@ -588,14 +588,6 @@ static inline void xtables_print_mark_ma
+ extern const struct xtables_pprot xtables_chain_protos[];
+ extern uint16_t xtables_parse_protocol(const char *s);
+ 
+-/* kernel revision handling */
+-extern int kernel_version;
+-extern void get_kernel_version(void);
+-#define LINUX_VERSION(x,y,z)	(0x10000*(x) + 0x100*(y) + z)
+-#define LINUX_VERSION_MAJOR(x)	(((x)>>16) & 0xFF)
+-#define LINUX_VERSION_MINOR(x)	(((x)>> 8) & 0xFF)
+-#define LINUX_VERSION_PATCH(x)	( (x)      & 0xFF)
+-
+ /* xtoptions.c */
+ extern void xtables_option_metavalidate(const char *,
+ 					const struct xt_option_entry *);
+--- a/libxtables/xtables.c
++++ b/libxtables/xtables.c
+@@ -2414,23 +2414,6 @@ void xtables_print_val_mask(unsigned int
+ 	printf(" 0x%x", val);
+ }
+ 
+-int kernel_version;
+-
+-void get_kernel_version(void)
+-{
+-	static struct utsname uts;
+-	int x = 0, y = 0, z = 0;
+-
+-	if (uname(&uts) == -1) {
+-		fprintf(stderr, "Unable to retrieve kernel version.\n");
+-		xtables_free_opts(1);
+-		exit(1);
+-	}
+-
+-	sscanf(uts.release, "%d.%d.%d", &x, &y, &z);
+-	kernel_version = LINUX_VERSION(x, y, z);
+-}
+-
+ #include <linux/netfilter/nf_tables.h>
+ 
+ enum xt_xlate_type {

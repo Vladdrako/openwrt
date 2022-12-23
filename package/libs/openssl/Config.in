@@ -6,7 +6,6 @@ config OPENSSL_OPTIMIZE_SPEED
 	bool
 	default y if x86_64 || i386
 	prompt "Enable optimization for speed instead of size"
-	select OPENSSL_WITH_ASM
 	help
 		Enabling this option increases code size (around 20%) and
 		performance.  The increase in performance and size depends on the
@@ -14,11 +13,18 @@ config OPENSSL_OPTIMIZE_SPEED
 		increased by 20%-50% (mipsel & x86).
 		AES-GCM is supposed to be 3x faster on x86. YMMV.
 
+config OPENSSL_OVERRIDE_TARGET
+	default y
+	bool "Override target optimization level (force -O3)"
+	depends on OPENSSL_OPTIMIZE_SPEED
+	help
+		Force compiling at -O3 instead of the current target optimization level.
+
 config OPENSSL_WITH_ASM
 	bool
 	default y if !SMALL_FLASH || !arm
 	prompt "Compile with optimized assembly code"
-	depends on !arc
+	depends on !arc && OPENSSL_OPTIMIZE_SPEED
 	help
 		Disabling this option will reduce code size and performance.
 		The increase in performance and size depends on the target

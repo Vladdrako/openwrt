@@ -1,0 +1,159 @@
+From 8e0543ebd76e811c3abed4564efff298c5fd2353 Mon Sep 17 00:00:00 2001
+From: Francois-Xavier Le Bail <devel.fx.lebail@orange.fr>
+Date: Tue, 29 Jun 2021 14:25:30 +0200
+Subject: [PATCH] Suppress temporarily the warnings with "enable remote packet
+ capture"
+
+These were format-truncation warnings (See issue #1029).
+
+This is a workaround while waiting for a fix.
+---
+ diag-control.h  | 15 +++++++++++++++
+ pcap-new.c      |  7 +++++++
+ pcap-rpcap.c    |  5 +++++
+ rpcapd/rpcapd.c |  3 +++
+ 4 files changed, 30 insertions(+)
+
+--- a/diag-control.h
++++ b/diag-control.h
+@@ -121,6 +121,8 @@
+     __pragma(warning(disable:4996))
+   #define DIAG_ON_DEPRECATION \
+     __pragma(warning(pop))
++  #define DIAG_OFF_FORMAT_TRUNCATION
++  #define DIAG_ON_FORMAT_TRUNCATION
+ #elif PCAP_IS_AT_LEAST_CLANG_VERSION(2,8)
+   /*
+    * This is Clang 2.8 or later; we can use "clang diagnostic
+@@ -160,6 +162,8 @@
+     PCAP_DO_PRAGMA(clang diagnostic ignored "-Wdeprecated-declarations")
+   #define DIAG_ON_DEPRECATION \
+     PCAP_DO_PRAGMA(clang diagnostic pop)
++  #define DIAG_OFF_FORMAT_TRUNCATION
++  #define DIAG_ON_FORMAT_TRUNCATION
+ #elif PCAP_IS_AT_LEAST_GNUC_VERSION(4,6)
+   /*
+    * This is GCC 4.6 or later, or a compiler claiming to be that.
+@@ -188,6 +192,15 @@
+     PCAP_DO_PRAGMA(GCC diagnostic ignored "-Wdeprecated-declarations")
+   #define DIAG_ON_DEPRECATION \
+     PCAP_DO_PRAGMA(GCC diagnostic pop)
++
++  /*
++   * Suppress format-truncation= warnings.
++   */
++  #define DIAG_OFF_FORMAT_TRUNCATION \
++    PCAP_DO_PRAGMA(GCC diagnostic push) \
++    PCAP_DO_PRAGMA(GCC diagnostic ignored "-Wformat-truncation=")
++  #define DIAG_ON_FORMAT_TRUNCATION \
++    PCAP_DO_PRAGMA(GCC diagnostic pop)
+ #else
+   /*
+    * Neither Visual Studio, nor Clang 2.8 or later, nor GCC 4.6 or later
+@@ -200,6 +213,8 @@
+   #define DIAG_ON_NARROWING
+   #define DIAG_OFF_DEPRECATION
+   #define DIAG_ON_DEPRECATION
++  #define DIAG_OFF_FORMAT_TRUNCATION
++  #define DIAG_ON_FORMAT_TRUNCATION
+ #endif
+ 
+ #ifdef YYBYACC
+--- a/pcap-new.c
++++ b/pcap-new.c
+@@ -36,6 +36,7 @@
+ #endif
+ 
+ #include "ftmacros.h"
++#include "diag-control.h"
+ 
+ /*
+  * sockutils.h may include <crtdbg.h> on Windows, and pcap-int.h will
+@@ -237,7 +238,9 @@ int pcap_findalldevs_ex(const char *sour
+ 
+ 		if (filedata == NULL)
+ 		{
++			DIAG_OFF_FORMAT_TRUNCATION
+ 			snprintf(errbuf, PCAP_ERRBUF_SIZE, "Error when listing files: does folder '%s' exist?", path);
++			DIAG_ON_FORMAT_TRUNCATION
+ 			return -1;
+ 		}
+ #endif
+@@ -253,7 +256,9 @@ int pcap_findalldevs_ex(const char *sour
+ #else
+ 			if (pathlen + strlen(filedata->d_name) >= sizeof(filename))
+ 				continue;
++			DIAG_OFF_FORMAT_TRUNCATION
+ 			snprintf(filename, sizeof(filename), "%s%s", path, filedata->d_name);
++			DIAG_ON_FORMAT_TRUNCATION
+ #endif
+ 
+ 			fp = pcap_open_offline(filename, errbuf);
+@@ -444,6 +449,7 @@ pcap_t *pcap_open(const char *source, in
+ 	return fp;
+ 
+ fail:
++	DIAG_OFF_FORMAT_TRUNCATION
+ 	if (status == PCAP_ERROR)
+ 		snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s: %s",
+ 		    name, fp->errbuf);
+@@ -455,6 +461,7 @@ fail:
+ 	else
+ 		snprintf(errbuf, PCAP_ERRBUF_SIZE, "%s: %s",
+ 		    name, pcap_statustostr(status));
++	DIAG_ON_FORMAT_TRUNCATION
+ 	pcap_close(fp);
+ 	return NULL;
+ }
+--- a/pcap-rpcap.c
++++ b/pcap-rpcap.c
+@@ -36,6 +36,7 @@
+ #endif
+ 
+ #include "ftmacros.h"
++#include "diag-control.h"
+ 
+ #include <string.h>		/* for strlen(), ... */
+ #include <stdlib.h>		/* for malloc(), free(), ... */
+@@ -3351,7 +3352,9 @@ static void rpcap_msg_err(SOCKET sockctr
+ 		    PCAP_ERRBUF_SIZE) == -1)
+ 		{
+ 			// Network error.
++			DIAG_OFF_FORMAT_TRUNCATION
+ 			snprintf(remote_errbuf, PCAP_ERRBUF_SIZE, "Read of error message from client failed: %s", errbuf);
++			DIAG_ON_FORMAT_TRUNCATION
+ 			return;
+ 		}
+ 
+@@ -3386,7 +3389,9 @@ static void rpcap_msg_err(SOCKET sockctr
+ 		    PCAP_ERRBUF_SIZE) == -1)
+ 		{
+ 			// Network error.
++			DIAG_OFF_FORMAT_TRUNCATION
+ 			snprintf(remote_errbuf, PCAP_ERRBUF_SIZE, "Read of error message from client failed: %s", errbuf);
++			DIAG_ON_FORMAT_TRUNCATION
+ 			return;
+ 		}
+ 
+--- a/rpcapd/rpcapd.c
++++ b/rpcapd/rpcapd.c
+@@ -35,6 +35,7 @@
+ #endif
+ 
+ #include "ftmacros.h"
++#include "diag-control.h"
+ 
+ #include <errno.h>		// for the errno variable
+ #include <string.h>		// for strtok, etc
+@@ -1361,9 +1362,11 @@ main_active(void *ptr)
+ 		{
+ 			rpcapd_log(LOGPRIO_DEBUG, "%s", errbuf);
+ 
++			DIAG_OFF_FORMAT_TRUNCATION
+ 			snprintf(errbuf, PCAP_ERRBUF_SIZE, "Error connecting to host %s, port %s, using protocol %s",
+ 					activepars->address, activepars->port, (hints.ai_family == AF_INET) ? "IPv4":
+ 					(hints.ai_family == AF_INET6) ? "IPv6" : "Unspecified");
++			DIAG_ON_FORMAT_TRUNCATION
+ 
+ 			rpcapd_log(LOGPRIO_DEBUG, "%s", errbuf);
+ 

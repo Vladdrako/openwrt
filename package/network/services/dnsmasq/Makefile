@@ -6,15 +6,18 @@
 #
 
 include $(TOPDIR)/rules.mk
+include $(INCLUDE_DIR)/nls.mk
 
 PKG_NAME:=dnsmasq
-PKG_UPSTREAM_VERSION:=2.87
+PKG_UPSTREAM_VERSION:=2.88
 PKG_VERSION:=$(subst test,~~test,$(subst rc,~rc,$(PKG_UPSTREAM_VERSION)))
 PKG_RELEASE:=$(AUTORELEASE)
 
-PKG_SOURCE:=$(PKG_NAME)-$(PKG_UPSTREAM_VERSION).tar.xz
-PKG_SOURCE_URL:=https://thekelleys.org.uk/dnsmasq/
-PKG_HASH:=0228c0364a7f2356fd7e7f1549937cbf3099a78d3b2eb1ba5bb0c31e2b89de7a
+PKG_SOURCE_URL:=http://thekelleys.org.uk/git/dnsmasq.git
+PKG_SOURCE_PROTO:=git
+PKG_SOURCE_DATE:=2022-12-05
+PKG_SOURCE_VERSION:=e6841ea2e00a6cd7c21b0aebce56e82932f0959d
+PKG_MIRROR_HASH:=
 
 PKG_LICENSE:=GPL-2.0
 PKG_LICENSE_FILES:=COPYING
@@ -43,7 +46,7 @@ define Package/dnsmasq/Default
   CATEGORY:=Base system
   TITLE:=DNS and DHCP server
   URL:=http://www.thekelleys.org.uk/dnsmasq/
-  DEPENDS:=+libubus
+  DEPENDS:=+libubus +libidn2
   USERID:=dnsmasq=453:dnsmasq=453
 endef
 
@@ -133,10 +136,10 @@ endef
 Package/dnsmasq-dhcpv6/conffiles = $(Package/dnsmasq/conffiles)
 Package/dnsmasq-full/conffiles = $(Package/dnsmasq/conffiles)
 
-TARGET_CFLAGS += -flto
-TARGET_LDFLAGS += -flto=jobserver
+TARGET_CFLAGS += -flto -libidn2
+TARGET_LDFLAGS += -flto=jobserver -lintl
 
-COPTS = -DHAVE_UBUS -DHAVE_POLL_H \
+COPTS = -DHAVE_UBUS -DHAVE_POLL_H -DHAVE_LIBIDN2 \
 	$(if $(CONFIG_IPV6),,-DNO_IPV6)
 
 ifeq ($(BUILD_VARIANT),nodhcpv6)
@@ -164,7 +167,8 @@ MAKE_FLAGS := \
 	CFLAGS="$(TARGET_CFLAGS) $(TARGET_CPPFLAGS)" \
 	LDFLAGS="$(TARGET_LDFLAGS)" \
 	COPTS="$(COPTS)" \
-	PREFIX="/usr"
+	PREFIX="/usr" \
+	all-i18n
 
 define Package/dnsmasq/install
 	$(INSTALL_DIR) $(1)/usr/sbin

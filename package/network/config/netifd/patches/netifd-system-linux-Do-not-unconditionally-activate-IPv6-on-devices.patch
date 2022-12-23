@@ -1,0 +1,104 @@
+From patchwork Wed Feb  2 11:57:29 2022
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+X-Patchwork-Submitter: Hauke Mehrtens <hmehrtens@maxlinear.com>
+X-Patchwork-Id: 1587595
+X-Patchwork-Delegate: hauke@hauke-m.de
+Return-Path: 
+ <openwrt-devel-bounces+incoming=patchwork.ozlabs.org@lists.openwrt.org>
+X-Original-To: incoming@patchwork.ozlabs.org
+Delivered-To: patchwork-incoming@bilbo.ozlabs.org
+Authentication-Results: bilbo.ozlabs.org;
+	dkim=pass (2048-bit key;
+ secure) header.d=lists.infradead.org header.i=@lists.infradead.org
+ header.a=rsa-sha256 header.s=bombadil.20210309 header.b=sPgGjKih;
+	dkim-atps=neutral
+Authentication-Results: ozlabs.org;
+ spf=none (no SPF record) smtp.mailfrom=lists.openwrt.org
+ (client-ip=2607:7c80:54:e::133; helo=bombadil.infradead.org;
+ envelope-from=openwrt-devel-bounces+incoming=patchwork.ozlabs.org@lists.openwrt.org;
+ receiver=<UNKNOWN>)
+Received: from bombadil.infradead.org (bombadil.infradead.org
+ [IPv6:2607:7c80:54:e::133])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange X25519 server-signature RSA-PSS (4096 bits) server-digest
+ SHA256)
+	(No client certificate requested)
+	by bilbo.ozlabs.org (Postfix) with ESMTPS id 4JpgRh4JTWz9s8s
+	for <incoming@patchwork.ozlabs.org>; Wed,  2 Feb 2022 23:03:12 +1100 (AEDT)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=lists.infradead.org; s=bombadil.20210309; h=Sender:Content-Type:List-Help:
+	Reply-To:List-Archive:List-Unsubscribe:List-Subscribe:From:List-Post:List-Id:
+	Message-ID:MIME-Version:Date:Subject:To:Cc:Content-Transfer-Encoding:
+	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
+	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Owner;
+	bh=kQOwQSO9XNNeDwwXUMB4IbaOJtoVfWaIoJgiUG7zrx0=; b=sPgGjKihCxUWFNIAYXPRSV0mSz
+	Tx6c6q98tAw5i05VHQU8CbVYcvIRaT1TRffrZse8HCVrV9ybIC+xyPC1X9M9GyfWSWVtBiOuNXpVH
+	g3HInW/aL10duE5T3HuE3DHYbq/XgvRGPBngRAmMCAzNGfwxdUedB05fJmJru/qbxF9D8pWeorR9Q
+	DawJp4LSSXMSZsVT3/gd7A4eT7NdETkmGM2Qxakhj9G5SiHzFxEfzSE1d+VLwr8mlxh3tx/GXmhjb
+	rhK1Hcp55QqjNumu5H7BpYO5UkbBtkRn9n67CMlS2BLfPrpKCpwEaSiiEIUpEO2Qyzda/9u49YGVU
+	9MB15syg==;
+Received: from localhost ([::1] helo=bombadil.infradead.org)
+	by bombadil.infradead.org with esmtp (Exim 4.94.2 #2 (Red Hat Linux))
+	id 1nFEGk-00F6ix-I6; Wed, 02 Feb 2022 11:57:50 +0000
+To: <openwrt-devel@lists.openwrt.org>
+Subject: [PATCH netifd] system-linux: Do not unconditionally activate IPv6 on
+ devices
+Date: Wed, 2 Feb 2022 12:57:29 +0100
+MIME-Version: 1.0
+Message-ID: <mailman.35553.1643803067.1923571.openwrt-devel@lists.openwrt.org>
+List-Id: OpenWrt Development List <openwrt-devel.lists.openwrt.org>
+List-Post: <mailto:openwrt-devel@lists.openwrt.org>
+X-Patchwork-Original-From: Hauke Mehrtens via openwrt-devel
+ <openwrt-devel@lists.openwrt.org>
+From: Hauke Mehrtens <hmehrtens@maxlinear.com>
+Precedence: list
+X-Mailman-Version: 2.1.34
+X-BeenThere: openwrt-devel@lists.openwrt.org
+List-Subscribe: <https://lists.openwrt.org/mailman/listinfo/openwrt-devel>,
+ <mailto:openwrt-devel-request@lists.openwrt.org?subject=subscribe>
+List-Unsubscribe: <https://lists.openwrt.org/mailman/options/openwrt-devel>,
+ <mailto:openwrt-devel-request@lists.openwrt.org?subject=unsubscribe>
+List-Archive: <http://lists.openwrt.org/pipermail/openwrt-devel/>
+Reply-To: Hauke Mehrtens <hmehrtens@maxlinear.com>
+List-Help: <mailto:openwrt-devel-request@lists.openwrt.org?subject=help>
+Sender: "openwrt-devel" <openwrt-devel-bounces@lists.openwrt.org>
+Errors-To: 
+ openwrt-devel-bounces+incoming=patchwork.ozlabs.org@lists.openwrt.org
+
+The sender domain has a DMARC Reject/Quarantine policy which disallows
+sending mailing list messages using the original "From" header.
+
+To mitigate this problem, the original message has been wrapped
+automatically by the mailing list software.
+IPv6 can only be activated and deactivated on an interface, not on a
+device in netifd. When we call system_set_disable_ipv6(dev, "") in
+system_if_clear_state() we will activate IPv6 unconditionally for
+devices even when it was deactivated in sysfs before.
+
+When we set this option in /etc/sysctl.d/
+	net.ipv6.conf.eth0_0.disable_ipv6 = 1
+and add a device setting, but no interface setting in the UCI network
+configuration IPv6 will still get activated.
+
+With this change the IPv6 setting will not be changed any more when no
+interface is configured. In the interface settings it can still be changed.
+
+Signed-off-by: Hauke Mehrtens <hmehrtens@maxlinear.com>
+---
+ system-linux.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/system-linux.c b/system-linux.c
+index 0b768f8..df36b61 100644
+--- a/system-linux.c
++++ b/system-linux.c
+@@ -1271,7 +1271,6 @@ void system_if_clear_state(struct device *dev)
+ 	system_if_clear_entries(dev, RTM_GETADDR, AF_INET6);
+ 	system_if_clear_entries(dev, RTM_GETNEIGH, AF_INET);
+ 	system_if_clear_entries(dev, RTM_GETNEIGH, AF_INET6);
+-	system_set_disable_ipv6(dev, "0");
+ }
+ 
+ static inline unsigned long
