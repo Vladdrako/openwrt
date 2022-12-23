@@ -1,0 +1,11 @@
+--- a/include/string.h
++++ b/include/string.h
+@@ -139,7 +139,7 @@ _FORTIFY_FN(strncpy) char *strncpy(char
+ 	return __orig_strncpy(__d, __s, __n);
+ }
+ 
+-#ifdef _GNU_SOURCE
++#if 0
+ #undef mempcpy
+ _FORTIFY_FN(mempcpy) void *mempcpy(void *__d, const void *__s, size_t __n)
+ {
