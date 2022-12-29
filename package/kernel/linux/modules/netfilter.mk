@@ -186,7 +186,7 @@ $(eval $(call KernelPackage,nf-flow))
 define KernelPackage/nf-socket
   SUBMENU:=$(NF_MENU)
   TITLE:=Netfilter socket lookup support
-  KCONFIG:= $(KCOFNIG_NF_SOCKET)
+  KCONFIG:= $(KCONFIG_NF_SOCKET)
   FILES:=$(foreach mod,$(NF_SOCKET-m),$(LINUX_DIR)/net/$(mod).ko)
   AUTOLOAD:=$(call AutoProbe,$(notdir $(NF_SOCKET-m)))
 endef
