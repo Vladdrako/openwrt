@@ -108,7 +108,6 @@ $(curdir)/gengetopt/compile := $(curdir)/libtool/compile
 $(curdir)/gmp/compile := $(curdir)/libtool/compile
 $(curdir)/gzip/compile := $(curdir)/zlib/compile
 $(curdir)/isl/compile := $(curdir)/gmp/compile
-$(curdir)/libdeflate/compile := $(curdir)/cmake/compile
 $(curdir)/liblzo/compile := $(curdir)/cmake/compile
 $(curdir)/libressl/compile := $(curdir)/pkgconf/compile
 $(curdir)/libtool/compile := $(curdir)/automake/compile $(curdir)/missing-macros/compile
