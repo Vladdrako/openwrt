@@ -1,7 +1,6 @@
 PKG_DRIVERS += \
-	ath ath5k ath6kl ath6kl-sdio ath6kl-usb ath9k ath9k-common ath9k-htc \
-	ath10k ath10k-pci ath10k-sdio ath10k-smallbuffers ath11k ath11k-ahb \
-	ath11k-pci ar5523 carl9170 owl-loader wil6210
+	ath ath5k ath6kl ath6kl-sdio ath6kl-usb ath9k ath9k-common ath9k-htc ath10k ath10k-smallbuffers \
+	ath11k ath11k-ahb ath11k-pci carl9170 owl-loader ar5523 wil6210
 
 PKG_CONFIG_DEPENDS += \
 	CONFIG_PACKAGE_ATH_DEBUG \
@@ -61,11 +60,8 @@ config-$(CONFIG_ATH11K_MEM_PROFILE_512MB) += ATH11K_MEM_PROFILE_512MB
 config-$(CONFIG_ATH11K_MEM_PROFILE_1GB) += ATH11K_MEM_PROFILE_1GB
 
 config-$(call config_package,ath9k-htc) += ATH9K_HTC
-config-$(call config_package,ath10k) += ATH10K
-config-$(call config_package,ath10k-pci) += ATH10K_PCI
-config-$(call config_package,ath10k-sdio) += ATH10K_SDIO
+config-$(call config_package,ath10k) += ATH10K ATH10K_PCI
 config-$(call config_package,ath10k-smallbuffers) += ATH10K ATH10K_PCI ATH10K_SMALLBUFFERS
-
 config-$(call config_package,ath11k) += ATH11K
 config-$(call config_package,ath11k-pci) += ATH11K_PCI
 
