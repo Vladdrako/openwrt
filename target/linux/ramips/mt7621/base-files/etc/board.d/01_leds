@@ -179,6 +179,9 @@ tplink,re650-v2)
 tplink,tl-wpa8631p-v3)
 	ucidef_set_led_netdev "lan" "LAN" "green:lan" "br-lan"
 	;;
+xiaomi,mi-router-4a-gigabit-v2)
+	ucidef_set_led_netdev "wan" "wan" "blue:wan" "wan" "link"
+	;;
 xiaomi,mi-router-3-pro)
 	ucidef_set_led_netdev "wan_green" "WAN (green)" "green:wan" "wan" "link"
 	ucidef_set_led_netdev "lan1_green" "LAN1 (green)" "green:lan1" "lan1" "link"
