@@ -1,6 +1,6 @@
 PKG_DRIVERS += \
 	ath ath5k ath6kl ath6kl-sdio ath6kl-usb ath9k ath9k-common ath9k-htc ath10k ath10k-smallbuffers \
-	ath11k ath11k-pci carl9170 owl-loader ar5523 wil6210
+	ath11k ath11k-ahb ath11k-pci carl9170 owl-loader ar5523 wil6210
 
 PKG_CONFIG_DEPENDS += \
 	CONFIG_PACKAGE_ATH_DEBUG \
@@ -12,7 +12,8 @@ PKG_CONFIG_DEPENDS += \
 	CONFIG_ATH9K_TX99 \
 	CONFIG_ATH10K_LEDS \
 	CONFIG_ATH10K_THERMAL \
-	CONFIG_ATH11K_THERMAL \
+	CONFIG_ATH11K_MEM_PROFILE_512MB \
+	CONFIG_ATH11K_MEM_PROFILE_1GB \
 	CONFIG_ATH_USER_REGD
 
 ifdef CONFIG_PACKAGE_MAC80211_DEBUGFS
