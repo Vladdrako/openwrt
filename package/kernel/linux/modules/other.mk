@@ -1421,6 +1421,20 @@ endef
 $(eval $(call KernelPackage,i6300esb-wdt))
 
 
+define KernelPackage/qcom-qmi-helpers
+  SUBMENU:=$(OTHER_MENU)
+  TITLE:=Qualcomm QMI Helpers
+  KCONFIG:=CONFIG_QCOM_QMI_HELPERS
+  FILES:=$(LINUX_DIR)/drivers/soc/qcom/qmi_helpers.ko
+  AUTOLOAD:=$(call AutoProbe,qmi_helpers)
+endef
+
+define KernelPackage/qcom-qmi-helpers/description
+  Qualcomm QMI Helpers
+endef
+
+$(eval $(call KernelPackage,qcom-qmi-helpers))
+
 define KernelPackage/mhi-bus
   SUBMENU:=$(OTHER_MENU)
   TITLE:=MHI bus
