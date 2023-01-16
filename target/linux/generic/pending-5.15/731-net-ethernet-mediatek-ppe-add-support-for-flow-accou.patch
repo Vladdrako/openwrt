@@ -347,27 +347,17 @@ v2: fix wrong variable name in return value check spotted by Denis Kirjanov
  		type = FIELD_GET(MTK_FOE_IB1_PACKET_TYPE, entry->ib1);
  		seq_printf(m, "%05x %s %7s", i,
  			   mtk_foe_entry_state_str(state),
-@@ -152,10 +155,19 @@ mtk_ppe_debugfs_foe_show(struct seq_file
- 		*((__be32 *)h_dest) = htonl(l2->dest_mac_hi);
+@@ -153,9 +156,11 @@ mtk_ppe_debugfs_foe_show(struct seq_file
  		*((__be16 *)&h_dest[4]) = htons(l2->dest_mac_lo);
  
--		seq_printf(m, " eth=%pM->%pM etype=%04x"
+ 		seq_printf(m, " eth=%pM->%pM etype=%04x"
 -			      " vlan=%d,%d ib1=%08x ib2=%08x\n",
--			   h_source, h_dest, ntohs(l2->etype),
++			      " vlan=%d,%d ib1=%08x ib2=%08x"
++			      " packets=%lld bytes=%lld\n",
+ 			   h_source, h_dest, ntohs(l2->etype),
 -			   l2->vlan1, l2->vlan2, entry->ib1, ib2);
-+		if (acct) {
-+			seq_printf(m, " eth=%pM->%pM etype=%04x"
-+				      " vlan=%d,%d ib1=%08x ib2=%08x"
-+				      " packets=%lld bytes=%lld\n",
-+				   h_source, h_dest, ntohs(l2->etype),
-+				   l2->vlan1, l2->vlan2, entry->ib1, ib2,
-+				   acct->packets, acct->bytes);
-+		} else {
-+			seq_printf(m, " eth=%pM->%pM etype=%04x"
-+				      " vlan=%d,%d ib1=%08x ib2=%08x\n",
-+				   h_source, h_dest, ntohs(l2->etype),
-+				   l2->vlan1, l2->vlan2, entry->ib1, ib2);
-+		}
++			   l2->vlan1, l2->vlan2, entry->ib1, ib2,
++			   acct ? acct->packets : 0, acct ? acct->bytes : 0);
  	}
  
  	return 0;
