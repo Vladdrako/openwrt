@@ -1,0 +1,224 @@
+From patchwork Mon Oct 17 17:03:58 2022
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+X-Patchwork-Submitter: Eneas U de Queiroz <cotequeiroz@gmail.com>
+X-Patchwork-Id: 1690996
+Return-Path: 
+ <openwrt-devel-bounces+incoming=patchwork.ozlabs.org@lists.openwrt.org>
+X-Original-To: incoming@patchwork.ozlabs.org
+Delivered-To: patchwork-incoming@legolas.ozlabs.org
+Authentication-Results: legolas.ozlabs.org;
+ spf=none (no SPF record) smtp.mailfrom=lists.openwrt.org
+ (client-ip=2607:7c80:54:3::133; helo=bombadil.infradead.org;
+ envelope-from=openwrt-devel-bounces+incoming=patchwork.ozlabs.org@lists.openwrt.org;
+ receiver=<UNKNOWN>)
+Authentication-Results: legolas.ozlabs.org;
+	dkim=pass (2048-bit key;
+ secure) header.d=lists.infradead.org header.i=@lists.infradead.org
+ header.a=rsa-sha256 header.s=bombadil.20210309 header.b=MCry+5ZT;
+	dkim=fail reason="signature verification failed" (2048-bit key;
+ unprotected) header.d=gmail.com header.i=@gmail.com header.a=rsa-sha256
+ header.s=20210112 header.b=V3jI9bYe;
+	dkim-atps=neutral
+Received: from bombadil.infradead.org (bombadil.infradead.org
+ [IPv6:2607:7c80:54:3::133])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange X25519 server-signature ECDSA (P-384) server-digest SHA384)
+	(No client certificate requested)
+	by legolas.ozlabs.org (Postfix) with ESMTPS id 4Mrk5R5n1wz23kK
+	for <incoming@patchwork.ozlabs.org>; Tue, 18 Oct 2022 04:10:19 +1100 (AEDT)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=lists.infradead.org; s=bombadil.20210309; h=Sender:
+	Content-Transfer-Encoding:Content-Type:List-Subscribe:List-Help:List-Post:
+	List-Archive:List-Unsubscribe:List-Id:MIME-Version:References:In-Reply-To:
+	Message-Id:Date:Subject:Cc:To:From:Reply-To:Content-ID:Content-Description:
+	Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:
+	List-Owner; bh=zT7QC05qg3CaOnizBGuJ0zU9XGdK6jqjhG7T+teDYAo=; b=MCry+5ZTY6rZZw
+	THVYHqa/bMUwdsvpkgl8nAVw86kv0JTRKcGnymsLKS1ChrxnZBSGKzGoPUJUaLJ8KyKtM6i20FsQ4
+	xgy1Z19yM7hHtp+Y2Mho5Qn351oHX3fHm80FUBZT1NEFW+ztMhhlAX/o2RVgHsIImBahf9+dxrmFF
+	sMZJd2MaWpfsn2MV+YN4DDzqSldeOMRoqnACzbHHjus8sI/lg1M5eksJZS2JeK589dEu0aPR4k23X
+	pwTv3pcBxEoJn14MKxEsR00OC3gCTVNBXv7hfKr5EDRt38fth9/NFdBs7dGWqe7d+HS+DMN6pVOLy
+	h8S6idQnYCDICCBwSbrQ==;
+Received: from localhost ([::1] helo=bombadil.infradead.org)
+	by bombadil.infradead.org with esmtp (Exim 4.94.2 #2 (Red Hat Linux))
+	id 1okTaA-00Dt5x-Ga; Mon, 17 Oct 2022 17:07:18 +0000
+Received: from mail-oo1-xc2c.google.com ([2607:f8b0:4864:20::c2c])
+	by bombadil.infradead.org with esmtps (Exim 4.94.2 #2 (Red Hat Linux))
+	id 1okTZY-00Dszh-MA
+	for openwrt-devel@lists.openwrt.org; Mon, 17 Oct 2022 17:06:42 +0000
+Received: by mail-oo1-xc2c.google.com with SMTP id
+ m11-20020a4aab8b000000b00476743c0743so2715078oon.10
+        for <openwrt-devel@lists.openwrt.org>;
+ Mon, 17 Oct 2022 10:06:37 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20210112;
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:from:to:cc:subject:date
+         :message-id:reply-to;
+        bh=tCNePLbBzV8oqI0WXBJ49j/yEV+jWNfdcIXQMzVwLn0=;
+        b=V3jI9bYepcixRRV9hiKKsp87OCzfsu9lyMOTIwKOr5My4XWFvCsHQhYb2pGKOOHoBw
+         fKnuyul0Ss9zndJevA8L0hArdSnZ2Yxa+tbvv2TCXWQUrs1uhhzxEhV6gxP+3XalcZNp
+         pTEHG2dVBZ4tL7jv8xJGszo4QeEXEXwN8WRNeE/zOAfrDoZqs22YScI4td1aQL51LJDI
+         Qjd/ssOS2U3VOI+W7I9IMJH96rqDR8Kb2Va3YepGS3qD52kfn81PUDizyufqfw5j9Qin
+         YjQvouHnB23wtFr8tdMb6E5O59qQ2zRgWgz9r1qJqs7llKSrh1jNmCQ2qDOVx7HQgHVO
+         FmvQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20210112;
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:x-gm-message-state:from:to:cc
+         :subject:date:message-id:reply-to;
+        bh=tCNePLbBzV8oqI0WXBJ49j/yEV+jWNfdcIXQMzVwLn0=;
+        b=gcbPcnzy8m7cFZRrp3ain1mW33s17z2O+PWyJ3Bj2DPGjfLti3LD0kNr11YBywmXGd
+         AcHsS03dNgwmHdg/EzRvQE9fvhJcOT/+7/YLWk6SKP5s2l6GeoCXy/wtuFjRVeYZFRg9
+         eA/EdLTN8NK3FIIWe7oeaPm/G6ye9KKNNZAIaRFxbX8nmnbbWHsnBvMgALvsNH228CeT
+         dD0DXgn1socPWWEjpqcOYBs+ilqxnG1E3rimZdTFt7+0i++WEYgu5LmksvqtdwG52B9X
+         w1JLLPqdPoPa7nS1yDk3PeqGKot3FAzc4rbmW0jFIURy2jh9JDSs6wgvKYNVtFeOBlm0
+         uO9g==
+X-Gm-Message-State: ACrzQf086JXwrm9vVnmpPDeKiKyvfb02uk8upx8YEYQK8f3kkurKdD8Z
+	VXNERJWTrJ3BDO5UqdRruE3cuyxy1Go=
+X-Google-Smtp-Source: 
+ AMsMyM5f2TakbzOHEzCqE37p246un4unWGIDUSEGoFUgeI+0q4uXx64+MvRmLayY60LrjjY8u+6LaQ==
+X-Received: by 2002:a05:6820:1892:b0:480:b863:7528 with SMTP id
+ bm18-20020a056820189200b00480b8637528mr4668151oob.0.1666026393698;
+        Mon, 17 Oct 2022 10:06:33 -0700 (PDT)
+Received: from TRIBSUPORT-421.troianet.com.br ([177.75.175.22])
+        by smtp.gmail.com with ESMTPSA id
+ 186-20020aca06c3000000b003547a3401e6sm4626822oig.43.2022.10.17.10.06.32
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Mon, 17 Oct 2022 10:06:33 -0700 (PDT)
+From: Eneas U de Queiroz <cotequeiroz@gmail.com>
+To: openwrt-devel@lists.openwrt.org
+Cc: Eneas U de Queiroz <cotequeiroz@gmail.com>
+Subject: [opkg 3/3] libopkg: pkg_hash: consider names stripped of ABI
+Date: Mon, 17 Oct 2022 14:03:58 -0300
+Message-Id: <20221017170358.3628154-4-cotequeiroz@gmail.com>
+X-Mailer: git-send-email 2.37.3
+In-Reply-To: <20221017170358.3628154-1-cotequeiroz@gmail.com>
+References: <20221017170358.3628154-1-cotequeiroz@gmail.com>
+MIME-Version: 1.0
+X-CRM114-Version: 20100106-BlameMichelson ( TRE 0.8.0 (BSD) ) MR-646709E3 
+X-CRM114-CacheID: sfid-20221017_100640_751893_4281C6D9 
+X-CRM114-Status: GOOD (  14.75  )
+X-Spam-Score: -0.2 (/)
+X-Spam-Report: Spam detection software,
+ running on the system "bombadil.infradead.org",
+ has NOT identified this incoming email as spam.  The original
+ message has been attached to this so you can view it or label
+ similar future email.  If you have any questions, see
+ the administrator of that system for details.
+ Content preview:  When resolving dependencies, packages listed in the cli may
+    not have the ABI version,
+ and they should have a higher priority over anything
+    picked automatically. Use powers of two when computing the score to avoid
+    ties due to different criteria,
+ and so that it reflects what was matched.    
+ Content analysis details:   (-0.2 points, 5.0 required)
+  pts rule name              description
+ ---- ----------------------
+ --------------------------------------------------
+ -0.0 RCVD_IN_DNSWL_NONE     RBL: Sender listed at https://www.dnswl.org/,
+                              no trust
+                             [2607:f8b0:4864:20:0:0:0:c2c listed in]
+                             [list.dnswl.org]
+ -0.0 SPF_PASS               SPF: sender matches SPF record
+  0.0 SPF_HELO_NONE          SPF: HELO does not publish an SPF Record
+  0.0 FREEMAIL_FROM          Sender email is commonly abused enduser mail
+                             provider
+                             [cotequeiroz[at]gmail.com]
+ -0.1 DKIM_VALID_AU          Message has a valid DKIM or DK signature from
+                             author's domain
+ -0.1 DKIM_VALID             Message has at least one valid DKIM or DK
+ signature
+  0.1 DKIM_SIGNED            Message has a DKIM or DK signature,
+ not necessarily
+                             valid
+ -0.1 DKIM_VALID_EF          Message has a valid DKIM or DK signature from
+                             envelope-from domain
+X-BeenThere: openwrt-devel@lists.openwrt.org
+X-Mailman-Version: 2.1.34
+Precedence: list
+List-Id: OpenWrt Development List <openwrt-devel.lists.openwrt.org>
+List-Unsubscribe: <https://lists.openwrt.org/mailman/options/openwrt-devel>,
+ <mailto:openwrt-devel-request@lists.openwrt.org?subject=unsubscribe>
+List-Archive: <http://lists.openwrt.org/pipermail/openwrt-devel/>
+List-Post: <mailto:openwrt-devel@lists.openwrt.org>
+List-Help: <mailto:openwrt-devel-request@lists.openwrt.org?subject=help>
+List-Subscribe: <https://lists.openwrt.org/mailman/listinfo/openwrt-devel>,
+ <mailto:openwrt-devel-request@lists.openwrt.org?subject=subscribe>
+Sender: "openwrt-devel" <openwrt-devel-bounces@lists.openwrt.org>
+Errors-To: 
+ openwrt-devel-bounces+incoming=patchwork.ozlabs.org@lists.openwrt.org
+
+When resolving dependencies, packages listed in the cli may not have
+the ABI version, and they should have a higher priority over anything
+picked automatically.
+
+Use powers of two when computing the score to avoid ties due to
+different criteria, and so that it reflects what was matched.
+
+The resulting priorities after this change are:
+ - base score is 0
+ === USER CHOICE CRITERIA ====
+ - packages "picked by hand" (local file given in the cli) have absolute
+   priority, ending the search regardless of score
+ - package whose full name is in the cli: score += 4
+ - package whose name stripped of ABI matches one in the cli: score += 2
+ === DEVELOPER CRITERIA ====
+ - package whose full name matches the dependency name: score += 1
+ - in case of a tie, the last package that was looked at is chosen
+
+Signed-off-by: Eneas U de Queiroz <cotequeiroz@gmail.com>
+---
+ libopkg/pkg_hash.c | 24 +++++++++++++++++++++---
+ 1 file changed, 21 insertions(+), 3 deletions(-)
+
+diff --git opkglibopkg/pkg_hash.c b/libopkg/pkg_hash.c
+index f3fb0c6..9494211 100644
+--- opkglibopkg/pkg_hash.c
++++ b/libopkg/pkg_hash.c
+@@ -413,7 +413,12 @@ pkg_t *pkg_hash_fetch_best_installation_candidate(abstract_pkg_t * apkg,
+ 	for (i = 0; i < matching_pkgs->len; i++) {
+ 		pkg_t *matching = matching_pkgs->pkgs[i];
+ 		if (constraint_fcn(matching, cdata)) {
+-			int score = 1;
++			int score = 0;
++			char *stripped_name = NULL;
++			const char *abiver;
++			size_t abilen, namelen;
++			int cli_score;
++
+ 			/* It has been provided by hand, so it is what user want */
+ 			if (matching->provided_by_hand == 1) {
+ 				good_pkg_by_name = matching;
+@@ -422,15 +427,28 @@ pkg_t *pkg_hash_fetch_best_installation_candidate(abstract_pkg_t * apkg,
+ 				break;
+ 			}
+ 
++			if ((abiver = pkg_get_string(matching, PKG_ABIVERSION)) &&
++			    ((namelen = strlen(matching->name))) > ((abilen = strlen(abiver))) &&
++			    !strncmp(matching->name + namelen - abilen, abiver, abilen) &&
++			    !(stripped_name = strndup(matching->name, namelen - abilen))) {
++				fprintf (stderr, "Out of memory.\n");
++				exit(EXIT_FAILURE);
++			}
++
+ 			if (strcmp(matching->name, apkg->name) == 0)
+ 				score++;
+ 
+-			for (j = 0; j < opkg_cli_argc; ++j) {
++			for (j = 0, cli_score = 0; j < opkg_cli_argc; ++j) {
+ 				if (!strcmp(matching->name, opkg_cli_argv[j])) {
+-					score += 2;
++					cli_score = 4;
+ 					break;
++				} else if (stripped_name &&
++					   !strcmp(stripped_name, opkg_cli_argv[j])) {
++					cli_score = 2;
+ 				}
+ 			}
++			score += cli_score;
++			free(stripped_name);
+ 
+ 			opkg_msg(DEBUG, "Candidate: %s %s (score %d).\n",
+ 				 matching->name, pkg_get_string(matching, PKG_VERSION),

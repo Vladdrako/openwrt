@@ -1,0 +1,200 @@
+From patchwork Mon Oct 17 17:03:56 2022
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+X-Patchwork-Submitter: Eneas U de Queiroz <cotequeiroz@gmail.com>
+X-Patchwork-Id: 1690995
+Return-Path: 
+ <openwrt-devel-bounces+incoming=patchwork.ozlabs.org@lists.openwrt.org>
+X-Original-To: incoming@patchwork.ozlabs.org
+Delivered-To: patchwork-incoming@legolas.ozlabs.org
+Authentication-Results: legolas.ozlabs.org;
+ spf=none (no SPF record) smtp.mailfrom=lists.openwrt.org
+ (client-ip=2607:7c80:54:3::133; helo=bombadil.infradead.org;
+ envelope-from=openwrt-devel-bounces+incoming=patchwork.ozlabs.org@lists.openwrt.org;
+ receiver=<UNKNOWN>)
+Authentication-Results: legolas.ozlabs.org;
+	dkim=pass (2048-bit key;
+ secure) header.d=lists.infradead.org header.i=@lists.infradead.org
+ header.a=rsa-sha256 header.s=bombadil.20210309 header.b=hk/83RrK;
+	dkim=fail reason="signature verification failed" (2048-bit key;
+ unprotected) header.d=gmail.com header.i=@gmail.com header.a=rsa-sha256
+ header.s=20210112 header.b=o0Z8XOr4;
+	dkim-atps=neutral
+Received: from bombadil.infradead.org (bombadil.infradead.org
+ [IPv6:2607:7c80:54:3::133])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange X25519 server-signature ECDSA (P-384) server-digest SHA384)
+	(No client certificate requested)
+	by legolas.ozlabs.org (Postfix) with ESMTPS id 4Mrk5C2cdRz23kV
+	for <incoming@patchwork.ozlabs.org>; Tue, 18 Oct 2022 04:10:06 +1100 (AEDT)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=lists.infradead.org; s=bombadil.20210309; h=Sender:
+	Content-Transfer-Encoding:Content-Type:List-Subscribe:List-Help:List-Post:
+	List-Archive:List-Unsubscribe:List-Id:MIME-Version:References:In-Reply-To:
+	Message-Id:Date:Subject:Cc:To:From:Reply-To:Content-ID:Content-Description:
+	Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:
+	List-Owner; bh=NF8ytocZopMarCfYzgODXD0/82H3FPxNMUlzoE3QcBQ=; b=hk/83RrKwMqwq7
+	VzfqR8fgBq42oV6ZVGb/EEnJqllukW70jgZL80QR0GcgbugjCKbPesk6W0YdAtos0eDIo2pm8BPSk
+	l8N7U6kkrM0RsIpqKBiezn2cnG5iuf668+XnkIW2QeDzg1bpIKd8SKTMUM2fsw4g4WiOPsPd1/DhO
+	KIbYIjvfH01fGX8uceuBPeFleZ8VFzqkmAvkJetWz4Y49ttIDoz8aTJ8yDiZ3Ihrpi0o8CVfYEbJa
+	iV5WSFrnrbYpu1eGARzJIKyK/uaxAOCGWQbNqEAG5k8A6uvZUmlgzsGptqcaB2if0WFnWHaQRvbh1
+	YUtYsGOIYs1cBodBOqkQ==;
+Received: from localhost ([::1] helo=bombadil.infradead.org)
+	by bombadil.infradead.org with esmtp (Exim 4.94.2 #2 (Red Hat Linux))
+	id 1okTZa-00Dt1H-H9; Mon, 17 Oct 2022 17:06:42 +0000
+Received: from mail-oi1-x22f.google.com ([2607:f8b0:4864:20::22f])
+	by bombadil.infradead.org with esmtps (Exim 4.94.2 #2 (Red Hat Linux))
+	id 1okTZQ-00Dsxi-OF
+	for openwrt-devel@lists.openwrt.org; Mon, 17 Oct 2022 17:06:34 +0000
+Received: by mail-oi1-x22f.google.com with SMTP id g130so12792881oia.13
+        for <openwrt-devel@lists.openwrt.org>;
+ Mon, 17 Oct 2022 10:06:31 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20210112;
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:from:to:cc:subject:date
+         :message-id:reply-to;
+        bh=I1Xwq0MFkqoA8aU7i5iKsRx31BAafhhMqWagYQf+JzY=;
+        b=o0Z8XOr4cJLLUWbNwcL7fDcxlSUCbvWVaoE9zH1mQxLmTD5nNlQPVLKjQ1n0+SOeIO
+         KhvWQydzkzu66GQ9qhzuMY/Odd7d6QmcOzTpV37WzAkSSuB5M1vo1Vghs00eL67Jf2or
+         6gaFS2CqR54TU0ce/+XLJngduvSnAKSy/YyCGULqZU0M3HcR2WomhY+Vv8SxlzxzKlbQ
+         vrmdxjrhaa2AW0sR7S/Fbhwe7XZCELKBB/WkEB6G2h7XKdGbRpirKYsFpltNpdqlcnKa
+         V963pik4brG0OuapfO894Qi6Tgu8dwCathQOzbEujcYElXf7A8YQURXBhgQDwc/LRcic
+         RO0w==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20210112;
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:x-gm-message-state:from:to:cc
+         :subject:date:message-id:reply-to;
+        bh=I1Xwq0MFkqoA8aU7i5iKsRx31BAafhhMqWagYQf+JzY=;
+        b=yYPUzXT8TTg3Ebl+qjeIhju22p6fRQqhePKJMey1OdWVF330cwePaajFY6+5j7lKks
+         goPn/XP6a1m8d3vjO3LNyodLdDO4xpxnLyq2/Y1kEILL+wDLBLVWJ2ZAuZDvB7yhmxu6
+         CnmujfNDLJhJAFmPVBhdffa/Wn8JGqzJmgEiwBcAmjCSS5FU0hJPXUtTZgRJ82LiDGBH
+         zObigiAQCxKKVawznwYVXbAeRvtWLvTiZ63hZezy0uE1ohoRU832RfsJGgzvbTmO6F/s
+         LuDsWRZoGHE4ZAJXouYnbymOLOQ+TjIOjLI3qMLP4EpsruNsiigwx4a8J8IQZYViFfJ4
+         nZ3Q==
+X-Gm-Message-State: ACrzQf0YX1v3VZnZR9gzNbKCPM4f862+R+ed3ZweMY5DInR2UbCaR4/I
+	uWByyyo4iLm1eiHWAdi2EQZL448IdBU=
+X-Google-Smtp-Source: 
+ AMsMyM5m5x9NnEgsUgWr9IHOFuUNozbngWPBmGnJVaC4dN1DnrUL9Y1Zoz7+yoNIbIZWOlaScZs53Q==
+X-Received: by 2002:aca:130a:0:b0:354:9779:abff with SMTP id
+ e10-20020aca130a000000b003549779abffmr5274694oii.248.1666026390554;
+        Mon, 17 Oct 2022 10:06:30 -0700 (PDT)
+Received: from TRIBSUPORT-421.troianet.com.br ([177.75.175.22])
+        by smtp.gmail.com with ESMTPSA id
+ 186-20020aca06c3000000b003547a3401e6sm4626822oig.43.2022.10.17.10.06.29
+        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
+        Mon, 17 Oct 2022 10:06:30 -0700 (PDT)
+From: Eneas U de Queiroz <cotequeiroz@gmail.com>
+To: openwrt-devel@lists.openwrt.org
+Cc: Eneas U de Queiroz <cotequeiroz@gmail.com>
+Subject: [opkg 1/3] libopkg: pkg_hash: restore picked by hand priority
+Date: Mon, 17 Oct 2022 14:03:56 -0300
+Message-Id: <20221017170358.3628154-2-cotequeiroz@gmail.com>
+X-Mailer: git-send-email 2.37.3
+In-Reply-To: <20221017170358.3628154-1-cotequeiroz@gmail.com>
+References: <20221017170358.3628154-1-cotequeiroz@gmail.com>
+MIME-Version: 1.0
+X-CRM114-Version: 20100106-BlameMichelson ( TRE 0.8.0 (BSD) ) MR-646709E3 
+X-CRM114-CacheID: sfid-20221017_100632_809429_BB0C2008 
+X-CRM114-Status: GOOD (  13.39  )
+X-Spam-Score: -0.2 (/)
+X-Spam-Report: Spam detection software,
+ running on the system "bombadil.infradead.org",
+ has NOT identified this incoming email as spam.  The original
+ message has been attached to this so you can view it or label
+ similar future email.  If you have any questions, see
+ the administrator of that system for details.
+ Content preview:  Historically, package archives that are provided in the cli
+    were given priority over any version from the feeds to satisfy
+ dependencies.
+    However, when a score was introduced in 5936c4f (libopkg: pkg_hash: prefer
+    original packages to satisfy dependencies), it would only look at the flag
+    if the package had the highest score at the time i [...]
+ Content analysis details:   (-0.2 points, 5.0 required)
+  pts rule name              description
+ ---- ----------------------
+ --------------------------------------------------
+ -0.0 RCVD_IN_DNSWL_NONE     RBL: Sender listed at https://www.dnswl.org/,
+                              no trust
+                             [2607:f8b0:4864:20:0:0:0:22f listed in]
+                             [list.dnswl.org]
+ -0.0 SPF_PASS               SPF: sender matches SPF record
+  0.0 SPF_HELO_NONE          SPF: HELO does not publish an SPF Record
+  0.0 FREEMAIL_FROM          Sender email is commonly abused enduser mail
+                             provider
+                             [cotequeiroz[at]gmail.com]
+ -0.1 DKIM_VALID_AU          Message has a valid DKIM or DK signature from
+                             author's domain
+ -0.1 DKIM_VALID             Message has at least one valid DKIM or DK
+ signature
+  0.1 DKIM_SIGNED            Message has a DKIM or DK signature,
+ not necessarily
+                             valid
+ -0.1 DKIM_VALID_EF          Message has a valid DKIM or DK signature from
+                             envelope-from domain
+X-BeenThere: openwrt-devel@lists.openwrt.org
+X-Mailman-Version: 2.1.34
+Precedence: list
+List-Id: OpenWrt Development List <openwrt-devel.lists.openwrt.org>
+List-Unsubscribe: <https://lists.openwrt.org/mailman/options/openwrt-devel>,
+ <mailto:openwrt-devel-request@lists.openwrt.org?subject=unsubscribe>
+List-Archive: <http://lists.openwrt.org/pipermail/openwrt-devel/>
+List-Post: <mailto:openwrt-devel@lists.openwrt.org>
+List-Help: <mailto:openwrt-devel-request@lists.openwrt.org?subject=help>
+List-Subscribe: <https://lists.openwrt.org/mailman/listinfo/openwrt-devel>,
+ <mailto:openwrt-devel-request@lists.openwrt.org?subject=subscribe>
+Sender: "openwrt-devel" <openwrt-devel-bounces@lists.openwrt.org>
+Errors-To: 
+ openwrt-devel-bounces+incoming=patchwork.ozlabs.org@lists.openwrt.org
+
+Historically, package archives that are provided in the cli were given
+priority over any version from the feeds to satisfy dependencies.
+
+However, when a score was introduced in 5936c4f (libopkg: pkg_hash:
+prefer original packages to satisfy dependencies), it would only look at
+the flag if the package had the highest score at the time it was being
+assessed.
+
+While one can argue that the intention of the change was to superseed
+the by-hand priority, it would still be depended on the order in which
+they packages were checked, which is not good.
+
+Perform the "by-hand" check first, and only then go through the score
+system.  Add a logging message to show the reason.
+
+Signed-off-by: Eneas U de Queiroz <cotequeiroz@gmail.com>
+---
+ libopkg/pkg_hash.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git opkglibopkg/pkg_hash.c b/libopkg/pkg_hash.c
+index 11b1a06..482efb8 100644
+--- opkglibopkg/pkg_hash.c
++++ b/libopkg/pkg_hash.c
+@@ -414,6 +414,14 @@ pkg_t *pkg_hash_fetch_best_installation_candidate(abstract_pkg_t * apkg,
+ 		pkg_t *matching = matching_pkgs->pkgs[i];
+ 		if (constraint_fcn(matching, cdata)) {
+ 			int score = 1;
++			/* It has been provided by hand, so it is what user want */
++			if (matching->provided_by_hand == 1) {
++				good_pkg_by_name = matching;
++				opkg_msg(DEBUG, "Candidate: %s %s (picked by hand).\n",
++					 matching->name, pkg_get_string(matching, PKG_VERSION));
++				break;
++			}
++
+ 			if (strcmp(matching->name, apkg->name) == 0)
+ 				score++;
+ 
+@@ -432,9 +440,6 @@ pkg_t *pkg_hash_fetch_best_installation_candidate(abstract_pkg_t * apkg,
+ 
+ 			good_pkg_by_name = matching;
+ 			good_pkg_score = score;
+-			/* It has been provided by hand, so it is what user want */
+-			if (matching->provided_by_hand == 1)
+-				break;
+ 		}
+ 	}
+ 
