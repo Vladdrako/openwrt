@@ -1444,7 +1444,7 @@ define KernelPackage/qrtr
   SUBMENU:=$(NETWORK_SUPPORT_MENU)
   TITLE:=Qualcomm IPC Router support
   HIDDEN:=1
-  DEPENDS:=@!LINUX_5_10
+  DEPENDS:=@(LINUX_5_15||LINUX_6_1)
   KCONFIG:=CONFIG_QRTR
   FILES:= \
   $(LINUX_DIR)/net/qrtr/qrtr.ko \
@@ -1491,7 +1491,7 @@ $(eval $(call KernelPackage,qrtr-smd))
 define KernelPackage/qrtr-mhi
   SUBMENU:=$(NETWORK_SUPPORT_MENU)
   TITLE:=MHI IPC Router channels
-  DEPENDS:=+kmod-mhi-bus +kmod-qrtr
+  DEPENDS:=+kmod-mhi +kmod-qrtr
   KCONFIG:=CONFIG_QRTR_MHI
   FILES:= $(LINUX_DIR)/net/qrtr/qrtr-mhi.ko
   AUTOLOAD:=$(call AutoProbe,qrtr-mhi)
