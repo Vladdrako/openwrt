@@ -9,8 +9,6 @@ PKG_SOURCE_DATE:=2022-09-12
 PKG_SOURCE_VERSION:=628b22bc3d5ee81414b75ab3de6a255c82754dec
 PKG_MIRROR_HASH:=859344f79504b9953639dc5aa27042249f68e3a9a269e66d7f7a25e1ab38c110
 
-PKG_FLAGS:=nonshared
-
 include $(INCLUDE_DIR)/kernel.mk
 include $(INCLUDE_DIR)/package.mk
 
@@ -19,7 +17,7 @@ define KernelPackage/qca-ssdk
   CATEGORY:=Kernel modules
   SUBMENU:=Network Devices
   TITLE:=Qualcom SSDK switch driver
-  DEPENDS:=@(TARGET_ipq806x||TARGET_ipq807x||TARGET_ipq60xx)
+  DEPENDS:=@(TARGET_ipq807x||TARGET_ipq60xx)
   FILES:=$(PKG_BUILD_DIR)/build/bin/qca-ssdk.ko
   AUTOLOAD:=$(call AutoLoad,30,qca-ssdk)
 endef
@@ -50,9 +48,7 @@ MAKE_FLAGS+= \
 
 ifeq ($(CONFIG_TARGET_BOARD), "ipq807x")
     MAKE_FLAGS+= CHIP_TYPE=HPPE PTP_FEATURE=disable SWCONFIG_FEATURE=disable
-endif
-
-ifeq ($(CONFIG_TARGET_BOARD), "ipq60xx")
+else ifeq ($(CONFIG_TARGET_BOARD), "ipq60xx")
     MAKE_FLAGS+= CHIP_TYPE=CPPE PTP_FEATURE=disable SWCONFIG_FEATURE=disable
 endif
 
@@ -81,6 +77,11 @@ define Build/InstallDev
 	$(CP) -rf $(PKG_BUILD_DIR)/include/sal/os/linux/*.h $(1)/usr/include/qca-ssdk
 	$(CP) -rf $(PKG_BUILD_DIR)/include/sal/os/*.h $(1)/usr/include/qca-ssdk
 
+endef
+
+define KernelPackage/qca-ssdk/install
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_BIN) ./files/qca-ssdk $(1)/etc/init.d/qca-ssdk
 endef
 
 $(eval $(call KernelPackage,qca-ssdk))

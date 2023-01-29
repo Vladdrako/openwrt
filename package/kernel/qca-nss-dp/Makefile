@@ -10,7 +10,6 @@ PKG_SOURCE_VERSION:=72e9ec4187414461cbcf6ccff100e8b5ebe5f40b
 PKG_MIRROR_HASH:=805f16e59c75511132922f97740ebf6bf953845b0bbfd2089c4615456893bb37
 
 PKG_BUILD_PARALLEL:=1
-PKG_FLAGS:=nonshared
 
 include $(INCLUDE_DIR)/kernel.mk
 include $(INCLUDE_DIR)/package.mk
@@ -43,18 +42,12 @@ define Build/Configure
 		$(PKG_BUILD_DIR)/exports/nss_dp_arch.h
 endef
 
-ifeq ($(CONFIG_TARGET_BOARD), "ipq807x")
-    SOC="ipq807x_64"
-else ifeq ($(CONFIG_TARGET_BOARD), "ipq60xx")
-    SOC="ipq60xx_64"
-endif
-
 define Build/Compile
 	+$(MAKE) -C "$(LINUX_DIR)" \
 		CROSS_COMPILE="$(TARGET_CROSS)" \
 		ARCH="$(LINUX_KARCH)" \
 		M="$(PKG_BUILD_DIR)" \
-		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" SoC="$(SOC)" \
+		EXTRA_CFLAGS="$(EXTRA_CFLAGS)" SoC="$(CONFIG_TARGET_BOARD)" \
 		$(KERNEL_MAKE_FLAGS) \
 		$(PKG_JOBS) \
 		modules
