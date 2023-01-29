@@ -1,4 +1,3 @@
-
 PART_NAME=firmware
 REQUIRE_IMAGE_METADATA=1
 
@@ -92,12 +91,7 @@ platform_do_upgrade() {
 	linksys,mr7350)
 		linksys_do_upgrade "$1"
 		;;
-	cmiot,ax18|\
-	qihoo,v6|\
-	zn,m2)
-		nand_do_upgrade "$1"
-		;;
-    *)
+	*)
 		default_do_upgrade "$1"
 		;;
 	esac

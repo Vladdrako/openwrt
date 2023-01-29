@@ -11,9 +11,12 @@ case "$board" in
 linksys,mr7350)
 	ubootenv_add_uci_config "/dev/mtd11" "0x0" "0x40000" "0x20000"
 	;;
+tplink,eap610-outdoor)
+	ubootenv_add_uci_config "/dev/mtd8" "0x0" "0x40000" "0x20000"
+	;;
 esac
 
 config_load ubootenv
 config_foreach ubootenv_add_app_config ubootenv
 
-exit 0 
+exit 0
