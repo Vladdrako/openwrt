@@ -43,9 +43,13 @@ HOST_CONFIGURE_ARGS = \
 	--host=$(GNU_HOST_NAME) \
 	--target=$(REAL_GNU_TARGET_NAME) \
 	--with-sysroot=$(TOOLCHAIN_DIR) \
+	--with-system-zlib \
+	--without-zstd \
 	--enable-deterministic-archives \
 	$(if $(findstring mips,$(ARCH)),,--enable-default-hash-style=gnu) \
 	--enable-plugins \
+	--enable-lto \
+	--disable-gprofng \
 	--disable-multilib \
 	--disable-werror \
 	--disable-nls \
