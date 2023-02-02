@@ -43,6 +43,7 @@ define KernelPackage/nf-conncount
   SUBMENU:=$(NF_MENU)
   TITLE:=Netfilter conncount support
   KCONFIG:=$(KCONFIG_NF_CONNCOUNT)
+  HIDDEN:=1
   DEPENDS:=+kmod-nf-conntrack
   FILES:=$(foreach mod,$(NF_CONNCOUNT-m),$(LINUX_DIR)/net/$(mod).ko)
   AUTOLOAD:=$(call AutoProbe,$(notdir $(NF_CONNCOUNT-m)))
