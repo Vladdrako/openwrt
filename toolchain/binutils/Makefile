@@ -50,7 +50,7 @@ HOST_CONFIGURE_ARGS = \
 	--target=$(REAL_GNU_TARGET_NAME) \
 	--with-sysroot=$(TOOLCHAIN_DIR) \
 	--with-system-zlib \
-	--without-zstd \
+	--with-zstd \
 	--enable-deterministic-archives \
 	$(if $(findstring mips,$(ARCH)),,--enable-default-hash-style=gnu) \
 	--enable-plugins \
