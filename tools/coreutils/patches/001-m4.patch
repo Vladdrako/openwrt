@@ -1,6 +1,6 @@
 --- a/m4/gnulib-comp.m4
 +++ b/m4/gnulib-comp.m4
-@@ -2683,7 +2683,7 @@ changequote([, ])dnl
+@@ -2671,7 +2671,7 @@ changequote([, ])dnl
    fi
    gl_SYS_SOCKET_MODULE_INDICATOR([socket])
    AC_REQUIRE([gt_TYPE_WCHAR_T])
@@ -84,7 +84,7 @@
    AC_CHECK_FUNCS_ONCE([wcwidth])
 --- a/m4/wint_t.m4
 +++ b/m4/wint_t.m4
-@@ -9,7 +9,7 @@ dnl Test whether <wchar.h> has the 'wint_t' type and whether gnulib's
+@@ -9,7 +9,7 @@ dnl Test whether <wchar.h> has the 'wint
  dnl <wchar.h> or <wctype.h> would, if present, override 'wint_t'.
  dnl Prerequisite: AC_PROG_CC
  
