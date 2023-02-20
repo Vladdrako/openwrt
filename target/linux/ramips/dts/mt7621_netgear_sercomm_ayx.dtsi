@@ -95,7 +95,7 @@
 	};
 };
 
-&pcie1 {
+&pcie2 {
 	wifi@0,0 {
 		reg = <0x0 0 0 0 0>;
 		mediatek,mtd-eeprom = <&factory 0x0>;
