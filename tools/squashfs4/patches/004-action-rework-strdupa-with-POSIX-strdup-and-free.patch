@@ -1,4 +1,4 @@
-From 6e28ae53f6146d32d09b99d2041c66765c899bf9 Mon Sep 17 00:00:00 2001
+From 92e628ec0e26cf091d82356e3b74f73bedf4cfc8 Mon Sep 17 00:00:00 2001
 From: Christian Marangi <ansuelsmth@gmail.com>
 Date: Sat, 15 Oct 2022 00:11:20 +0200
 Subject: [PATCH] action: rework strdupa with POSIX strdup and free
@@ -7,15 +7,14 @@ strdupa is not POSIX and cause compilation error on macos.
 Fix this by using strdup and free.
 
 Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
+Signed-off-by: Phillip Lougher <phillip@squashfs.org.uk>
 ---
  squashfs-tools/action.c | 14 +++++++++++---
  1 file changed, 11 insertions(+), 3 deletions(-)
 
-diff --git a/squashfs-tools/action.c b/squashfs-tools/action.c
-index 3e8c7c7..279ea55 100644
 --- a/squashfs-tools/action.c
 +++ b/squashfs-tools/action.c
-@@ -2596,9 +2596,17 @@ static char *get_start(char *s, int n)
+@@ -2415,9 +2415,17 @@ static char *get_start(char *s, int n)
  
  static int subpathname_fn(struct atom *atom, struct action_data *action_data)
  {
@@ -36,6 +35,3 @@ index 3e8c7c7..279ea55 100644
  }
  
  /*
--- 
-2.37.2
-

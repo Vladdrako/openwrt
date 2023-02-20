@@ -10,11 +10,9 @@ Signed-off-by: Phillip Lougher <phillip@squashfs.org.uk>
  squashfs-tools/mksquashfs.c | 2 ++
  1 file changed, 2 insertions(+)
 
-diff --git a/squashfs-tools/mksquashfs.c b/squashfs-tools/mksquashfs.c
-index 46ab740..e822441 100644
 --- a/squashfs-tools/mksquashfs.c
 +++ b/squashfs-tools/mksquashfs.c
-@@ -5818,6 +5818,7 @@ static int get_physical_memory()
+@@ -5802,6 +5802,7 @@ static int get_physical_memory()
  	long long page_size = sysconf(_SC_PAGESIZE);
  	int phys_mem;
  
@@ -22,7 +20,7 @@ index 46ab740..e822441 100644
  	if(num_pages == -1 || page_size == -1) {
  		struct sysinfo sys;
  		int res = sysinfo(&sys);
-@@ -5828,6 +5829,7 @@ static int get_physical_memory()
+@@ -5812,6 +5813,7 @@ static int get_physical_memory()
  		num_pages = sys.totalram;
  		page_size = sys.mem_unit;
  	}
@@ -30,6 +28,3 @@ index 46ab740..e822441 100644
  
  	phys_mem = num_pages * page_size >> 20;
  
--- 
-2.37.2
-

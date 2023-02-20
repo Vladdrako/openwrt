@@ -11,8 +11,6 @@ Signed-off-by: Phillip Lougher <phillip@squashfs.org.uk>
  squashfs-tools/unsquashfs.c | 5 +++++
  2 files changed, 6 insertions(+)
 
-diff --git a/squashfs-tools/reader.c b/squashfs-tools/reader.c
-index 11cc2f3..d6cadd3 100644
 --- a/squashfs-tools/reader.c
 +++ b/squashfs-tools/reader.c
 @@ -38,6 +38,7 @@
@@ -23,8 +21,6 @@ index 11cc2f3..d6cadd3 100644
  #include "squashfs_fs.h"
  #include "mksquashfs.h"
  #include "caches-queues-lists.h"
-diff --git a/squashfs-tools/unsquashfs.c b/squashfs-tools/unsquashfs.c
-index dbfb06e..c4a2040 100644
 --- a/squashfs-tools/unsquashfs.c
 +++ b/squashfs-tools/unsquashfs.c
 @@ -32,8 +32,13 @@
@@ -41,6 +37,3 @@ index dbfb06e..c4a2040 100644
  #include <sys/types.h>
  #include <sys/time.h>
  #include <sys/resource.h>
--- 
-2.37.2
-
