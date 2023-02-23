@@ -106,17 +106,17 @@ endef
 define Build/append-squashfs-fakeroot-be
 	rm -rf $@.fakefs $@.fakesquashfs
 	mkdir $@.fakefs
-	$(STAGING_DIR_HOST)/bin/mksquashfs \
+	$(STAGING_DIR_HOST)/bin/mksquashfs3-lzma \
 		$@.fakefs $@.fakesquashfs \
-		-comp lzma -noappend -root-owned -be -nopad -b 65536 \
-		$(if $(SOURCE_DATE_EPOCH),-all-time $(SOURCE_DATE_EPOCH))
+		-noappend -root-owned -be -nopad -b 65536 \
+		$(if $(SOURCE_DATE_EPOCH),-fixed-time $(SOURCE_DATE_EPOCH))
 	cat $@.fakesquashfs >> $@
 endef
 
 define Build/append-squashfs4-fakeroot
 	rm -rf $@.fakefs $@.fakesquashfs
 	mkdir $@.fakefs
-	$(STAGING_DIR_HOST)/bin/mksquashfs \
+	$(STAGING_DIR_HOST)/bin/mksquashfs4 \
 		$@.fakefs $@.fakesquashfs \
 		-nopad -noappend -root-owned
 	cat $@.fakesquashfs >> $@
@@ -210,8 +210,8 @@ define Build/check-size
 	@imagesize="$$(stat -c%s $@)"; \
 	limitsize="$$(($(subst k,* 1024,$(subst m, * 1024k,$(if $(1),$(1),$(IMAGE_SIZE))))))"; \
 	[ $$limitsize -ge $$imagesize ] || { \
-		echo "ERROR: Image file $@ is too big: $$imagesize > $$limitsize";\
-		exit 1;\
+		$(call ERROR_MESSAGE,    WARNING: Image file $@ is too big: $$imagesize > $$limitsize); \
+		rm -f $@; \
 	}
 endef
 
@@ -512,14 +512,6 @@ define Build/sysupgrade-tar
 		--kernel $(call param_get_default,kernel,$(1),$(IMAGE_KERNEL)) \
 		--rootfs $(call param_get_default,rootfs,$(1),$(IMAGE_ROOTFS)) \
 		$@
-endef
-
-define Build/tplink-image-2022
-	$(TOPDIR)/scripts/tplink-mkimage-2022.py  \
-		--create $@.new \
-		--rootfs $@ \
-		--support "$(TPLINK_SUPPORT_STRING))"
-	@mv $@.new $@
 endef
 
 define Build/tplink-safeloader
