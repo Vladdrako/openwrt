@@ -1149,7 +1149,7 @@ Signed-off-by: Glenn Strauss <gstrauss@gluelogic.com>
      start_sae_pwe_ap(apdev[0], group, 2)
 --- a/tests/hwsim/test_suite_b.py
 +++ b/tests/hwsim/test_suite_b.py
-@@ -26,6 +26,8 @@ def check_suite_b_tls_lib(dev, dhe=False
+@@ -27,6 +27,8 @@ def check_suite_b_tls_lib(dev, dhe=False
          return
      if tls.startswith("wolfSSL"):
          return
@@ -1158,7 +1158,7 @@ Signed-off-by: Glenn Strauss <gstrauss@gluelogic.com>
      if not tls.startswith("OpenSSL"):
          raise HwsimSkip("TLS library not supported for Suite B: " + tls)
      supported = False
-@@ -499,6 +501,7 @@ def test_suite_b_192_rsa_insufficient_dh
+@@ -520,6 +522,7 @@ def test_suite_b_192_rsa_insufficient_dh
  
      dev[0].connect("test-suite-b", key_mgmt="WPA-EAP-SUITE-B-192",
                     ieee80211w="2",

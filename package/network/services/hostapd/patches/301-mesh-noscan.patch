@@ -31,7 +31,7 @@
  		/*
 --- a/wpa_supplicant/wpa_supplicant.c
 +++ b/wpa_supplicant/wpa_supplicant.c
-@@ -2692,7 +2692,7 @@ static bool ibss_mesh_can_use_vht(struct
+@@ -2693,7 +2693,7 @@ static bool ibss_mesh_can_use_vht(struct
  				  const struct wpa_ssid *ssid,
  				  struct hostapd_hw_modes *mode)
  {
@@ -40,16 +40,16 @@
  		return false;
  
  	if (!drv_supports_vht(wpa_s, ssid))
-@@ -2765,7 +2765,7 @@ static void ibss_mesh_select_40mhz(struc
+@@ -2766,7 +2766,7 @@ static void ibss_mesh_select_40mhz(struc
  	int i, res;
  	unsigned int j;
  	static const int ht40plus[] = {
--		36, 44, 52, 60, 100, 108, 116, 124, 132, 149, 157, 184, 192
-+		1, 2, 3, 4, 5, 6, 36, 44, 52, 60, 100, 108, 116, 124, 132, 149, 157, 184, 192
+-		36, 44, 52, 60, 100, 108, 116, 124, 132, 149, 157, 165, 173,
++		1, 2, 3, 4, 5, 6, 36, 44, 52, 60, 100, 108, 116, 124, 132, 149, 157, 165, 173,
+ 		184, 192
  	};
  	int ht40 = -1;
- 
-@@ -3014,7 +3014,7 @@ void ibss_mesh_setup_freq(struct wpa_sup
+@@ -3016,7 +3016,7 @@ void ibss_mesh_setup_freq(struct wpa_sup
  	int ieee80211_mode = wpas_mode_to_ieee80211_mode(ssid->mode);
  	enum hostapd_hw_mode hw_mode;
  	struct hostapd_hw_modes *mode = NULL;
