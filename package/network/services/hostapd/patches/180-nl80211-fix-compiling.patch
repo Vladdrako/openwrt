@@ -1,0 +1,48 @@
+From 319bae5ecf872355765fdb55baa169697f00d849 Mon Sep 17 00:00:00 2001
+From: Nick Hainke <vincent@systemli.org>
+Date: Tue, 14 Mar 2023 22:21:01 +0100
+Subject: [PATCH] nl80211: fix compiling
+
+This patch will not be sent upstream. It is just a workaround to fix
+following error:
+
+  ../src/drivers/driver_nl80211.c: In function 'get_sta_handler':
+  ../src/drivers/driver_nl80211.c:7474:63: error: 'NLA_S8' undeclared (first use in this function); did you mean 'NLA_U8'?
+   7474 |                 [NL80211_STA_INFO_ACK_SIGNAL_AVG] = { .type = NLA_S8 },
+        |                                                               ^~~~~~
+        |                                                               NLA_U8
+  ../src/drivers/driver_nl80211.c:7474:63: note: each undeclared identifier is reported only once for each function it appears in
+  ../src/drivers/driver_nl80211.c:7580:25: warning: implicit declaration of function 'nla_get_s8'; did you mean 'nla_get_u8'? [-Wimplicit-function-declaration]
+   7580 |                         nla_get_s8(stats[NL80211_STA_INFO_ACK_SIGNAL_AVG]);
+        |                         ^~~~~~~~~~
+        |                         nla_get_u8
+
+Signed-off-by: Nick Hainke <vincent@systemli.org>
+---
+ src/drivers/driver_nl80211.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+--- a/src/drivers/driver_nl80211.c
++++ b/src/drivers/driver_nl80211.c
+@@ -7468,7 +7468,7 @@ static int get_sta_handler(struct nl_msg
+ 		[NL80211_STA_INFO_BEACON_SIGNAL_AVG] = { .type = NLA_U8},
+ 		[NL80211_STA_INFO_RX_DURATION] = { .type = NLA_U64 },
+ 		[NL80211_STA_INFO_ACK_SIGNAL] = { .type = NLA_U8 },
+-		[NL80211_STA_INFO_ACK_SIGNAL_AVG] = { .type = NLA_S8 },
++		//[NL80211_STA_INFO_ACK_SIGNAL_AVG] = { .type = NLA_S8 },
+ 		[NL80211_STA_INFO_RX_MPDUS] = { .type = NLA_U32 },
+ 		[NL80211_STA_INFO_FCS_ERROR_COUNT] = { .type = NLA_U32 },
+ 		[NL80211_STA_INFO_TX_DURATION] = { .type = NLA_U64 },
+@@ -7572,9 +7572,9 @@ static int get_sta_handler(struct nl_msg
+ 			nla_get_u8(stats[NL80211_STA_INFO_ACK_SIGNAL]);
+ 		data->flags |= STA_DRV_DATA_LAST_ACK_RSSI;
+ 	}
+-	if (stats[NL80211_STA_INFO_ACK_SIGNAL_AVG])
+-		data->avg_ack_signal =
+-			nla_get_s8(stats[NL80211_STA_INFO_ACK_SIGNAL_AVG]);
++	//if (stats[NL80211_STA_INFO_ACK_SIGNAL_AVG])
++	//	data->avg_ack_signal =
++	//		nla_get_s8(stats[NL80211_STA_INFO_ACK_SIGNAL_AVG]);
+ 	if (stats[NL80211_STA_INFO_RX_MPDUS])
+ 		data->rx_mpdus = nla_get_u32(stats[NL80211_STA_INFO_RX_MPDUS]);
+ 	if (stats[NL80211_STA_INFO_FCS_ERROR_COUNT])
