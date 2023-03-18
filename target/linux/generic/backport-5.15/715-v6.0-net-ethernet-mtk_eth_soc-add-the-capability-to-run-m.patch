@@ -127,7 +127,7 @@ Signed-off-by: Lorenzo Bianconi <lorenzo@kernel.org>
  		err = mtk_eth_offload_init(eth);
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1111,7 +1111,7 @@ struct mtk_eth {
+@@ -1112,7 +1112,7 @@ struct mtk_eth {
  
  	int				ip_align;
  

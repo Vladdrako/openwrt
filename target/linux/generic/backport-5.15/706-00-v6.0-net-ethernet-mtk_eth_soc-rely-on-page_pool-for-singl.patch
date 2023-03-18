@@ -318,7 +318,7 @@ Signed-off-by: David S. Miller <davem@davemloft.net>
  #define MTK_QRX_OFFSET		0x10
  
  #define MTK_MAX_RX_RING_NUM	4
-@@ -742,6 +749,9 @@ struct mtk_rx_ring {
+@@ -743,6 +750,9 @@ struct mtk_rx_ring {
  	bool calc_idx_update;
  	u16 calc_idx;
  	u32 crx_idx_reg;

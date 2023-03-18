@@ -105,7 +105,7 @@ Signed-off-by: Lorenzo Bianconi <lorenzo@kernel.org>
  #define MTK_GDMA_DROP_ALL       0x7777
  
  /* Unicast Filter MAC Address Register - Low */
-@@ -952,6 +951,8 @@ struct mtk_reg_map {
+@@ -953,6 +952,8 @@ struct mtk_reg_map {
  		u32	fq_blen;	/* fq free page buffer length */
  	} qdma;
  	u32	gdm1_cnt;

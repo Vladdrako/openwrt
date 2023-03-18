@@ -280,7 +280,7 @@ Signed-off-by: David S. Miller <davem@davemloft.net>
  static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1085,6 +1085,8 @@ struct mtk_eth {
+@@ -1086,6 +1086,8 @@ struct mtk_eth {
  
  	struct mtk_ppe			*ppe;
  	struct rhashtable		flow_table;

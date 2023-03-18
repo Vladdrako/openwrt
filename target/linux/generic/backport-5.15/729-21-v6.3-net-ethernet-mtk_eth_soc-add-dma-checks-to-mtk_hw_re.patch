@@ -188,7 +188,7 @@ Signed-off-by: Paolo Abeni <pabeni@redhat.com>
  /* QDMA Interrupt grouping registers */
  #define MTK_RLS_DONE_INT	BIT(0)
  
-@@ -537,6 +539,17 @@
+@@ -538,6 +540,17 @@
  #define MT7628_SDM_RBCNT	(MT7628_SDM_OFFSET + 0x10c)
  #define MT7628_SDM_CS_ERR	(MT7628_SDM_OFFSET + 0x110)
  
@@ -206,7 +206,7 @@ Signed-off-by: Paolo Abeni <pabeni@redhat.com>
  struct mtk_rx_dma {
  	unsigned int rxd1;
  	unsigned int rxd2;
-@@ -933,6 +946,7 @@ struct mtk_reg_map {
+@@ -934,6 +947,7 @@ struct mtk_reg_map {
  		u32	delay_irq;	/* delay interrupt */
  		u32	irq_status;	/* interrupt status */
  		u32	irq_mask;	/* interrupt mask */
@@ -214,7 +214,7 @@ Signed-off-by: Paolo Abeni <pabeni@redhat.com>
  		u32	int_grp;
  	} pdma;
  	struct {
-@@ -959,6 +973,8 @@ struct mtk_reg_map {
+@@ -960,6 +974,8 @@ struct mtk_reg_map {
  	u32	gdma_to_ppe0;
  	u32	ppe_base;
  	u32	wdma_base[2];
@@ -223,7 +223,7 @@ Signed-off-by: Paolo Abeni <pabeni@redhat.com>
  };
  
  /* struct mtk_eth_data -	This is the structure holding all differences
-@@ -1001,6 +1017,8 @@ struct mtk_soc_data {
+@@ -1002,6 +1018,8 @@ struct mtk_soc_data {
  	} txrx;
  };
  
@@ -232,7 +232,7 @@ Signed-off-by: Paolo Abeni <pabeni@redhat.com>
  /* currently no SoC has more than 2 macs */
  #define MTK_MAX_DEVS			2
  
-@@ -1123,6 +1141,14 @@ struct mtk_eth {
+@@ -1124,6 +1142,14 @@ struct mtk_eth {
  	struct rhashtable		flow_table;
  
  	struct bpf_prog			__rcu *prog;
