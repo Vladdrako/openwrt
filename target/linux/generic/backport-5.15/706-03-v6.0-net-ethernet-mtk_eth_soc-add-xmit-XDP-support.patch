@@ -314,7 +314,7 @@ Signed-off-by: David S. Miller <davem@davemloft.net>
  static int mtk_add_mac(struct mtk_eth *eth, struct device_node *np)
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -694,6 +694,12 @@ enum mtk_dev_state {
+@@ -693,6 +693,12 @@ enum mtk_dev_state {
  	MTK_RESETTING
  };
  
@@ -327,7 +327,7 @@ Signed-off-by: David S. Miller <davem@davemloft.net>
  /* struct mtk_tx_buf -	This struct holds the pointers to the memory pointed at
   *			by the TX descriptor	s
   * @skb:		The SKB pointer of the packet being sent
-@@ -703,7 +709,9 @@ enum mtk_dev_state {
+@@ -702,7 +708,9 @@ enum mtk_dev_state {
   * @dma_len1:		The length of the second segment
   */
  struct mtk_tx_buf {

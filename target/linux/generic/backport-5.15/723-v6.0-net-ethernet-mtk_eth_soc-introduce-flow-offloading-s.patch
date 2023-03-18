@@ -90,7 +90,7 @@ Signed-off-by: Lorenzo Bianconi <lorenzo@kernel.org>
  		.rxd_size = sizeof(struct mtk_rx_dma_v2),
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.h
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.h
-@@ -1151,6 +1151,78 @@ mtk_foe_get_entry(struct mtk_ppe *ppe, u
+@@ -1150,6 +1150,78 @@ mtk_foe_get_entry(struct mtk_ppe *ppe, u
  	return ppe->foe_table + hash * soc->foe_entry_size;
  }
  
