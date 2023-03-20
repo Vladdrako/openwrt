@@ -37,7 +37,7 @@
 		};
 
 		wps {
-			label = "reset";
+			label = "wps";
 			gpios = <&tlmm 56 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_WPS_BUTTON>;
 		};

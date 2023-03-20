@@ -4,6 +4,7 @@
 
 #include "ipq6018.dtsi"
 #include "ipq6018-upstreamable.dtsi"
+#include "ipq6018-regulator-mp5496.dtsi"
 #include "ipq6018-ess.dtsi"
 
 #include <dt-bindings/input/input.h>
@@ -15,10 +16,10 @@
 
 	aliases {
 		serial0 = &blsp1_uart3;
-		led-boot = &led_power;
-		led-failsafe = &led_power;
-		led-running = &led_power;
-		led-upgrade = &led_power;
+		led-boot = &led_sys_green;
+		led-failsafe = &led_sys_amber;
+		led-running = &led_sys_green;
+		led-upgrade = &led_sys_amber;
 	};
 
 	chosen {
@@ -39,10 +40,21 @@
 	leds {
 		compatible = "gpio-leds";
 
-		led_power: led-1 {
-			label = "green:power";
-			gpios = <&tlmm 36 GPIO_ACTIVE_HIGH>;
+		led_sys_amber: led-0 {
+			label = "amber:system";
+			gpios = <&tlmm 35 GPIO_ACTIVE_HIGH>;
 		};
+
+		led_sys_green: led-1 {
+			label = "green:system";
+			gpios = <&tlmm 37 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	gpio-restart {
+		compatible = "gpio-restart";
+		gpios = <&tlmm 61 GPIO_ACTIVE_LOW>;
+		open-source;
 	};
 };
 
@@ -68,6 +80,13 @@
 			bias-pull-up;
 		};
 	};
+
+	led_enable {
+		gpio-hog;
+		output-high;
+		gpios = <36 GPIO_ACTIVE_HIGH>;
+		line-name = "enable-leds";
+	};
 };
 
 &soc {
@@ -90,10 +109,12 @@
 	status = "okay";
 	pinctrl-0 = <&mdio_pins>;
 	pinctrl-names = "default";
+	reset-gpios = <&tlmm 77 GPIO_ACTIVE_LOW>;
+	reset-delay-us = <10000>;
+	reset-post-delay-us = <50000>;
 
 	rtl8211f_4: ethernet-phy@4 {
 		reg = <4>;
-		reset-gpios = <&tlmm 77 GPIO_ACTIVE_LOW>;
 	};
 };
 
