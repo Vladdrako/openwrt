@@ -108,4 +108,4 @@ Submitted-by: Yousong Zhou <yszhou4tech@gmail.com>
 +	if (!is_valid_ether_addr(mac)) {
  		kfree(mac);
  		return -EINVAL;
- 	} 
+ 	}

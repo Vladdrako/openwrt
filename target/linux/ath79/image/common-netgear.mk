@@ -12,10 +12,10 @@ define Build/netgear-squashfs
 	rm -rf $@.fs $@.squashfs
 	mkdir -p $@.fs/image
 	cp $@ $@.fs/image/uImage
-	$(STAGING_DIR_HOST)/bin/mksquashfs  \
+	$(STAGING_DIR_HOST)/bin/mksquashfs3-lzma  \
 		$@.fs $@.squashfs -be \
-		-comp lzma -noappend -root-owned -b 65536 \
-		$(if $(SOURCE_DATE_EPOCH),-all-time $(SOURCE_DATE_EPOCH))
+		-noappend -root-owned -b 65536 \
+		$(if $(SOURCE_DATE_EPOCH),-fixed-time $(SOURCE_DATE_EPOCH))
 
 	dd if=/dev/zero bs=1k count=1 >> $@.squashfs
 	mkimage \
