@@ -5,9 +5,9 @@
  	select DIMLIB
  	select PAGE_POOL
 -	select PAGE_POOL_STATS
+ 	select PCS_MTK_LYNXI
+ 	select REGMAP_MMIO
  	help
- 	  This driver supports the gigabit ethernet MACs in the
- 	  MediaTek SoC family.
 --- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 +++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
 @@ -3595,6 +3595,7 @@
