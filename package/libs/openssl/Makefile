@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=openssl
 PKG_VERSION:=3.0.8
-PKG_RELEASE:=8
+PKG_RELEASE:=9
 PKG_BUILD_FLAGS:=gc-sections no-lto
 
 ifndef CONFIG_OPENSSL_WITH_ASM
