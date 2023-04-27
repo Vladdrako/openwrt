@@ -1,0 +1,13 @@
+--- a/drivers/net/wireless/ralink/rt2x00/rt2800lib.c
++++ b/drivers/net/wireless/ralink/rt2x00/rt2800lib.c
+@@ -5113,10 +5113,6 @@
+ 	/* Warn user if bw_comp is set in EEPROM */
+ 	delta = rt2800_get_txpower_bw_comp(rt2x00dev, band);
+ 
+-	if (delta)
+-		rt2x00_warn(rt2x00dev, "ignoring EEPROM HT40 power delta: %d\n",
+-			    delta);
+-
+ 	/* populate TX_PWR_CFG_0 up to TX_PWR_CFG_4 from EEPROM for HT20, limit
+ 	 * value to 0x3f and replace 0x20 by 0x21 as this is what the vendor
+ 	 * driver does as well, though it looks kinda wrong. 
