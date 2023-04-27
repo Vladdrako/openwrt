@@ -320,6 +320,7 @@ define KernelPackage/ath11k/config
                bool "Enable thermal sensors and throttling support"
                depends on PACKAGE_kmod-ath11k
                default y if TARGET_ipq807x
+
 endef
 
 define KernelPackage/ath11k-ahb
