@@ -4,6 +4,8 @@
 
 . /lib/functions/caldata.sh
 
+echo fw: $FIRMWARE
+
 case "$FIRMWARE" in
 "ath11k/IPQ6018/hw1.0/cal-ahb-c000000.wifi.bin")
 	case $(board_name) in
