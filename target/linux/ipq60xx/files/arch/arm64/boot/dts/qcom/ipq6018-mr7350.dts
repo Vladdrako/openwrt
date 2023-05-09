@@ -80,7 +80,7 @@
 &blsp1_uart3 {
 	pinctrl-0 = <&serial_3_pins>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "ok";
 };
 
 &tlmm {
@@ -179,11 +179,11 @@
 };
 
 &edma {
-	status = "okay";
+	status = "ok";
 };
 
 &mdio {
-	status = "okay";
+	status = "ok";
 	pinctrl-0 = <&mdio_pins>;
 	pinctrl-names = "default";
 	reset-gpios = <&tlmm 75 GPIO_ACTIVE_LOW>;
@@ -216,7 +216,7 @@
 };
 
 &switch {
-	status = "okay";
+	status = "ok";
 
 	switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
 	switch_lan_bmp = <0x1e>; /* lan port bitmap */
@@ -292,7 +292,7 @@
 &blsp1_i2c3 {
 	pinctrl-0 = <&i2c3_pins>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "ok";
 
 	pca9633: pca9633 {
 		compatible = "nxp,pca9633";
