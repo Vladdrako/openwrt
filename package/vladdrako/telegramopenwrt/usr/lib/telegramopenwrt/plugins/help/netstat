@@ -1,0 +1,1 @@
+Prints netstat table in ESTABLISHED, CLOSED and TIME\_WAIT State.

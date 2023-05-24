@@ -56,6 +56,7 @@ define Package/ath11k-firmware-ipq6018/install
 	$(INSTALL_DATA) \
 		$(PKG_BUILD_DIR)/ath11k-firmware/IPQ6018/hw1.0/2.7.0.1/WLAN.HK.2.7.0.1-01744-QCAHKSWPL_SILICONZ-1/* \
 		$(1)/lib/firmware/IPQ6018/
+endef
 
 QCN9074_BOARD_REV:=8e140c65f36137714b6d8934e09dcd73cb05c2f6
 QCN9074_BOARD_FILE:=board-2.bin.$(QCN9074_BOARD_REV)

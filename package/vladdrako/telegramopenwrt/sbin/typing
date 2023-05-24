@@ -1,0 +1,16 @@
+#!/bin/sh
+
+PATH='/usr/bin:/usr/sbin:/bin:/sbin'
+
+url=$(uci -q get telegramopenwrt.global.url)
+key=$(uci -q get telegramopenwrt.global.key)
+api="$url$key"
+my_chat_id=$(uci -q get telegramopenwrt.global.my_chat_id)
+
+
+while [ true ] 
+do
+	curl -s -k -X POST $api/sendChatAction -d "chat_id=$my_chat_id" -d "action=typing" | logger -t "telegram_bot[$$]" -p daemon.info
+	echo "Typing"
+	sleep 6
+done

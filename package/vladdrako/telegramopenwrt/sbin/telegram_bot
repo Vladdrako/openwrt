@@ -1,0 +1,108 @@
+#!/bin/sh
+
+echo -n "telegram_bot" >/proc/$$/comm;
+
+{
+PATH='/usr/bin:/usr/sbin:/bin:/sbin'
+
+echo "starting" 
+
+url=$(uci -q get telegramopenwrt.global.url)
+key=$(uci -q get telegramopenwrt.global.key)
+timeout=$(uci -q get telegramopenwrt.global.timeout)
+api="$url$key"
+my_chat_id=$(uci -q get telegramopenwrt.global.my_chat_id)
+from=$(uci -q get telegramopenwrt.smtp.from)
+to=$(uci -q get telegramopenwrt.smtp.to)
+path="/sbin"
+plugins="/usr/lib/telegramopenwrt/plugins"
+actions="${plugins}/actions"
+
+touch  /var/run/bot_vars
+
+command_not_found="Sorry,
+I only recognize *commands*.
+Commands are words beginning with a slash.
+Try it !
+Send [/start](/start) to get my commands list."
+starting=1
+
+while [ true ]
+do 
+	source /var/run/bot_vars
+	offset=$(($offset+1))
+	status='false'
+	updates=$(curl -s -k -X GET $api/getUpdates?offset=$offset\&timeout=$timeout)
+	status=$(jsonfilter -s "$updates" -e $.ok)
+	if [ $status = 'true' ]; then
+		update_ids=$(jsonfilter -s "$updates" -e $.result[*].update_id)
+	
+		for update_id in $update_ids
+		do
+			#this avoid reboot router after reboot
+			echo "offset=$update_id" > /var/run/bot_vars
+			origin=$(jsonfilter -s "$updates"  -e "$.result[@.update_id=$update_id].message.chat.id")
+			msg_id=$(jsonfilter -s "$updates"  -e "$.result[@.update_id=$update_id].message.message_id")
+			username=$(jsonfilter -s "$updates"  -e "$.result[@.update_id=$update_id].message.chat.username")
+			name=$(jsonfilter -s "$updates"  -e "$.result[@.update_id=$update_id].message.chat.first_name")
+			lastname=$(jsonfilter -s "$updates"  -e "$.result[@.update_id=$update_id].message.chat.last_name")
+			command=$(jsonfilter -s "$updates" -e "$.result[@.update_id=$update_id].message.text")
+			is_a_cmd=$(jsonfilter -s "$updates" -e "$.result[@.update_id=$update_id].message.entities[*].type")
+			query_ans=$(jsonfilter -s "$updates" -e "$.result[@.update_id=$update_id].callback_query.id")
+			origin_ans=$(jsonfilter -s "$updates"  -e "$.result[@.update_id=$update_id].callback_query.message.chat.id")
+
+			if [[ "$origin" != "$my_chat_id" && "$origin_ans" != "$my_chat_id" ]];then
+				echo "From: ${from}"$'\n'"To: ${to}"$'\n'"Subject: TelegramBOT"$'\n\n'"Someone with username ${username} (${name} ${lastname}) is trying to use your bot, sending the ${command}" | ssmtp "${to}"
+				curl -k -s -X POST $api/sendMessage -d reply_to_message_id=$msg_id -d chat_id=$origin -d parse_mode=Markdown --data-urlencode \
+				text="This is a Private bot. If you want to implement one for you, check this out https://github.com/alexwbaule/telegramopenwrt" 
+				curl -k -s -X POST $api/leaveChat -d chat_id=$origin  
+			else
+
+				/sbin/typing > /tmp/typing.log &
+				#curl -k -X POST $api/sendChatAction -d "chat_id=$my_chat_id" -d "action=typing" 
+				if [ $(echo "$is_a_cmd" | grep "bot_command" -q; echo -n $?) == 0 ]; then 
+					cmd=$(echo $command |  awk '{print $1}')
+					prms=$(echo $command | awk '{$1=""; sub(/^[ \t]+/, ""); print }')
+					parms=${prms//[\"\&\;\\\>\<\|]/}
+					if [ -f "${plugins}$cmd" ]; then
+						if [[ "$cmd" == "/reboot" && $starting == 1 ]]; then
+							continue;
+						fi
+						cd ${plugins}
+						(echo "Call $cmd [$parms]" | logger -t "telegram_bot[$$]" -p daemon.info)&
+						result=$("./$cmd" $parms)
+						/sbin/telegram_sender "$result"
+						cd  ${path}
+					else
+						curl -k -s -X POST $api/sendMessage -d chat_id=$origin -d parse_mode=Markdown --data-urlencode text="Command *${cmd}* not found!" 
+					fi
+				elif [ "$query_ans" != "" ]; then
+					msg_id_ans=$(jsonfilter -s "$updates"  -e "$.result[@.update_id=$update_id].callback_query.message.message_id")
+					final_cmd=$(jsonfilter -s "$updates"  -e "$.result[@.update_id=$update_id].callback_query.data")
+					fcmd=$(echo $final_cmd |  awk -F "\|" '{printf $1}')
+					fprms=$(echo $final_cmd | awk -F "\|" '{printf $2}')
+					parameter=${fprms//[\&\;\\\>\<\|]/}
+					if [ -f "${actions}/$fcmd" ]; then
+						cd ${actions}
+						(echo "Call $fcmd" | logger -t "telegram_bot[$$]" -p daemon.info)&
+						result=$(IFS="\^" ; "./$fcmd" ${parameter})
+						remove=$(echo $result | awk -F "\|" '{print $1}')
+						msg=$(echo $result | awk -F "\|" '{print $2}')
+						curl -k -s -X POST $api/answerCallbackQuery -d chat_id=$origin_ans -d callback_query_id=$query_ans -d text="${msg}" 
+						if [ "$remove" == "1" ]; then
+							curl -k -s -X POST $api/editMessageText -d chat_id=$origin_ans -d message_id=$msg_id_ans -d text="${msg}" 
+						fi
+						cd  ${path}
+					else
+						curl -k -s -X POST $api/sendMessage -d chat_id=$origin_ans -d parse_mode=Markdown --data-urlencode text="Command Action *${fcmd}* not found!" 
+					fi
+				else
+					curl -k -s -X POST $api/sendMessage -d reply_to_message_id=$msg_id -d chat_id=$origin -d parse_mode=Markdown --data-urlencode text="${command_not_found}" 
+				fi
+				kill $(ps | grep -v grep | grep typing | awk '{print $1}')
+			fi
+		done
+	fi
+	starting=0
+done&
+} | (logger -t "telegram_bot" -p daemon.info)&

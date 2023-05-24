@@ -1,0 +1,14 @@
+--- a/utils.c
++++ b/utils.c
+@@ -396,9 +396,9 @@ fw3_unlock_path(int *fd, const char *lockpath)
+ 	if (flock(*fd, LOCK_UN))
+ 		warn("Cannot release exclusive lock: %s", strerror(errno));
+ 
+ 	close(*fd);
++	*fd = -1;
++	unlink(lockpath);
+-
+-	*fd = -1;
+ }
+ 
+ 

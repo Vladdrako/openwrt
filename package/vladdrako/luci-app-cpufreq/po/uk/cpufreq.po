@@ -1,0 +1,45 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: Vladdrako <vladdrako007@gmail.com>\n"
+"Language-Team: \n"
+"Language: uk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.2.2\n"
+
+msgid "CPU Freq"
+msgstr "CPU Freq"
+
+msgid "CPU Freq Settings"
+msgstr "Налаштування CPU Freq"
+
+msgid "Set CPU Scaling Governor to Max Performance or Balance Mode"
+msgstr "Встановити регулятор масштабування процесора в режим максимальної продуктивності або збалансований"
+
+msgid "CPU Scaling Governor"
+msgstr "Регулятор масштабування процесора"
+
+msgid "CPU Freq from 48000 to 716000 (Khz)"
+msgstr "Частота CPU із 48000 до 716000 (КГц)"
+
+msgid "Min Idle CPU Freq"
+msgstr "Мінімальна частота процесора в режимі очікування"
+
+msgid "Max Turbo Boost CPU Freq"
+msgstr "Максимальна частота Turbo Boost"
+
+msgid "CPU Switching Sampling rate"
+msgstr "Частота дискретизації перемикання процесора"
+
+msgid "The sampling rate determines how frequently the governor checks to tune the CPU (ms)"
+msgstr "Частота дискретизації визначає, як часто регулятор перевіряє, щоб налаштувати процесор (мс)"
+
+msgid "CPU Switching Threshold"
+msgstr "Поріг перемикання процесора"
+
+msgid "Kernel make a decision on whether it should increase the frequency (%)"
+msgstr "Ядро приймає рішення про те, чи слід збільшувати частоту (%)"

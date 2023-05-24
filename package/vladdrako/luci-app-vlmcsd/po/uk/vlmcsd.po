@@ -1,0 +1,42 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: Vladdrako <vladdrako007@gmail.com>\n"
+"Language-Team: Vladdrako <vladdrako007@gmail.com>\n"
+"Language: uk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.0.1\n"
+
+msgid "KMS Server"
+msgstr "KMS-сервер"
+
+msgid "Basic Setting"
+msgstr "Основні налаштування"
+
+msgid "Config File"
+msgstr "Файл конфігурації"
+
+msgid "A KMS Server Emulator to active your Windows or Office"
+msgstr "Емулятор сервера KMS для активації Windows або Office"
+
+msgid "RUNNING"
+msgstr "ЗАПУЩЕНО"
+
+msgid "NOT RUNNING"
+msgstr "НЕ ЗАПУЩЕНО"
+
+msgid "Collecting data..."
+msgstr "Збір даних..."
+
+msgid "Enable"
+msgstr "Увімкнути"
+
+msgid "Auto activate"
+msgstr "Автоматична активація"
+
+msgid "This file is /etc/vlmcsd/vlmcsd.ini."
+msgstr "Цей файл знаходиться в /etc/vlmcsd/vlmcsd.ini і може додавати нові ключі продукту."

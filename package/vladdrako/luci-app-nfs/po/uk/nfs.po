@@ -1,0 +1,43 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: Vladdrako <vladdrako007@gmail.com>\n"
+"Language-Team: Vladdrako <vladdrako007@gmail.com>\n"
+"Language: uk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
+"X-Generator: Poedit 3.0.1\n"
+
+msgid "NFS Manage"
+msgstr "Керування NFS"
+
+msgid "Shared Directories"
+msgstr "Спільні каталоги"
+
+msgid "Enable"
+msgstr "Увімкнути"
+
+msgid "Path"
+msgstr "Шлях"
+
+msgid "Clients"
+msgstr "Клієнти"
+
+msgid "Mounted Points"
+msgstr "Точки монтування"
+
+msgid "source"
+msgstr "вихідний каталог"
+
+msgid "target"
+msgstr "змонтувати до"
+
+msgid "options"
+msgstr "параметри"
+
+msgid "delay"
+msgstr "затримка"

@@ -1,0 +1,72 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: Vladdrako <vladdrako007@gmail.com>\n"
+"Language-Team: \n"
+"Language: uk\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.0.1\n"
+
+msgid "Disable from startup"
+msgstr "Вимкнути автозапуск"
+
+msgid "Enable on startup"
+msgstr "Увімкнути автозапуск"
+
+msgid "PPTP VPN Server"
+msgstr "PPTP VPN сервер"
+
+msgid "PPTP Service"
+msgstr "PPTP сервіс"
+
+msgid "Local IP"
+msgstr "Локальний IP"
+
+msgid "Client IP"
+msgstr "IP клієнта"
+
+msgid "LAN DHCP reserved start-to-end IP addresses with the same subnet mask"
+msgstr ""
+"LAN DHCP резервує IP-адреси від початку до кінця з такою ж маскою "
+"підмережі.\n"
+"Використовуйте той самий сегмент мережі, що й LAN. Будь ласка, "
+"використовуйте запасний діапазон IP-адрес, відмінний від адрес, призначених "
+"DHCP, до прикладу 192.168.0.20-30"
+
+msgid "Remote Client DNS"
+msgstr "DNS клієнта"
+
+msgid "Debug Logging"
+msgstr "Журнал налагодження"
+
+msgid "PPTP Logins"
+msgstr "PPTP логіни"
+
+msgid "User name"
+msgstr "Ім'я користувача"
+
+msgid "Password"
+msgstr "Пароль"
+
+msgid "Enable"
+msgstr "Увімкнути"
+
+msgid "PPTPD status"
+msgstr "Статус PPTPD"
+
+msgid "Start"
+msgstr "Старт"
+
+msgid "Stop"
+msgstr "Стоп"
+
+msgid ""
+"PPTP VPN Server connectivity using the native built-in VPN Client on Windows/"
+"Linux or Andriod"
+msgstr ""
+"Підключення до PPTP VPN-сервера за допомогою вбудованого клієнта VPN у "
+"Windows/Linux або Android"

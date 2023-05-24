@@ -1,0 +1,14 @@
+#!/bin/sh
+
+export PATH='/usr/bin:/usr/sbin:/bin:/sbin'
+
+url=$(uci -q get telegramopenwrt.global.url)
+key=$(uci -q get telegramopenwrt.global.key)
+api="$url$key"
+my_chat_id=$(uci -q get telegramopenwrt.global.my_chat_id)
+
+command="$1"
+
+command_new=${command//_/\\_}
+
+curl -k -s -X POST $api/sendMessage -d chat_id=$my_chat_id -d parse_mode=Markdown --data-urlencode text="$command_new" | logger -t "telegram_bot[$$]" -p daemon.info

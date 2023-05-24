@@ -1,0 +1,39 @@
+<%
+local function get_udpspeeder_version(name)
+	local info = luci.util.split(luci.sys.exec("%s -h 2>/dev/null" %{name}), "\n")
+	local version = string.match(info[2], "git version: (%w+)")
+	local build = string.match(info[2], "build date: (.+)")
+	return info[1] == "UDPspeeder V2" and version or "", info[1] == "UDPspeeder V2" and build or ""
+end
+
+local udpspeeder_version, udpspeeder_build = get_udpspeeder_version("udpspeeder")
+-%>
+
+<fieldset class="cbi-section">
+	<legend><%:Running Status%></legend>
+	<table width="100%" cellspacing="10" id="_udpspeeder_status_table">
+		<tr>
+			<td width="33%"><%:Binary Version%></td>
+			<td>
+				<% if udpspeeder_version == "" then -%>
+				<em><%:Invalid Binary File.%></em>
+				<% else -%>
+				<%=pcdata(udpspeeder_version)%>
+				<%- end %>
+			</td>
+		</tr>
+		<% if udpspeeder_build ~= "" then -%>
+		<tr><td width="33%"><%:Build Time%></td><td><%=pcdata(udpspeeder_build)%></td></tr>
+		<% end -%>
+		<tr><td width="33%"><%:Running Status%></td><td id="_udpspeeder_status"><em><%:Collecting data...%></em></td></tr>
+	</table>
+</fieldset>
+
+<script type="text/javascript">//<![CDATA[
+	var udpspeeder_status = document.getElementById('_udpspeeder_status');
+	XHR.poll(5, '<%=luci.dispatcher.build_url("admin", "services", "udpspeeder", "status")%>', null, function(x, status) {
+		if ( x && x.status == 200 ) {
+			udpspeeder_status.innerHTML = status.running ? '<%:RUNNING%>' : '<%:NOT RUNNING%>';
+		}
+	});
+//]]></script>
