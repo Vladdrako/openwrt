@@ -1,0 +1,96 @@
+From 6822b129fd413b57e515afd0f8d67aad723d7174 Mon Sep 17 00:00:00 2001
+From: Piotr Gorski <lucjan.lucjanov@gmail.com>
+Date: Fri, 15 May 2020 16:58:29 +0200
+Subject: [PATCH 2/4] init/Kconfig: enable -O3 for all arches
+
+Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
+---
+ init/Kconfig | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/init/Kconfig b/init/Kconfig
+index 11f8a845f..806c196d5 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1365,7 +1365,6 @@ config CC_OPTIMIZE_FOR_PERFORMANCE
+ 
+ config CC_OPTIMIZE_FOR_PERFORMANCE_O3
+ 	bool "Optimize more for performance (-O3)"
+-	depends on ARC
+ 	help
+ 	  Choosing this option will pass "-O3" to your compiler to optimize
+ 	  the kernel yet more for performance.
+-- 
+2.33.1.711.g9d530dc002
+
+
+From 2abe28a01b5e370f022a26ff6db53dec417dad16 Mon Sep 17 00:00:00 2001
+From: Piotr Gorski <lucjan.lucjanov@gmail.com>
+Date: Tue, 18 May 2021 13:57:41 +0200
+Subject: [PATCH 3/4] init/Kconfig: add -O1 flag
+
+Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
+---
+ Makefile     | 2 ++
+ init/Kconfig | 6 ++++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/Makefile b/Makefile
+index 14480187a..7fcc103a4 100644
+--- a/Makefile
++++ b/Makefile
+@@ -757,6 +757,8 @@ else ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3
+ KBUILD_CFLAGS += -O3
+ else ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
+ KBUILD_CFLAGS += -Os
++else ifdef CONFIG_CC_OPTIMIZE_BASAL
++KBUILD_CFLAGS += -O1
+ endif
+ 
+ # Tell gcc to never replace conditional load with a non-conditional one
+diff --git a/init/Kconfig b/init/Kconfig
+index 806c196d5..4d6eb6f3e 100644
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1356,6 +1356,12 @@ choice
+ 	prompt "Compiler optimization level"
+ 	default CC_OPTIMIZE_FOR_PERFORMANCE
+ 
++config CC_OPTIMIZE_BASAL
++	bool "Optimize for performance (-O1)"
++	help
++	  Choosing this option will pass "-O1" to your compiler resulting
++	  in basal optimization, possibly speeding up compilation.
++
+ config CC_OPTIMIZE_FOR_PERFORMANCE
+ 	bool "Optimize for performance (-O2)"
+ 	help
+-- 
+2.33.1.711.g9d530dc002
+
+
+From 3f08563149cb45b256754ff2fd7de2711ea1ad55 Mon Sep 17 00:00:00 2001
+From: Piotr Gorski <lucjan.lucjanov@gmail.com>
+Date: Sat, 19 Jun 2021 11:24:22 +0200
+Subject: [PATCH 4/4] Makefile: Turn off loop vectorization for GCC -O3
+ optimization level
+
+Signed-off-by: Piotr Gorski <lucjan.lucjanov@gmail.com>
+---
+ Makefile | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Makefile b/Makefile
+index 7fcc103a4..2804925a7 100644
+--- a/Makefile
++++ b/Makefile
+@@ -755,6 +755,7 @@ ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
+ KBUILD_CFLAGS += -O2
+ else ifdef CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3
+ KBUILD_CFLAGS += -O3
++KBUILD_CFLAGS += $(call cc-option, -fno-tree-loop-vectorize)
+ else ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
+ KBUILD_CFLAGS += -Os
+ else ifdef CONFIG_CC_OPTIMIZE_BASAL
+-- 
+2.33.1.711.g9d530dc002 

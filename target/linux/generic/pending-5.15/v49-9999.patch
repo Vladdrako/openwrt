@@ -1,0 +1,20 @@
+--- a/drivers/char/lrng/lrng_es_mgr.c
++++ b/drivers/char/lrng/lrng_es_mgr.c
+@@ -7,7 +7,6 @@
+ 
+ #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+ 
+-#include <asm/archrandom.h>
+ #include <linux/module.h>
+ #include <linux/random.h>
+ #include <linux/utsname.h>
+--- a/drivers/char/lrng/lrng_es_cpu.c
++++ b/drivers/char/lrng/lrng_es_cpu.c
+@@ -7,7 +7,6 @@
+ 
+ #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+ 
+-#include <asm/archrandom.h>
+ #include <linux/lrng.h>
+ #include <crypto/hash.h>
+ #include <linux/module.h>
