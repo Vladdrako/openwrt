@@ -19,30 +19,16 @@ PKG_INSTALL:=1
 
 include $(INCLUDE_DIR)/host-build.mk
 
-ifeq ($(HOST_OS),Darwin)
-  HOST_CFLAGS += -I/opt/homebrew/include
-endif
-
-HOST_CFLAGS += -Wno-error
-
 HOST_CONFIGURE_ARGS += \
 	--disable-debuginfod \
 	--disable-libdebuginfod \
 	--disable-nls \
 	--disable-shared \
-	--enable-static \
 	--without-lzma \
 	--without-zstd
 
-ifeq ($(HOST_OS),Darwin)
-  HOST_CONFIGURE_ARGS += --disable-symbol-versioning
-endif
-
-Hooks/HostConfigure/Pre := Host/Gnulib $(Hooks/HostConfigure/Pre)
-define Host/Gnulib
-	cd $(HOST_BUILD_DIR); $(STAGING_DIR_HOST)/bin/gnulib-tool --source-base=libgnu --import argp obstack fts strchrnul progname tsearch;
-	ln -sf ../lib/eu-config.h $(HOST_BUILD_DIR)/libgnu/;
-endef
+HOST_MAKE_FLAGS += \
+	SUBDIRS="lib libelf libcpu backends libebl libdwelf libdwfl libdw"
 
 define Host/Uninstall
 	-$(call Host/Compile/Default,uninstall)
