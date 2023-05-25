@@ -53,8 +53,6 @@ MAKE_FLAGS+= \
 
 ifeq ($(CONFIG_TARGET_BOARD), "ipq807x")
     MAKE_FLAGS+= CHIP_TYPE=HPPE PTP_FEATURE=disable SWCONFIG_FEATURE=disable
-else ifeq ($(CONFIG_TARGET_BOARD), "ipq60xx")
-    MAKE_FLAGS+= CHIP_TYPE=CPPE PTP_FEATURE=disable SWCONFIG_FEATURE=disable
 endif
 
 define Build/InstallDev
@@ -82,11 +80,6 @@ define Build/InstallDev
 	$(CP) -rf $(PKG_BUILD_DIR)/include/sal/os/linux/*.h $(1)/usr/include/qca-ssdk
 	$(CP) -rf $(PKG_BUILD_DIR)/include/sal/os/*.h $(1)/usr/include/qca-ssdk
 
-endef
-
-define KernelPackage/qca-ssdk/install
-	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./files/qca-ssdk $(1)/etc/init.d/qca-ssdk
 endef
 
 $(eval $(call KernelPackage,qca-ssdk))
