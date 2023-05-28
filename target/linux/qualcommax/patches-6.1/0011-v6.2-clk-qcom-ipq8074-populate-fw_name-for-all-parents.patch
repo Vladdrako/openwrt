@@ -1,4 +1,4 @@
-From 78936d46470938caa9a7ea529deeb36777b4f98e Mon Sep 17 00:00:00 2001
+From 7c3f89fd557220dcca166e1474521e4f6168943c Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Wed, 16 Nov 2022 22:46:55 +0100
 Subject: [PATCH] clk: qcom: ipq8074: populate fw_name for all parents

@@ -1,4 +1,4 @@
-From e78a40eb24187a8b4f9b89e2181f674df39c2013 Mon Sep 17 00:00:00 2001
+From 51d4a7e8f68d1c9e428ea3ff72473c527ea9af69 Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Mon, 7 Nov 2022 14:29:00 +0100
 Subject: [PATCH] dt-bindings: clock: qcom: ipq8074: add missing networking

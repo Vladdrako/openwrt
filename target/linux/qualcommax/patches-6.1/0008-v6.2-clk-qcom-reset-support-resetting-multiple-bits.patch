@@ -1,4 +1,4 @@
-From 813ba3e427671ba3ff35c825087b03f0ad91cf02 Mon Sep 17 00:00:00 2001
+From 4822249e4cd392cf9986c53daaad34cf460a53f9 Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Mon, 7 Nov 2022 14:28:59 +0100
 Subject: [PATCH] clk: qcom: reset: support resetting multiple bits

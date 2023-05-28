@@ -1,4 +1,4 @@
-From a4748d2850783d36f77ccf2b5fcc86ccf1800ef1 Mon Sep 17 00:00:00 2001
+From fe6ca0ad2eeef191609f0555c641844615ca7ef3 Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Wed, 16 Nov 2022 22:48:36 +0100
 Subject: [PATCH] arm64: dts: qcom: ipq8074: set Gen2 PCIe pcie max-link-speed

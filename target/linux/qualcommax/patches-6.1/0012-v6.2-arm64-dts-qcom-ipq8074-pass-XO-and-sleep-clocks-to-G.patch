@@ -1,4 +1,4 @@
-From 9033c3c86ea0dd35bd2ab957317573b755967298 Mon Sep 17 00:00:00 2001
+From 6fec7b1ff41210d0c0a6b5de0a61e4c00acbf783 Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Sun, 30 Oct 2022 18:57:03 +0100
 Subject: [PATCH] arm64: dts: qcom: ipq8074: pass XO and sleep clocks to GCC

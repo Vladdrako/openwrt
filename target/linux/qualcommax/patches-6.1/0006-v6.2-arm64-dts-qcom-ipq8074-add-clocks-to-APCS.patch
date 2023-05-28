@@ -1,4 +1,4 @@
-From 0df592a0a1a3fff9133977192677aa915afc174f Mon Sep 17 00:00:00 2001
+From a55757b8fdd5efe5535279229d425fb3453fa5b3 Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Fri, 19 Aug 2022 00:08:49 +0200
 Subject: [PATCH] arm64: dts: qcom: ipq8074: add clocks to APCS

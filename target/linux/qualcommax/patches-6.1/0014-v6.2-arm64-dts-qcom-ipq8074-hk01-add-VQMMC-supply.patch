@@ -1,4 +1,4 @@
-From 2c394cfc1779886048feca7dc7f4075da5f6328c Mon Sep 17 00:00:00 2001
+From 8e5b9150eeca568c9ec16c2ef365bd2bf7682e9d Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Fri, 19 Aug 2022 00:18:15 +0200
 Subject: [PATCH] arm64: dts: qcom: ipq8074-hk01: add VQMMC supply

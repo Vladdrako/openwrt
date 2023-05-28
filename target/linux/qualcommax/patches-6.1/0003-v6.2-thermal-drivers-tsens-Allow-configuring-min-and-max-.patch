@@ -1,4 +1,4 @@
-From 7805365fee582056b32c69cf35aafbb94b14a8ca Mon Sep 17 00:00:00 2001
+From 2646fa7efad8ad3e5c6a91122bf425847468c89a Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Fri, 19 Aug 2022 00:02:43 +0200
 Subject: [PATCH] thermal/drivers/tsens: Allow configuring min and max trips

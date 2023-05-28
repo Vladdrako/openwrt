@@ -1,4 +1,4 @@
-From fb76b808f8628215afebaf0f8af0bde635302590 Mon Sep 17 00:00:00 2001
+From b2a8c5f73a091ba7398d6ce60d23bef04501091d Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Fri, 19 Aug 2022 00:18:14 +0200
 Subject: [PATCH] arm64: dts: qcom: add PMP8074 DTSI

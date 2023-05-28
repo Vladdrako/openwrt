@@ -1,4 +1,4 @@
-From 77faa07c185c969e742cbb3e6aa487a11b0b616c Mon Sep 17 00:00:00 2001
+From ef0550ad9c821c8de1bdc11b60270a1851b96401 Mon Sep 17 00:00:00 2001
 From: Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
 Date: Tue, 30 Aug 2022 09:57:42 +0300
 Subject: [PATCH] dt-bindings: arm: qcom: document qcom,msm-id and

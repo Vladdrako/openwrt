@@ -1,4 +1,4 @@
-From 5f20690f77878b1ba24ec88df01b92d5131a6780 Mon Sep 17 00:00:00 2001
+From 58645c1fe580aef3f5f3af0b6fd0768a5adbcde8 Mon Sep 17 00:00:00 2001
 From: Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
 Date: Tue, 8 Nov 2022 15:23:57 +0100
 Subject: [PATCH] arm64: dts: qcom: ipq8074: align TLMM pin configuration with

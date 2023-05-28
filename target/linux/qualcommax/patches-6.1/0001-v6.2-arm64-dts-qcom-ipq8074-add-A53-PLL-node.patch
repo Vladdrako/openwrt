@@ -1,4 +1,4 @@
-From 6463c10bfdbd684ec7ecfd408ea541283215a088 Mon Sep 17 00:00:00 2001
+From 5926afbd0234a9172219a04012a05cc7bbe9466a Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Fri, 19 Aug 2022 00:06:28 +0200
 Subject: [PATCH] arm64: dts: qcom: ipq8074: add A53 PLL node

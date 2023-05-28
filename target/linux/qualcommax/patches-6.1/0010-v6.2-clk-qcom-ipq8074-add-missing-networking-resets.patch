@@ -1,4 +1,4 @@
-From da76cb63d04dc22ed32123b8c1d084c006d67bfb Mon Sep 17 00:00:00 2001
+From 43359a1ae8b2215b6deae9210dda96667315eb03 Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Mon, 7 Nov 2022 14:29:01 +0100
 Subject: [PATCH] clk: qcom: ipq8074: add missing networking resets

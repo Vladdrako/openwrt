@@ -1,4 +1,4 @@
-From c3cc0c2a17f552be2426200e47a9e2c62cf449ce Mon Sep 17 00:00:00 2001
+From aff6221a32ec0bf20093197ca2f74a09a0b07da3 Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Fri, 19 Aug 2022 00:02:45 +0200
 Subject: [PATCH] arm64: dts: qcom: ipq8074: add thermal nodes

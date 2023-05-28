@@ -1,4 +1,4 @@
-From 0164d794cbc58488a7321272e95958d10cf103a4 Mon Sep 17 00:00:00 2001
+From bdc82343ecdebdde8a20d1511600e43c0ac751a1 Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Fri, 19 Aug 2022 00:02:44 +0200
 Subject: [PATCH] thermal/drivers/tsens: Add IPQ8074 support

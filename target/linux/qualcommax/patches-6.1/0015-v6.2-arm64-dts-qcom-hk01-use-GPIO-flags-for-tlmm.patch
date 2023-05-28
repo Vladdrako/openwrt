@@ -1,4 +1,4 @@
-From 82ceb86227b1fc15c76d5fc691b2bf425f1a63b3 Mon Sep 17 00:00:00 2001
+From 55b0f5134af8e417b3f9cd77f537cbdc8736c5d7 Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Mon, 7 Nov 2022 10:29:30 +0100
 Subject: [PATCH] arm64: dts: qcom: hk01: use GPIO flags for tlmm
