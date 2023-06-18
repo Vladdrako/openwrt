@@ -320,6 +320,11 @@ include() {
 	done
 }
 
+ipcalc() {
+	set -- $(ipcalc.sh "$@")
+	[ $? -eq 0 ] && export -- "$@"
+}
+
 find_mtd_index() {
 	sed -n "s|^${MTD_REGEX}\"${1:?}\"$|\1|p" '/proc/mtd'
 }

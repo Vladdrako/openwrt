@@ -11,7 +11,7 @@ include $(INCLUDE_DIR)/nls.mk
 PKG_NAME:=dnsmasq
 PKG_UPSTREAM_VERSION:=2.89
 PKG_VERSION:=$(subst test,~~test,$(subst rc,~rc,$(PKG_UPSTREAM_VERSION)))
-PKG_RELEASE:=4
+PKG_RELEASE:=5
 
 PKG_SOURCE_URL:=http://thekelleys.org.uk/git/dnsmasq.git
 PKG_SOURCE_PROTO:=git
