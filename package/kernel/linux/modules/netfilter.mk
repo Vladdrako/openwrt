@@ -208,7 +208,7 @@ $(eval $(call KernelPackage,nf-socket))
 define KernelPackage/nf-tproxy
   SUBMENU:=$(NF_MENU)
   TITLE:=Netfilter tproxy support
-  KCONFIG:= $(KCOFNIG_NF_TPROXY)
+  KCONFIG:= $(KCONFIG_NF_TPROXY)
   FILES:=$(foreach mod,$(NF_TPROXY-m),$(LINUX_DIR)/net/$(mod).ko)
   AUTOLOAD:=$(call AutoProbe,$(notdir $(NF_TPROXY-m)))
 endef
