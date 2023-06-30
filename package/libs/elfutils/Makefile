@@ -23,6 +23,8 @@ PKG_FIXUP:=autoreconf
 PKG_INSTALL:=1
 PKG_BUILD_DEPENDS:=!USE_GLIBC:argp-standalone
 
+PKG_BUILD_FLAGS:=no-lto
+
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/nls.mk
 
