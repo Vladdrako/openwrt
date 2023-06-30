@@ -21,6 +21,8 @@ PKG_BUILD_FLAGS:=no-lto
 
 IWINFO_ABI_VERSION:=20230701
 
+PKG_BUILD_FLAGS:=no-lto
+
 include $(INCLUDE_DIR)/package.mk
 
 
