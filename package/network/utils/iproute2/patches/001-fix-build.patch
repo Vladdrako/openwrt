@@ -1,7 +1,7 @@
 Index: iproute2-6.4.0/bridge/mdb.c
 ===================================================================
---- iproute2-6.4.0.orig/bridge/mdb.c
-+++ iproute2-6.4.0/bridge/mdb.c
+--- a/bridge/mdb.c
++++ b/bridge/mdb.c
 @@ -7,6 +7,7 @@
  #include <stdlib.h>
  #include <unistd.h>
