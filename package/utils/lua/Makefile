@@ -21,6 +21,7 @@ PKG_BUILD_FLAGS:=no-lto
 
 PKG_LICENSE:=MIT
 PKG_LICENSE_FILES:=COPYRIGHT
+PKG_CPE_ID:=cpe:/a:lua:lua
 
 HOST_PATCH_DIR := ./patches-host
 
