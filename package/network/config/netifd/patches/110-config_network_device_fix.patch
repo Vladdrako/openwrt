@@ -3,7 +3,7 @@ Date: Thu, 5 Oct 2023 20:04:27 -0700
 Subject: [PATCH] config: netword-device is incompatible with jshn
 
 An oversight in openwrts uci-defaults.sh ucidef_set_network_device_*
-functions resulted in a hyphen (-) being used instead of an underscore (_)
+functions resulted in a hyphen (-) being used insted of a underscore (_)
 this causes problems for jshn which will translate the former to the
 latter. This causes config_init_board to return null on boards that
 set network?device using uci-defaults (or jshn).
