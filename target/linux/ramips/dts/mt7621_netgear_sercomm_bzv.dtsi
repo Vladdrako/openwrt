@@ -214,6 +214,7 @@
 		reg = <0x20>;
 
 		gpio-controller;
+		interrupt-controller;
 	};
 };
 
