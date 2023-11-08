@@ -94,7 +94,9 @@
 				};
 
 				macaddr_factory_e000: macaddr@e000 {
+					compatible = "mac-base";
 					reg = <0xe000 0x6>;
+					#nvmem-cell-cells = <1>;
 				};
 
 				macaddr_factory_e006: macaddr@e006 {
@@ -148,7 +150,7 @@
 &pcie0 {
 	wifi0: wifi@0,0 {
 		reg = <0x0000 0 0 0 0>;
-		nvmem-cells = <&eeprom_factory_0>;
+		nvmem-cells = <&macaddr_factory_e000 1>;
 		nvmem-cell-names = "eeprom";
 		ieee80211-freq-limit = <2400000 2500000>;
 
@@ -161,7 +163,7 @@
 &pcie1 {
 	wifi1: wifi@0,0 {
 		reg = <0x0000 0 0 0 0>;
-		nvmem-cells = <&eeprom_factory_8000>;
+		nvmem-cells = <&macaddr_factory_e000 2>;
 		nvmem-cell-names = "eeprom";
 		ieee80211-freq-limit = <5000000 6000000>;
 
@@ -172,7 +174,7 @@
 };
 
 &gmac0 {
-	nvmem-cells = <&macaddr_factory_e000>;
+	nvmem-cells = <&macaddr_factory_e000 0>;
 	nvmem-cell-names = "mac-address";
 };
 
