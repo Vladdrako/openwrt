@@ -308,6 +308,9 @@ ifeq ($(DUMP),1)
     ifneq ($(CONFIG_VGA_CONSOLE)$(CONFIG_FB),)
       FEATURES += display
     endif
+    ifneq ($(CONFIG_RTC_CLASS),)
+      FEATURES += rtc
+    endif
     ifneq ($(CONFIG_VIRTIO),)
       FEATURES += virtio
     endif
