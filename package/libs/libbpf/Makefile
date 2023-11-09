@@ -20,7 +20,7 @@ PKG_ABI_VERSION:=$(firstword $(subst .,$(space),$(PKG_VERSION)))
 PKG_MAINTAINER:=Tony Ambardar <itugrok@yahoo.com>
 PKG_CPE_ID:=cpe:/a:libbpf_project:libbpf
 
-PKG_BUILD_FLAGS:=no-lto
+PKG_BUILD_FLAGS:=no-mips16 no-lto
 PKG_BUILD_PARALLEL:=1
 PKG_INSTALL:=1
 

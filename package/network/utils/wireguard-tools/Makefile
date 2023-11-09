@@ -35,8 +35,9 @@ define Package/wireguard-tools
   MAINTAINER:=Jason A. Donenfeld <Jason@zx2c4.com>
   TITLE:=WireGuard userspace control program (wg)
   DEPENDS:= \
-	+!(BUSYBOX_CONFIG_IP||BUSYBOX_CONFIG_FEATURE_IP_LINK):ip \
-	+kmod-wireguard
+	  +@BUSYBOX_CONFIG_IP \
+	  +@BUSYBOX_CONFIG_FEATURE_IP_LINK \
+	  +kmod-wireguard
 endef
 
 define Package/wireguard-tools/description

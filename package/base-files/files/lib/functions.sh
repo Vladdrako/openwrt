@@ -15,7 +15,6 @@ _C=0
 NO_EXPORT=1
 LOAD_STATE=1
 LIST_SEP=" "
-MTD_REGEX="mtd\([0-9]\+\):[[:space:]]*\([0-9A-Fa-f]\+\)[[:space:]]*\([0-9A-Fa-f]\+\)[[:space:]]*"
 
 # xor multiple hex values of the same length
 xor() {
@@ -83,7 +82,7 @@ config () {
 	append CONFIG_SECTIONS "$name"
 	export ${NO_EXPORT:+-n} CONFIG_SECTION="$name"
 	config_set "$CONFIG_SECTION" "TYPE" "${cfgtype}"
-	config_cb "$cfgtype" "$name"
+	[ -n "$NO_CALLBACK" ] || config_cb "$cfgtype" "$name"
 }
 
 option () {
@@ -91,7 +90,7 @@ option () {
 	local value="$*"
 
 	config_set "$CONFIG_SECTION" "${varname}" "${value}"
-	option_cb "$varname" "$*"
+	[ -n "$NO_CALLBACK" ] || option_cb "$varname" "$*"
 }
 
 list() {
@@ -100,12 +99,12 @@ list() {
 	local len
 
 	config_get len "$CONFIG_SECTION" "${varname}_LENGTH" 0
-	[ "$len" = 0 ] && append CONFIG_LIST_STATE "${CONFIG_SECTION}_${varname}"
+	[ $len = 0 ] && append CONFIG_LIST_STATE "${CONFIG_SECTION}_${varname}"
 	len=$((len + 1))
 	config_set "$CONFIG_SECTION" "${varname}_ITEM$len" "$value"
 	config_set "$CONFIG_SECTION" "${varname}_LENGTH" "$len"
 	append "CONFIG_${CONFIG_SECTION}_${varname}" "$value" "$LIST_SEP"
-	list_cb "$varname" "$*"
+	[ -n "$NO_CALLBACK" ] || list_cb "$varname" "$*"
 }
 
 config_unset() {
@@ -158,20 +157,13 @@ config_foreach() {
 	[ "$#" -ge 1 ] && shift
 	local ___type="$1"
 	[ "$#" -ge 1 ] && shift
-	local ___break_loop=0
 	local section cfgtype
-
-	# shellcheck disable=SC2317
-	config_foreach_break() {
-		___break_loop=1
-	}
 
 	[ -z "$CONFIG_SECTIONS" ] && return 0
 	for section in ${CONFIG_SECTIONS}; do
 		config_get cfgtype "$section" TYPE
 		[ -n "$___type" ] && [ "x$cfgtype" != "x$___type" ] && continue
 		eval "$___function \"\$section\" \"\$@\""
-		[ "$___break_loop" = 1 ] && break
 	done
 }
 
@@ -186,7 +178,7 @@ config_list_foreach() {
 
 	config_get len "${section}" "${option}_LENGTH"
 	[ -z "$len" ] && return 0
-	while [ "$c" -le "$len" ]; do
+	while [ $c -le "$len" ]; do
 		config_get val "${section}" "${option}_ITEM$c"
 		eval "$function \"\$val\" \"\$@\""
 		c="$((c + 1))"
@@ -204,8 +196,7 @@ default_prerm() {
 	fi
 
 	local shell="$(command -v bash)"
-	grep -s "^/etc/init.d/" "$root/usr/lib/opkg/info/${pkgname}.list" | while IFS= read -r i
-	do
+	for i in $(grep -s "^/etc/init.d/" "$root/usr/lib/opkg/info/${pkgname}.list"); do
 		if [ -n "$root" ]; then
 			${shell:-/bin/sh} "$root/etc/rc.common" "$root$i" disable
 		else
@@ -300,8 +291,7 @@ default_postinst() {
 
 		if grep -m1 -q -s "^/etc/uci-defaults/" "$filelist"; then
 			[ -d /tmp/.uci ] || mkdir -p /tmp/.uci
-			grep -s "^/etc/uci-defaults/" "$filelist" | while IFS= read -r i
-			do
+			for i in $(grep -s "^/etc/uci-defaults/" "$filelist"); do
 				( [ -f "$i" ] && cd "$(dirname $i)" && . "$i" ) && rm -f "$i"
 			done
 			uci commit
@@ -311,8 +301,7 @@ default_postinst() {
 	fi
 
 	local shell="$(command -v bash)"
-	grep -s "^/etc/init.d/" "$root$filelist" | while IFS= read -r i
-	do
+	for i in $(grep -s "^/etc/init.d/" "$root$filelist"); do
 		if [ -n "$root" ]; then
 			${shell:-/bin/sh} "$root/etc/rc.common" "$root$i" enable
 		else
@@ -329,9 +318,8 @@ default_postinst() {
 include() {
 	local file
 
-	for file in "$1"/*.sh; do
-		[ -e "$file" ] || break
-		. "$file"
+	for file in $(ls $1/*.sh 2>/dev/null); do
+		. $file
 	done
 }
 
@@ -341,23 +329,10 @@ ipcalc() {
 }
 
 find_mtd_index() {
-	sed -n "s|^${MTD_REGEX}\"${1:?}\"$|\1|p" '/proc/mtd'
-}
+	local PART="$(grep "\"$1\"" /proc/mtd | awk -F: '{print $1}')"
+	local INDEX="${PART##mtd}"
 
-find_mtd_size() {
-	sed -n "s|^${MTD_REGEX}\"${1:?}\"$|0x\2|p" '/proc/mtd'
-}
-
-find_mtd_erasesize() {
-	sed -n "s|^${MTD_REGEX}\"${1:?}\"$|0x\3|p" '/proc/mtd'
-}
-
-find_mtd_env() {
-	if [ "${1:?}" != "${1#'/dev/mtd'}" ]; then
-		sed -n "s|^mtd${1#${1%%[0-9]*}}:[[:space:]]*\([0-9A-Fa-f]\+\)[[:space:]]*\([0-9A-Fa-f]\+\)[[:space:]]*\".*\"$|${1:?} ${2:-0x0} 0x\1 0x\2|p" '/proc/mtd'
-	else
-		sed -n "s|^${MTD_REGEX}\"${1:?}\"$|/dev/mtd\1 ${2:-0x0} 0x\2 0x\3|p" '/proc/mtd'
-	fi
+	echo ${INDEX}
 }
 
 find_mtd_part() {
@@ -469,16 +444,6 @@ cmdline_get_var() {
 		tmp=${cmdlinevar##${var}}
 		[ "=" = "${tmp:0:1}" ] && echo ${tmp:1}
 	done
-}
-
-# for $RANDOM  $ random_numgen
-# for $SRANDOM $ random_numgen 4 0 0 /dev/random
-random_numgen() {
-	local bytes="${1:-2}"
-	local signed="${2:-1}"
-	local offset="${3:-0}"
-	local dev="${4:-/dev/urandom}"
-	echo $(($(hexdump -n "$bytes" -s "$offset" -e "1/$bytes"' ''"0x%x"' "$dev") >> $signed))
 }
 
 [ -z "$IPKG_INSTROOT" ] && [ -f /lib/config/uci.sh ] && . /lib/config/uci.sh
