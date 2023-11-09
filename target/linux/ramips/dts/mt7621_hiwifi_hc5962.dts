@@ -108,7 +108,7 @@
 			reg = <0x540000 0x1c80000>;
 		};
 
-		bdinfo: partition@21c0000 {
+		partition@21c0000 {
 			label = "bdinfo";
 			reg = <0x21c0000 0x80000>;
 			read-only;
@@ -131,7 +131,6 @@
 		nvmem-cells = <&eeprom_factory_0>;
 		nvmem-cell-names = "eeprom";
 		ieee80211-freq-limit = <2400000 2500000>;
-		mtd-mac-address-ascii = <&bdinfo 0x18a>;
 	};
 };
 
@@ -141,9 +140,6 @@
 		nvmem-cells = <&eeprom_factory_8000>;
 		nvmem-cell-names = "eeprom";
 		ieee80211-freq-limit = <5000000 6000000>;
-		mtd-mac-address-ascii = <&bdinfo 0x18a>;
-		mtd-mac-address-increment = <(-4)>;
-		mtd-mac-address-increment-byte = <0>;
 	};
 };
 

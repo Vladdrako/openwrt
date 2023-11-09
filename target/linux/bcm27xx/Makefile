@@ -20,6 +20,7 @@ endef
 
 include $(INCLUDE_DIR)/target.mk
 
+DEFAULT_PACKAGES := $(filter-out urngd,$(DEFAULT_PACKAGES))
 DEFAULT_PACKAGES += \
 	bcm27xx-gpu-fw \
 	kmod-usb-hid \
