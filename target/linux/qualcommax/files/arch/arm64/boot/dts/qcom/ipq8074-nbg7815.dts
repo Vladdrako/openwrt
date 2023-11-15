@@ -282,13 +282,18 @@
 		reg = <3>;
 	};
 
-	qca8081: ethernet-phy@4{
+	qca8075_psgmii: ethernet-phy@5 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <5>;
+	};
+
+	qca8081: ethernet-phy@28 {
 		compatible = "ethernet-phy-id004d.d101";
 		reg = <28>;
 		reset-gpios = <&tlmm 31 GPIO_ACTIVE_LOW>;
 	};
 
-	aqr113c: ethernet-phy@5 {
+	aqr113c: ethernet-phy@8 {
 		compatible = "ethernet-phy-ieee802.3-c45";
 		reg = <8>;
 		reset-gpios = <&tlmm 63 GPIO_ACTIVE_LOW>;

@@ -377,6 +377,11 @@
 		reg = <3>;
 	};
 
+	qca8075_psgmii: ethernet-phy@5 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <5>;
+	};
+
 	qca8081: ethernet-phy@28 {
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <28>;
