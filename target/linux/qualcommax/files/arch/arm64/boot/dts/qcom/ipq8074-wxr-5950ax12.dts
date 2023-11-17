@@ -238,41 +238,44 @@
 		reg = <0x8>;
 	};
 
-	qca8075_1: ethernet-phy@18 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0x18>;
-	};
+	ethernet-phy-package {
+		compatible = "ethernet-phy-package";
+		phy-mode = "qsgmii";
 
-	qca8075_2: ethernet-phy@19 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0x19>;
-	};
+		global-phys = <&qca8075_5>, <&qca8075_psgmii>;
+		global-phy-names = "combo", "analog_psgmii";
 
-	qca8075_3: ethernet-phy@1a {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0x1a>;
-	};
+		qca8075_2: ethernet-phy@19 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0x19>;
+		};
 
-	qca8075_4: ethernet-phy@1b {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0x1b>;
-	};
+		qca8075_3: ethernet-phy@1a {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0x1a>;
+		};
 
-	qca8075_5: ethernet-phy@1c {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0x1c>;
-	};
+		qca8075_4: ethernet-phy@1b {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0x1b>;
+		};
 
-	qca8075_psgmii: ethernet-phy@1d {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0x1d>;
+		qca8075_5: ethernet-phy@1c {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0x1c>;
+		};
+
+		qca8075_psgmii: ethernet-phy@1d {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0x1d>;
+		};
 	};
 };
 
 &switch {
 	status = "okay";
 
-	switch_lan_bmp = <(ESS_PORT1 | ESS_PORT2 | ESS_PORT3 | ESS_PORT4 | ESS_PORT6)>;
+	switch_lan_bmp = <(ESS_PORT2 | ESS_PORT3 | ESS_PORT4 | ESS_PORT6)>;
 	switch_wan_bmp = <ESS_PORT5>;
 	switch_mac_mode = <MAC_MODE_QSGMII>;
 	switch_mac_mode1 = <MAC_MODE_USXGMII>;
@@ -319,6 +322,7 @@
 
 &dp2 {
 	status = "okay";
+	phy-mode = "qsgmii";
 	phy-handle = <&qca8075_2>;
 	label = "lan4";
 	nvmem-cells = <&macaddr_appsblenv_ethaddr>;
@@ -327,6 +331,7 @@
 
 &dp3 {
 	status = "okay";
+	phy-mode = "qsgmii";
 	phy-handle = <&qca8075_3>;
 	label = "lan3";
 	nvmem-cells = <&macaddr_appsblenv_ethaddr>;
@@ -335,6 +340,7 @@
 
 &dp4 {
 	status = "okay";
+	phy-mode = "qsgmii";
 	phy-handle = <&qca8075_4>;
 	label = "lan2";
 	nvmem-cells = <&macaddr_appsblenv_ethaddr>;

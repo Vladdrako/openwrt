@@ -354,77 +354,90 @@
 	pinctrl-names = "default";
 	reset-gpios = <&tlmm 37 GPIO_ACTIVE_LOW>;
 
-	qca8075_0: ethernet-phy@0 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
+	ethernet-phy-package {
+		compatible = "ethernet-phy-package";
+		phy-mode = "qsgmii";
 
-		leds {
-			#address-cells = <1>;
-			#size-cells = <0>;
+		global-phys = <&qca8075_4>, <&qca8075_psgmii>;
+		global-phy-names = "combo", "analog_psgmii";
 
-			led@0 {
-				reg = <0>;
-				color = <LED_COLOR_ID_GREEN>;
-				function = LED_FUNCTION_LAN;
-				default-state = "keep";
+		qca8075_0: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0>;
+
+			leds {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				led@0 {
+					reg = <0>;
+					color = <LED_COLOR_ID_GREEN>;
+					function = LED_FUNCTION_LAN;
+					default-state = "keep";
+				};
 			};
 		};
-	};
 
-	qca8075_1: ethernet-phy@1 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <1>;
+		qca8075_1: ethernet-phy@1 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <1>;
 
-		leds {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			leds {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			led@0 {
-				reg = <0>;
-				color = <LED_COLOR_ID_GREEN>;
-				function = LED_FUNCTION_LAN;
-				default-state = "keep";
+				led@0 {
+					reg = <0>;
+					color = <LED_COLOR_ID_GREEN>;
+					function = LED_FUNCTION_LAN;
+					default-state = "keep";
+				};
 			};
 		};
-	};
 
-	qca8075_2: ethernet-phy@2 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <2>;
+		qca8075_2: ethernet-phy@2 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <2>;
 
-		leds {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			leds {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			led@0 {
-				reg = <0>;
-				color = <LED_COLOR_ID_GREEN>;
-				function = LED_FUNCTION_LAN;
-				default-state = "keep";
+				led@0 {
+					reg = <0>;
+					color = <LED_COLOR_ID_GREEN>;
+					function = LED_FUNCTION_LAN;
+					default-state = "keep";
+				};
 			};
 		};
-	};
 
-	qca8075_3: ethernet-phy@3 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <3>;
+		qca8075_3: ethernet-phy@3 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <3>;
 
-		leds {
-			#address-cells = <1>;
-			#size-cells = <0>;
+			leds {
+				#address-cells = <1>;
+				#size-cells = <0>;
 
-			led@0 {
-				reg = <0>;
-				color = <LED_COLOR_ID_GREEN>;
-				function = LED_FUNCTION_LAN;
-				default-state = "keep";
+				led@0 {
+					reg = <0>;
+					color = <LED_COLOR_ID_GREEN>;
+					function = LED_FUNCTION_LAN;
+					default-state = "keep";
+				};
 			};
 		};
-	};
 
-	qca8075_psgmii: ethernet-phy@5 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <5>;
+		qca8075_4: ethernet-phy@4 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <4>;
+		};
+
+		qca8075_psgmii: ethernet-phy@5 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <5>;
+		};
 	};
 
 	qca8081: ethernet-phy@24 {
@@ -473,6 +486,7 @@
 
 &dp1 {
 	status = "okay";
+	phy-mode = "qsgmii";
 	phy-handle = <&qca8075_0>;
 	label = "lan4";
 	nvmem-cells = <&macaddr_dp1>;
@@ -481,6 +495,7 @@
 
 &dp2 {
 	status = "okay";
+	phy-mode = "qsgmii";
 	phy-handle = <&qca8075_1>;
 	label = "lan3";
 	nvmem-cells = <&macaddr_dp2>;
@@ -489,6 +504,7 @@
 
 &dp3 {
 	status = "okay";
+	phy-mode = "qsgmii";
 	phy-handle = <&qca8075_2>;
 	label = "lan2";
 	nvmem-cells = <&macaddr_dp3>;
@@ -497,6 +513,7 @@
 
 &dp4 {
 	status = "okay";
+	phy-mode = "qsgmii";
 	phy-handle = <&qca8075_3>;
 	label = "lan1";
 	nvmem-cells = <&macaddr_dp4>;

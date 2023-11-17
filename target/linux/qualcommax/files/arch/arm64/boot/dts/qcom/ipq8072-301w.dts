@@ -284,29 +284,42 @@
 		reset-gpios = <&tlmm 44 GPIO_ACTIVE_LOW>;
 	};
 
-	qca8075_16: ethernet-phy@16 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <16>;
-	};
+	ethernet-phy-package {
+		compatible = "ethernet-phy-package";
+		phy-mode = "qsgmii";
 
-	qca8075_17: ethernet-phy@17 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <17>;
-	};
+		global-phys = <&qca8075_20>, <&qca8075_psgmii>;
+		global-phy-names = "combo", "analog_psgmii";
 
-	qca8075_18: ethernet-phy@18 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <18>;
-	};
+		qca8075_16: ethernet-phy@16 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <16>;
+		};
 
-	qca8075_19: ethernet-phy@19 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <19>;
-	};
+		qca8075_17: ethernet-phy@17 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <17>;
+		};
 
-	qca8075_psgmii: ethernet-phy@21 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <21>;
+		qca8075_18: ethernet-phy@18 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <18>;
+		};
+
+		qca8075_19: ethernet-phy@19 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <19>;
+		};
+
+		qca8075_20: ethernet-phy@20 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <20>;
+		};
+
+		qca8075_psgmii: ethernet-phy@21 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <21>;
+		};
 	};
 };
 
@@ -371,24 +384,28 @@
 
 &dp1 {
 	status = "okay";
+	phy-mode = "qsgmii";
 	phy-handle = <&qca8075_16>;
 	label = "lan4";
 };
 
 &dp2 {
 	status = "okay";
+	phy-mode = "qsgmii";
 	phy-handle = <&qca8075_17>;
 	label = "lan3";
 };
 
 &dp3 {
 	status = "okay";
+	phy-mode = "qsgmii";
 	phy-handle = <&qca8075_18>;
 	label = "lan2";
 };
 
 &dp4 {
 	status = "okay";
+	phy-mode = "qsgmii";
 	phy-handle = <&qca8075_19>;
 	label = "lan1";
 };
