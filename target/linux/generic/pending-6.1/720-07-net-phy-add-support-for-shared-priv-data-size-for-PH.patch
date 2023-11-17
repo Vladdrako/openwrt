@@ -1,0 +1,61 @@
+From 6279da762b5122e8b912e6c36a5c58cf7a2ad05f Mon Sep 17 00:00:00 2001
+From: Christian Marangi <ansuelsmth@gmail.com>
+Date: Fri, 17 Nov 2023 01:16:25 +0100
+Subject: [PATCH 07/15] net: phy: add support for shared priv data size for PHY
+ package in DT
+
+Add support for defining shared data size for PHY package defined in DT.
+
+A PHY driver has to define the value .phy_package_priv_data_size to make
+the generic OF PHY package function alloc priv data in the shared struct
+for the PHY package.
+
+Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
+---
+ drivers/net/phy/phy_device.c | 7 ++++++-
+ include/linux/phy.h          | 3 +++
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+--- a/drivers/net/phy/phy_device.c
++++ b/drivers/net/phy/phy_device.c
+@@ -3147,6 +3147,7 @@ static int of_phy_package(struct phy_dev
+ 	struct device_node *package_node;
+ 	const char *global_phy_name;
+ 	int i, global_phys_num, ret;
++	int shared_priv_data_size;
+ 	int *global_phy_addrs;
+ 
+ 	if (!node)
+@@ -3199,8 +3200,12 @@ static int of_phy_package(struct phy_dev
+ 		global_phy_addrs[i] = addr;
+ 	}
+ 
++	shared_priv_data_size = 0;
++	if (phydev->drv->phy_package_priv_data_size)
++		shared_priv_data_size = phydev->drv->phy_package_priv_data_size;
++
+ 	ret = devm_phy_package_join(&phydev->mdio.dev, phydev, global_phy_addrs,
+-				    global_phys_num, 0);
++				    global_phys_num, shared_priv_data_size);
+ 	if (ret)
+ 		goto exit;
+ 
+--- a/include/linux/phy.h
++++ b/include/linux/phy.h
+@@ -812,6 +812,8 @@ struct phy_led {
+  *   for PHY package global init. If defined, list is compared
+  *   with DT values to match correct PHY phandle order. List
+  *   last element MUST BE an empty string.
++ * @phy_package_priv_data_size: Size of the priv data to alloc
++ * for shared struct of PHY package.
+  *
+  * All functions are optional. If config_aneg or read_status
+  * are not implemented, the phy core uses the genphy versions.
+@@ -831,6 +833,7 @@ struct phy_driver {
+ 	const void *driver_data;
+ 	unsigned int phy_package_global_phy_num;
+ 	const char * const *phy_package_global_phy_names;
++	unsigned int phy_package_priv_data_size;
+ 
+ 	/**
+ 	 * @soft_reset: Called to issue a PHY software reset

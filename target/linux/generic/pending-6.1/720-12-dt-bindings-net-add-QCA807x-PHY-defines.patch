@@ -1,9 +1,10 @@
-From e4feb45a7cc784fdb77ab1fcc931b5a89080ec0e Mon Sep 17 00:00:00 2001
+From 9f0d56c7d603247cd978a248cfe880317b1a4523 Mon Sep 17 00:00:00 2001
 From: Robert Marko <robert.marko@sartura.hr>
 Date: Thu, 1 Oct 2020 15:05:35 +0200
-Subject: [PATCH 1/3] dt-bindings: net: add QCA807x PHY
+Subject: [PATCH 12/15] dt-bindings: net: add QCA807x PHY defines
 
-Add DT bindings for Qualcomm QCA807x PHY series.
+Add DT bindings defined for Qualcomm QCA807x PHY series related to
+calibration and DAC settings.
 
 Signed-off-by: Robert Marko <robert.marko@sartura.hr>
 Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>

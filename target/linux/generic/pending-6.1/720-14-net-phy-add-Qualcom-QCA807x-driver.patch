@@ -1,7 +1,7 @@
-From bd8ced698e74371bb2e01f253114fa9feed3f69a Mon Sep 17 00:00:00 2001
+From ad32a5fcf6865e90830b313ab6d82372aef6ed9e Mon Sep 17 00:00:00 2001
 From: Robert Marko <robert.marko@sartura.hr>
 Date: Fri, 9 Sep 2022 23:44:42 +0200
-Subject: [PATCH 2/3] net: phy: Add Qualcom QCA807x driver
+Subject: [PATCH 14/15] net: phy: add Qualcom QCA807x driver
 
 This adds driver for the Qualcomm QCA8072 and QCA8075 PHY-s.
 
@@ -23,13 +23,14 @@ controller and add driver for it.
 These are commonly used in Qualcomm IPQ40xx, IPQ60xx and IPQ807x
 boards.
 
+Co-developed-by: Christian Marangi <ansuelsmth@gmail.com>
 Signed-off-by: Robert Marko <robert.marko@sartura.hr>
 Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 ---
  drivers/net/phy/Kconfig   |   7 +
  drivers/net/phy/Makefile  |   1 +
- drivers/net/phy/qca807x.c | 841 ++++++++++++++++++++++++++++++++++++++
- 3 files changed, 849 insertions(+)
+ drivers/net/phy/qca807x.c | 849 ++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 857 insertions(+)
  create mode 100644 drivers/net/phy/qca807x.c
 
 --- a/drivers/net/phy/Kconfig
@@ -60,7 +61,7 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
  obj-$(CONFIG_RENESAS_PHY)	+= uPD60620.o
 --- /dev/null
 +++ b/drivers/net/phy/qca807x.c
-@@ -0,0 +1,841 @@
+@@ -0,0 +1,853 @@
 +// SPDX-License-Identifier: GPL-2.0-or-later
 +/*
 + * Copyright (c) 2020 Sartura Ltd.
@@ -83,7 +84,6 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 +
 +#define PHY_ID_QCA8072		0x004dd0b2
 +#define PHY_ID_QCA8075		0x004dd0b1
-+#define PHY_ID_QCA807X_PSGMII	0x06820805
 +
 +/* Downshift */
 +#define QCA807X_SMARTSPEED_EN			BIT(5)
@@ -178,12 +178,28 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 +#define QCA807X_SS_DUPLEX				BIT(13)
 +#define QCA807X_SS_MDIX					BIT(6)
 +
-+/* PSGMII PHY specific */
-+#define PSGMII_QSGMII_DRIVE_CONTROL_1			0xb
-+#define PSGMII_QSGMII_TX_DRIVER_MASK			GENMASK(7, 4)
-+#define PSGMII_MODE_CTRL				0x6d
-+#define PSGMII_MODE_CTRL_AZ_WORKAROUND_MASK		BIT(0)
-+#define PSGMII_MMD3_SERDES_CONTROL			0x805a
++/* PQSGMII Analog PHY specific */
++#define PQSGMII_CTRL_REG				0x0
++#define PQSGMII_ANALOG_SW_RESET				BIT(6)
++#define PQSGMII_DRIVE_CONTROL_1				0xb
++#define PQSGMII_TX_DRIVER_MASK				GENMASK(7, 4)
++#define PQSGMII_MODE_CTRL				0x6d
++#define PQSGMII_MODE_CTRL_AZ_WORKAROUND_MASK		BIT(0)
++#define PQSGMII_MMD3_SERDES_CONTROL			0x805a
++
++#define SERDES_RESET_SLEEP				100
++
++enum qca807x_global_phy {
++	QCA807X_COMBO_ADDR = 0,
++	QCA807X_PQSGMII_ADDR,
++
++	__QCA807X_GLOBAL_PHY_MAX,
++};
++
++const char * const qca807x_global_phy_names[] = {
++	[QCA807X_COMBO_ADDR] = "combo",
++	[QCA807X_PQSGMII_ADDR] = "pqsgmii",
++};
 +
 +struct qca807x_gpio_priv {
 +	struct phy_device *phy;
@@ -666,42 +682,6 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 +	return IRQ_HANDLED;
 +}
 +
-+static int qca807x_led_config(struct phy_device *phydev)
-+{
-+	struct device_node *node = phydev->mdio.dev.of_node;
-+	bool led_config = false;
-+	int val;
-+
-+	val = phy_read_mmd(phydev, MDIO_MMD_AN, QCA807X_MMD7_LED_1000N_1);
-+	if (val < 0)
-+		return val;
-+
-+	if (of_property_read_bool(node, "qcom,single-led-1000")) {
-+		val |= QCA807X_LED_TXACT_BLK_EN_2;
-+		val |= QCA807X_LED_RXACT_BLK_EN_2;
-+		val |= QCA807X_LED_GT_ON_EN_2;
-+
-+		led_config = true;
-+	}
-+
-+	if (of_property_read_bool(node, "qcom,single-led-100")) {
-+		val |= QCA807X_LED_HT_ON_EN_2;
-+
-+		led_config = true;
-+	}
-+
-+	if (of_property_read_bool(node, "qcom,single-led-10")) {
-+		val |= QCA807X_LED_BT_ON_EN_2;
-+
-+		led_config = true;
-+	}
-+
-+	if (led_config)
-+		return phy_write_mmd(phydev, MDIO_MMD_AN, QCA807X_MMD7_LED_1000N_1, val);
-+	else
-+		return 0;
-+}
-+
 +static int qca807x_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
 +{
 +	struct phy_device *phydev = upstream;
@@ -768,36 +748,16 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 +	int control_dac, ret = 0;
 +	u32 of_control_dac;
 +
-+	/* Check for Combo port */
-+	if (phy_read(phydev, QCA807X_CHIP_CONFIGURATION)) {
-+		int psgmii_serdes;
++	if (of_property_read_u32(node, "qcom,control-dac", &of_control_dac))
++		of_control_dac = QCA807X_CONTROL_DAC_DSP_VOLT_QUARTER_BIAS;
 +
-+		/* Prevent PSGMII going into hibernation via PSGMII self test */
-+		psgmii_serdes = phy_read_mmd(phydev, MDIO_MMD_PCS, PSGMII_MMD3_SERDES_CONTROL);
-+		psgmii_serdes &= ~BIT(1);
-+		ret = phy_write_mmd(phydev, MDIO_MMD_PCS,
-+				    PSGMII_MMD3_SERDES_CONTROL,
-+				    psgmii_serdes);
-+	}
-+
-+	if (!of_property_read_u32(node, "qcom,control-dac", &of_control_dac)) {
-+		control_dac = phy_read_mmd(phydev, MDIO_MMD_AN,
-+					   QCA807X_MMD7_1000BASE_T_POWER_SAVE_PER_CABLE_LENGTH);
-+		control_dac &= ~QCA807X_CONTROL_DAC_MASK;
-+		control_dac |= FIELD_PREP(QCA807X_CONTROL_DAC_MASK, of_control_dac);
-+		ret = phy_write_mmd(phydev, MDIO_MMD_AN,
-+				    QCA807X_MMD7_1000BASE_T_POWER_SAVE_PER_CABLE_LENGTH,
-+				    control_dac);
-+	}
-+
-+	/* Optionally configure LED-s */
-+	if (IS_ENABLED(CONFIG_GPIOLIB)) {
-+		/* Check whether PHY-s pins are used as GPIO-s */
-+		if (!of_property_read_bool(node, "gpio-controller"))
-+			ret = qca807x_led_config(phydev);
-+	} else {
-+		ret = qca807x_led_config(phydev);
-+	}
++	control_dac = phy_read_mmd(phydev, MDIO_MMD_AN,
++				   QCA807X_MMD7_1000BASE_T_POWER_SAVE_PER_CABLE_LENGTH);
++	control_dac &= ~QCA807X_CONTROL_DAC_MASK;
++	control_dac |= FIELD_PREP(QCA807X_CONTROL_DAC_MASK, of_control_dac);
++	ret = phy_write_mmd(phydev, MDIO_MMD_AN,
++			    QCA807X_MMD7_1000BASE_T_POWER_SAVE_PER_CABLE_LENGTH,
++			    control_dac);
 +
 +	return ret;
 +}
@@ -823,25 +783,80 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 +	return ret;
 +}
 +
-+static int qca807x_psgmii_config(struct phy_device *phydev)
++static int qca807x_phy_package_config_init_once(struct phy_device *phydev)
 +{
-+	struct device_node *node = phydev->mdio.dev.of_node;
-+	int tx_amp, ret = 0;
++	phy_interface_t package_interface = PHY_INTERFACE_MODE_NA;
++	struct phy_package_shared *shared = phydev->shared;
 +	u32 tx_driver_strength;
++	int val, ret;
++
++	if (of_property_read_u32(shared->np, "qcom,tx-driver-strength",
++				 &tx_driver_strength))
++		tx_driver_strength = PSGMII_QSGMII_TX_DRIVER_600MV;
++
++	phy_lock_mdio_bus(phydev);
++
++	/* Set correct PHY package mode */
++	phy_package_get_mode(phydev, &package_interface);
++	val = __phy_package_read(phydev, QCA807X_COMBO_ADDR,
++				 QCA807X_CHIP_CONFIGURATION);
++	val &= ~QCA807X_CHIP_CONFIGURATION_MODE_CFG_MASK;
++	if (package_interface == PHY_INTERFACE_MODE_QSGMII)
++		val |= QCA807X_CHIP_CONFIGURATION_MODE_QSGMII_SGMII;
++	else if (package_interface == PHY_INTERFACE_MODE_PSGMII)
++		val |= QCA807X_CHIP_CONFIGURATION_MODE_PSGMII_ALL_COPPER;
++	ret = __phy_package_write(phydev, QCA807X_COMBO_ADDR,
++				  QCA807X_CHIP_CONFIGURATION, val);
++	if (ret)
++		goto exit;
++
++	/* After mode change Serdes reset is required */
++	val = __phy_package_read(phydev, QCA807X_PQSGMII_ADDR,
++				 PQSGMII_CTRL_REG);
++	val &= ~PQSGMII_ANALOG_SW_RESET;
++	ret = __phy_package_write(phydev, QCA807X_PQSGMII_ADDR,
++				  PQSGMII_CTRL_REG, val);
++	if (ret)
++		goto exit;
++
++	msleep(SERDES_RESET_SLEEP);
++
++	val = __phy_package_read(phydev, QCA807X_PQSGMII_ADDR,
++				 PQSGMII_CTRL_REG);
++	val |= PQSGMII_ANALOG_SW_RESET;
++	ret = __phy_package_write(phydev, QCA807X_PQSGMII_ADDR,
++				  PQSGMII_CTRL_REG, val);
++	if (ret)
++		goto exit;
 +
 +	/* Workaround to enable AZ transmitting ability */
-+	ret = phy_clear_bits_mmd(phydev,
-+				 MDIO_MMD_PMAPMD,
-+				 PSGMII_MODE_CTRL,
-+				 PSGMII_MODE_CTRL_AZ_WORKAROUND_MASK);
++	val = __phy_package_read_mmd(phydev, QCA807X_PQSGMII_ADDR,
++				     MDIO_MMD_PMAPMD, PQSGMII_MODE_CTRL);
++	val &= ~PQSGMII_MODE_CTRL_AZ_WORKAROUND_MASK;
++	ret = __phy_package_write_mmd(phydev, QCA807X_PQSGMII_ADDR,
++				      MDIO_MMD_PMAPMD, PQSGMII_MODE_CTRL, val);
++	if (ret)
++		goto exit;
 +
-+	/* PSGMII/QSGMII TX amp set to DT defined value instead of default 600mV */
-+	if (!of_property_read_u32(node, "qcom,tx-driver-strength", &tx_driver_strength)) {
-+		tx_amp = phy_read(phydev, PSGMII_QSGMII_DRIVE_CONTROL_1);
-+		tx_amp &= ~PSGMII_QSGMII_TX_DRIVER_MASK;
-+		tx_amp |= FIELD_PREP(PSGMII_QSGMII_TX_DRIVER_MASK, tx_driver_strength);
-+		ret = phy_write(phydev, PSGMII_QSGMII_DRIVE_CONTROL_1, tx_amp);
-+	}
++	/* Set PQSGMII TX AMP strength */
++	val = __phy_package_read(phydev, QCA807X_PQSGMII_ADDR,
++				 PQSGMII_DRIVE_CONTROL_1);
++	val &= ~PQSGMII_TX_DRIVER_MASK;
++	val |= FIELD_PREP(PQSGMII_TX_DRIVER_MASK, tx_driver_strength);
++	ret = __phy_package_write(phydev, QCA807X_PQSGMII_ADDR,
++				  PQSGMII_DRIVE_CONTROL_1, val);
++	if (ret)
++		goto exit;
++
++	/* Prevent PSGMII going into hibernation via PSGMII self test */
++	val = __phy_package_read_mmd(phydev, QCA807X_COMBO_ADDR,
++				     MDIO_MMD_PCS, PQSGMII_MMD3_SERDES_CONTROL);
++	val &= ~BIT(1);
++	ret = __phy_package_write_mmd(phydev, QCA807X_COMBO_ADDR,
++				      MDIO_MMD_PCS, PQSGMII_MMD3_SERDES_CONTROL, val);
++
++exit:
++	phy_unlock_mdio_bus(phydev);
 +
 +	return ret;
 +}
@@ -882,11 +897,10 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 +		.suspend	= genphy_suspend,
 +		.cable_test_start	= qca807x_cable_test_start,
 +		.cable_test_get_status	= qca807x_cable_test_get_status,
-+	},
-+	{
-+		PHY_ID_MATCH_EXACT(PHY_ID_QCA807X_PSGMII),
-+		.name           = "Qualcomm QCA807x PSGMII",
-+		.probe		= qca807x_psgmii_config,
++		/* PHY package define */
++		.phy_package_global_phy_num = ARRAY_SIZE(qca807x_global_phy_names),
++		.phy_package_global_phy_names = qca807x_global_phy_names,
++		.phy_package_config_init_once = qca807x_phy_package_config_init_once,
 +	},
 +};
 +module_phy_driver(qca807x_drivers);
@@ -894,7 +908,6 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 +static struct mdio_device_id __maybe_unused qca807x_tbl[] = {
 +	{ PHY_ID_MATCH_EXACT(PHY_ID_QCA8072) },
 +	{ PHY_ID_MATCH_EXACT(PHY_ID_QCA8075) },
-+	{ PHY_ID_MATCH_MODEL(PHY_ID_QCA807X_PSGMII) },
 +	{ }
 +};
 +

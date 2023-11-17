@@ -1,0 +1,53 @@
+From 813bf452dd30aad2188b80273a619a2abcd7f370 Mon Sep 17 00:00:00 2001
+From: Christian Marangi <ansuelsmth@gmail.com>
+Date: Sun, 19 Nov 2023 15:48:10 +0100
+Subject: [PATCH 01/15] net: phy: correctly check soft_reset ret ONLY if
+ defined for PHY
+
+soft_reset call for phy_init_hw had multiple revision across the years
+and the implementation goes back to 2014. Originally was a simple call
+to write the generic PHY reset BIT, it was then moved to a dedicated
+function. It was then added the option for PHY driver to define their
+own special way to reset the PHY. Till this change, checking for ret was
+correct as it was always filled by either the generic reset or the
+custom implementation. This changed tho with commit 6e2d85ec0559 ("net:
+phy: Stop with excessive soft reset"), as the generic reset call to PHY
+was dropped but the ret check was never made entirely optional and
+dependent whether soft_reset was defined for the PHY driver or not.
+
+Luckly nothing was ever added before the soft_reset call so the ret
+check (in the case where a PHY didn't had soft_reset defined) although
+wrong, never caused problems as ret was init 0 at the start of
+phy_init_hw.
+
+To prevent any kind of problem and to make the function cleaner and more
+robust, correctly move the ret check if the soft_reset section making it
+optional and needed only with the function defined.
+
+Fixes: 6e2d85ec0559 ("net: phy: Stop with excessive soft reset")
+Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
+---
+ drivers/net/phy/phy_device.c | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+--- a/drivers/net/phy/phy_device.c
++++ b/drivers/net/phy/phy_device.c
+@@ -1205,14 +1205,13 @@ int phy_init_hw(struct phy_device *phyde
+ 
+ 	if (phydev->drv->soft_reset) {
+ 		ret = phydev->drv->soft_reset(phydev);
++		if (ret < 0)
++			return ret;
++
+ 		/* see comment in genphy_soft_reset for an explanation */
+-		if (!ret)
+-			phydev->suspended = 0;
++		phydev->suspended = 0;
+ 	}
+ 
+-	if (ret < 0)
+-		return ret;
+-
+ 	ret = phy_scan_fixups(phydev);
+ 	if (ret < 0)
+ 		return ret;

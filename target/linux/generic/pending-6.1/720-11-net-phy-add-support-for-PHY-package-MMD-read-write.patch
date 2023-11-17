@@ -1,0 +1,97 @@
+From 97cda9d510a061f57910bf64c887cdde34892728 Mon Sep 17 00:00:00 2001
+From: Christian Marangi <ansuelsmth@gmail.com>
+Date: Fri, 17 Nov 2023 03:57:46 +0100
+Subject: [PATCH 11/15] net: phy: add support for PHY package MMD read/write
+
+Some PHY in PHY package may require to read/write MMD regs to correctly
+configure the PHY package.
+
+Add support for these additional required function in both lock and no
+lock variant.
+
+Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
+---
+ include/linux/phy.h | 72 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 72 insertions(+)
+
+--- a/include/linux/phy.h
++++ b/include/linux/phy.h
+@@ -1967,6 +1967,78 @@ static inline int __phy_package_write(st
+ 	return __mdiobus_write(phydev->mdio.bus, addr, regnum, val);
+ }
+ 
++static inline int phy_package_read_mmd(struct phy_device *phydev,
++				       int global_phy_index, int devad, u32 regnum)
++{
++	struct phy_package_shared *shared = phydev->shared;
++	struct mii_bus *bus = phydev->mdio.bus;
++	int addr, val;
++
++	if (!shared || global_phy_index > shared->addrs_num - 1)
++		return -EIO;
++
++	addr = shared->addrs[global_phy_index];
++
++	phy_lock_mdio_bus(phydev);
++	mmd_phy_indirect(bus, addr, devad, regnum);
++	val = __mdiobus_read(bus, addr, MII_MMD_DATA);
++	phy_unlock_mdio_bus(phydev);
++
++	return val;
++}
++
++static inline int __phy_package_read_mmd(struct phy_device *phydev,
++					 int global_phy_index, int devad, u32 regnum)
++{
++	struct phy_package_shared *shared = phydev->shared;
++	struct mii_bus *bus = phydev->mdio.bus;
++	int addr;
++
++	if (!shared || global_phy_index > shared->addrs_num - 1)
++		return -EIO;
++
++	addr = shared->addrs[global_phy_index];
++	mmd_phy_indirect(bus, addr, devad, regnum);
++	return __mdiobus_read(bus, addr, MII_MMD_DATA);
++}
++
++static inline int phy_package_write_mmd(struct phy_device *phydev,
++					int global_phy_index, int devad,
++					u32 regnum, u16 val)
++{
++	struct phy_package_shared *shared = phydev->shared;
++	struct mii_bus *bus = phydev->mdio.bus;
++	int addr, ret;
++
++	if (!shared || global_phy_index > shared->addrs_num - 1)
++		return -EIO;
++
++	addr = shared->addrs[global_phy_index];
++
++	phy_lock_mdio_bus(phydev);
++	mmd_phy_indirect(bus, addr, devad, regnum);
++	ret = __mdiobus_write(bus, addr, MII_MMD_DATA, val);
++	phy_unlock_mdio_bus(phydev);
++
++	return ret;
++}
++
++static inline int __phy_package_write_mmd(struct phy_device *phydev,
++					  int global_phy_index, int devad,
++					  u32 regnum, u16 val)
++{
++	struct phy_package_shared *shared = phydev->shared;
++	struct mii_bus *bus = phydev->mdio.bus;
++	int addr;
++
++	if (!shared || global_phy_index > shared->addrs_num - 1)
++		return -EIO;
++
++	addr = shared->addrs[global_phy_index];
++	mmd_phy_indirect(bus, addr, devad, regnum);
++	return __mdiobus_write(bus, addr, MII_MMD_DATA, val);
++}
++
+ static inline bool __phy_package_set_once(struct phy_device *phydev,
+ 					  unsigned int b)
+ {

@@ -1,7 +1,7 @@
-From 0397d1c1e9be781d724a35d3c87d2b2260915662 Mon Sep 17 00:00:00 2001
+From 6c3c676dbb1dcae61ab0ff17a7bcc49722b5cdcc Mon Sep 17 00:00:00 2001
 From: Christian Marangi <ansuelsmth@gmail.com>
 Date: Tue, 14 Nov 2023 19:37:53 +0100
-Subject: [PATCH 3/3] net: phy: qca807x: Add support for configurable LED
+Subject: [PATCH 15/15] net: phy: qca807x: Add support for configurable LED
 
 QCA8072/5 have up to 2 LEDs attached for PHY.
 
@@ -29,14 +29,17 @@ HW control modes supported for netdev trigger for fiber ports are:
 - FULL_DUPLEX
 - HALF_DUPLEX
 
+LED support conflicts with GPIO controller feature and must be disabled
+if gpio-controller is used for the PHY.
+
 Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 ---
- drivers/net/phy/qca807x.c | 421 +++++++++++++++++++++++++++++++++-----
- 1 file changed, 369 insertions(+), 52 deletions(-)
+ drivers/net/phy/qca807x.c | 384 +++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 376 insertions(+), 8 deletions(-)
 
 --- a/drivers/net/phy/qca807x.c
 +++ b/drivers/net/phy/qca807x.c
-@@ -80,17 +80,60 @@
+@@ -79,17 +79,60 @@
  #define QCA807X_MMD7_1000BASE_T_POWER_SAVE_PER_CABLE_LENGTH	0x801a
  #define QCA807X_CONTROL_DAC_MASK				GENMASK(2, 0)
  
@@ -104,7 +107,7 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
  
  #define QCA807X_INTR_ENABLE				0x12
  #define QCA807X_INTR_STATUS				0x13
-@@ -322,6 +365,320 @@ static int qca807x_cable_test_start(stru
+@@ -337,6 +380,320 @@ static int qca807x_cable_test_start(stru
  	return ret;
  }
  
@@ -425,66 +428,23 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
  #ifdef CONFIG_GPIOLIB
  static int qca807x_gpio_get_direction(struct gpio_chip *gc, unsigned int offset)
  {
-@@ -603,42 +960,6 @@ static irqreturn_t qca807x_handle_interr
- 	return IRQ_HANDLED;
- }
+@@ -705,8 +1062,14 @@ static int qca807x_probe(struct phy_devi
  
--static int qca807x_led_config(struct phy_device *phydev)
--{
--	struct device_node *node = phydev->mdio.dev.of_node;
--	bool led_config = false;
--	int val;
--
--	val = phy_read_mmd(phydev, MDIO_MMD_AN, QCA807X_MMD7_LED_1000N_1);
--	if (val < 0)
--		return val;
--
--	if (of_property_read_bool(node, "qcom,single-led-1000")) {
--		val |= QCA807X_LED_TXACT_BLK_EN_2;
--		val |= QCA807X_LED_RXACT_BLK_EN_2;
--		val |= QCA807X_LED_GT_ON_EN_2;
--
--		led_config = true;
--	}
--
--	if (of_property_read_bool(node, "qcom,single-led-100")) {
--		val |= QCA807X_LED_HT_ON_EN_2;
--
--		led_config = true;
--	}
--
--	if (of_property_read_bool(node, "qcom,single-led-10")) {
--		val |= QCA807X_LED_BT_ON_EN_2;
--
--		led_config = true;
--	}
--
--	if (led_config)
--		return phy_write_mmd(phydev, MDIO_MMD_AN, QCA807X_MMD7_LED_1000N_1, val);
--	else
--		return 0;
--}
--
- static int qca807x_sfp_insert(void *upstream, const struct sfp_eeprom_id *id)
- {
- 	struct phy_device *phydev = upstream;
-@@ -727,15 +1048,6 @@ static int qca807x_config(struct phy_dev
- 				    control_dac);
+ 	if (IS_ENABLED(CONFIG_GPIOLIB)) {
+ 		/* Do not register a GPIO controller unless flagged for it */
+-		if (of_property_read_bool(node, "gpio-controller"))
++		if (of_property_read_bool(node, "gpio-controller")) {
+ 			ret = qca807x_gpio(phydev);
++			phydev->drv->led_brightness_set = NULL;
++			phydev->drv->led_blink_set = NULL;
++			phydev->drv->led_hw_is_supported = NULL;
++			phydev->drv->led_hw_control_set = NULL;
++			phydev->drv->led_hw_control_get = NULL;
++		}
  	}
  
--	/* Optionally configure LED-s */
--	if (IS_ENABLED(CONFIG_GPIOLIB)) {
--		/* Check whether PHY-s pins are used as GPIO-s */
--		if (!of_property_read_bool(node, "gpio-controller"))
--			ret = qca807x_led_config(phydev);
--	} else {
--		ret = qca807x_led_config(phydev);
--	}
--
- 	return ret;
- }
- 
-@@ -819,6 +1131,11 @@ static struct phy_driver qca807x_drivers
+ 	/* Attach SFP bus on combo port*/
+@@ -833,6 +1196,11 @@ static struct phy_driver qca807x_drivers
  		.suspend	= genphy_suspend,
  		.cable_test_start	= qca807x_cable_test_start,
  		.cable_test_get_status	= qca807x_cable_test_get_status,
@@ -493,6 +453,6 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 +		.led_hw_is_supported = qca807x_led_hw_is_supported,
 +		.led_hw_control_set = qca807x_led_hw_control_set,
 +		.led_hw_control_get = qca807x_led_hw_control_get,
- 	},
- 	{
- 		PHY_ID_MATCH_EXACT(PHY_ID_QCA807X_PSGMII),
+ 		/* PHY package define */
+ 		.phy_package_global_phy_num = ARRAY_SIZE(qca807x_global_phy_names),
+ 		.phy_package_global_phy_names = qca807x_global_phy_names,
