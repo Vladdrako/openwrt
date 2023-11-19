@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+
+&mdio {
+	qca8075: ethernet-phy-package {
+		compatible = "ethernet-phy-package";
+		phy-mode = "psgmii";
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		global-phys = <&qca8075_4>, <&qca8075_pqsgmii>;
+		global-phy-names = "combo", "pqsgmii";
+
+		qca8075_0: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0>;
+		};
+
+		qca8075_1: ethernet-phy@1 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <1>;
+		};
+
+		qca8075_2: ethernet-phy@2 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <2>;
+		};
+
+		qca8075_3: ethernet-phy@3 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <3>;
+		};
+
+		qca8075_4: ethernet-phy@4 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <4>;
+		};
+
+		qca8075_pqsgmii: ethernet-phy@5 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <5>;
+		};
+	};
+};
