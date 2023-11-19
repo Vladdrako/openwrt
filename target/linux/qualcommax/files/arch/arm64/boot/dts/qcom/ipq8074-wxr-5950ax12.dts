@@ -5,6 +5,7 @@
 #include "ipq8074.dtsi"
 #include "ipq8074-hk-cpu.dtsi"
 #include "ipq8074-ess.dtsi"
+#include "qca8075.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/input.h>
@@ -237,39 +238,34 @@
 		compatible = "ethernet-phy-ieee802.3-c45";
 		reg = <0x8>;
 	};
+};
 
-	ethernet-phy-package {
-		compatible = "ethernet-phy-package";
-		phy-mode = "qsgmii";
+&qca8075 {
+	phy-mode = "qsgmii";
+};
 
-		global-phys = <&qca8075_5>, <&qca8075_psgmii>;
-		global-phy-names = "combo", "analog_psgmii";
+&qca8075_0 {
+	reg = <24>;
+};
 
-		qca8075_2: ethernet-phy@19 {
-			compatible = "ethernet-phy-ieee802.3-c22";
-			reg = <0x19>;
-		};
+&qca8075_1 {
+	reg = <25>;
+};
 
-		qca8075_3: ethernet-phy@1a {
-			compatible = "ethernet-phy-ieee802.3-c22";
-			reg = <0x1a>;
-		};
+&qca8075_2 {
+	reg = <26>;
+};
 
-		qca8075_4: ethernet-phy@1b {
-			compatible = "ethernet-phy-ieee802.3-c22";
-			reg = <0x1b>;
-		};
+&qca8075_3 {
+	reg = <27>;
+};
 
-		qca8075_5: ethernet-phy@1c {
-			compatible = "ethernet-phy-ieee802.3-c22";
-			reg = <0x1c>;
-		};
+&qca8075_4 {
+	reg = <28>;
+};
 
-		qca8075_psgmii: ethernet-phy@1d {
-			compatible = "ethernet-phy-ieee802.3-c22";
-			reg = <0x1d>;
-		};
-	};
+&qca8075_pqsgmii {
+	reg = <29>;
 };
 
 &switch {
