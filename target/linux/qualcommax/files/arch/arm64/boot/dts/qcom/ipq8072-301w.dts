@@ -405,12 +405,14 @@
 	status = "okay";
 	qcom,mactype = <1>;
 	phy-handle = <&aqr113c_8>;
+	phy-mode = "usxgmii";
 	label = "10g-1";
 };
 
 &dp6_syn {
 	status = "okay";
 	phy-handle = <&aqr113c_0>;
+	phy-mode = "usxgmii";
 	label = "10g-2";
 };
 
