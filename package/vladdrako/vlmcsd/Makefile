@@ -32,6 +32,7 @@ define Package/vlmcsd/description
 endef
 
 MAKE_FLAGS += \
+	CC=$(TARGET_CC_NOCACHE) \
 	-C $(PKG_BUILD_DIR)
 
 define Package/vlmcsd/install
