@@ -154,8 +154,6 @@ enum fe_work_flag {
 #define	MT7620A_GDMA1_FWD_CFG		(MT7620A_GDMA_OFFSET + 0x00)
 #define MT7620A_FE_GDMA1_SHPR_CFG	(MT7620A_GDMA_OFFSET + 0x04)
 
-#define MT7620A_RESET_FE	BIT(21)
-#define MT7620A_RESET_ESW	BIT(23)
 #define MT7620A_RESET_EPHY	BIT(24)
 
 #define RT5350_TX_BASE_PTR0	(RT5350_PDMA_OFFSET + 0x00)
@@ -379,7 +377,6 @@ struct fe_soc_data {
 	const u16 *reg_table;
 
 	void (*init_data)(struct fe_soc_data *data, struct net_device *netdev);
-	void (*reset_fe)(struct fe_priv *priv);
 	void (*set_mac)(struct fe_priv *priv, unsigned char *mac);
 	int (*fwd_config)(struct fe_priv *priv);
 	void (*tx_dma)(struct fe_tx_dma *txd);
@@ -521,7 +518,6 @@ void fe_reg_w32(u32 val, enum fe_reg reg);
 u32 fe_reg_r32(enum fe_reg reg);
 
 void fe_reset(u32 reset_bits);
-void fe_reset_fe(struct fe_priv *priv);
 
 static inline void *priv_netdev(struct fe_priv *priv)
 {
