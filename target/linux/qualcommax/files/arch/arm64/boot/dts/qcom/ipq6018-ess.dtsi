@@ -33,10 +33,17 @@
 			reg = <0x3a000000 0x1000000>;
 			switch_access_mode = "local bus";
 			mdio-bus = <&mdio>;
-			switch_cpu_bmp = <0x1>;  /* cpu port bitmap */
-			switch_inner_bmp = <0xc0>; /*inner port bitmap*/
+
+			switch_cpu_bmp = <ESS_PORT0>;  /* cpu port bitmap */
+			switch_inner_bmp = <(ESS_PORT6|ESS_PORT7)>; /*inner port bitmap*/
+
 			bm_tick_mode = <0>; /* bm tick mode */
 			tm_tick_mode = <0>; /* tm tick mode */
+
+			switch_mac_mode = <MAC_MODE_PSGMII>; /* mac mode for uniphy instance0*/
+			switch_mac_mode1 = <MAC_MODE_DISABLED>; /* mac mode for uniphy instance1*/
+			switch_mac_mode2 = <MAC_MODE_DISABLED>; /* mac mode for uniphy instance2*/
+
 			status = "disabled";
 			/* This is a special binding that controls how the malibu PHY are
 			* init. This value reflect the PHY addr of the first malibu PHY.
@@ -447,5 +454,71 @@
 			reg = <0x7a00000 0x30000>;
 			uniphy_access_mode = "local bus";
 		};
+	};
+
+	dp1: dp1@3a001000 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		reg = <0x0 0x3a001000 0x0 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+		qcom,id = <1>;
+		phy-mode = "sgmii";
+		status = "disabled";
+	};
+
+    dp2: dp2@3a001200 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		reg = <0x0 0x3a001200 0x0 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+		qcom,id = <2>;
+		phy-mode = "sgmii";
+		status = "disabled";
+	};
+
+    dp3: dp3@3a001400 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		reg = <0x0 0x3a001400 0x0 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+		qcom,id = <3>;
+		phy-mode = "sgmii";
+		status = "disabled";
+	};
+
+    dp4: dp4@3a001600 {
+        device_type = "network";
+		compatible = "qcom,nss-dp";
+		reg = <0x0 0x3a001600 0x0 0x200>;
+		qcom,mactype = <0>;
+        local-mac-address = [000000000000];
+		qcom,id = <4>;
+		phy-mode = "sgmii";
+		status = "disabled";
+	};
+
+    dp5: dp5@3a001800 {
+        device_type = "network";
+		compatible = "qcom,nss-dp";
+		reg = <0x0 0x3a001800 0x0 0x200>;
+		qcom,mactype = <0>;
+        local-mac-address = [000000000000];
+		qcom,id = <5>;
+		phy-mode = "sgmii";
+		status = "disabled";
+	};
+
+	dp6: dp6@3a001a00 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		reg = <0x0 0x3a001a00 0x0 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+		qcom,id = <6>;
+		phy-mode = "sgmii";
+		status = "disabled";
 	};
 };

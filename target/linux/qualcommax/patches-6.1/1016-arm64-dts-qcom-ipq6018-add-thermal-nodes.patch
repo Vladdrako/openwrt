@@ -15,8 +15,6 @@ Signed-off-by: Robert Marko <robimarko@gmail.com>
  arch/arm64/boot/dts/qcom/ipq6018.dtsi | 154 ++++++++++++++++++++++++++
  1 file changed, 154 insertions(+)
 
-diff --git a/arch/arm64/boot/dts/qcom/ipq6018.dtsi b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-index eebd8afe0efcee..f6e1988d66a07e 100644
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 @@ -9,6 +9,7 @@
@@ -27,7 +25,7 @@ index eebd8afe0efcee..f6e1988d66a07e 100644
  
  / {
  	#address-cells = <2>;
-@@ -57,6 +58,7 @@
+@@ -63,6 +64,7 @@
  			clock-names = "cpu";
  			operating-points-v2 = <&cpu_opp_table>;
  			cpu-supply = <&ipq6018_s2>;
@@ -35,7 +33,7 @@ index eebd8afe0efcee..f6e1988d66a07e 100644
  		};
  
  		CPU1: cpu@1 {
-@@ -69,6 +71,7 @@
+@@ -75,6 +77,7 @@
  			clock-names = "cpu";
  			operating-points-v2 = <&cpu_opp_table>;
  			cpu-supply = <&ipq6018_s2>;
@@ -43,7 +41,7 @@ index eebd8afe0efcee..f6e1988d66a07e 100644
  		};
  
  		CPU2: cpu@2 {
-@@ -81,6 +84,7 @@
+@@ -87,6 +90,7 @@
  			clock-names = "cpu";
  			operating-points-v2 = <&cpu_opp_table>;
  			cpu-supply = <&ipq6018_s2>;
@@ -51,7 +49,7 @@ index eebd8afe0efcee..f6e1988d66a07e 100644
  		};
  
  		CPU3: cpu@3 {
-@@ -93,6 +97,7 @@
+@@ -99,6 +103,7 @@
  			clock-names = "cpu";
  			operating-points-v2 = <&cpu_opp_table>;
  			cpu-supply = <&ipq6018_s2>;
@@ -59,7 +57,7 @@ index eebd8afe0efcee..f6e1988d66a07e 100644
  		};
  
  		L2_0: l2-cache {
-@@ -368,6 +373,16 @@
+@@ -379,6 +384,16 @@
  			clock-names = "core";
  		};
  
@@ -76,7 +74,7 @@ index eebd8afe0efcee..f6e1988d66a07e 100644
  		cryptobam: dma-controller@704000 {
  			compatible = "qcom,bam-v1.7.0";
  			reg = <0x0 0x00704000 0x0 0x20000>;
-@@ -1049,4 +1064,143 @@
+@@ -1062,4 +1077,143 @@
  			#interrupt-cells = <2>;
  		};
  	};

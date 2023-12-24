@@ -15,7 +15,7 @@ diff --git a/arch/arm64/boot/dts/qcom/ipq6018.dtsi b/arch/arm64/boot/dts/qcom/ip
 index bf9381376dba..a730e28012cd 100644
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-@@ -631,6 +631,20 @@
+@@ -644,6 +644,20 @@
  			status = "disabled";
  		};
  
