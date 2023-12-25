@@ -1504,9 +1504,10 @@ static int fe_change_mtu(struct net_device *dev, int new_mtu)
 		priv->rx_ring.frag_size = PAGE_SIZE;
 	priv->rx_ring.rx_buf_size = fe_max_buf_size(priv->rx_ring.frag_size);
 
-	if (netif_running(dev))
-		fe_stop(dev);
+	if (!netif_running(dev))
+		return 0;
 
+	fe_stop(dev);
 	if (!IS_ENABLED(CONFIG_SOC_MT7621)) {
 		fwd_cfg = fe_r32(DMA_FWD_REG);
 		if (new_mtu <= ETH_DATA_LEN) {
@@ -1520,10 +1521,7 @@ static int fe_change_mtu(struct net_device *dev, int new_mtu)
 		fe_w32(fwd_cfg, DMA_FWD_REG);
 	}
 
-	if (netif_running(dev))
-		return fe_open(dev);
-
-	return 0;
+	return fe_open(dev);
 }
 
 static const struct net_device_ops fe_netdev_ops = {
