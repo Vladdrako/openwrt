@@ -680,9 +680,7 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = device_reset(&pdev->dev);
-	if (ret)
-		dev_err(&pdev->dev, "failed to reset device\n");
+	device_reset(&pdev->dev);
 
 	dd = &hsdma->ddev;
 	dma_cap_set(DMA_MEMCPY, dd->cap_mask);
