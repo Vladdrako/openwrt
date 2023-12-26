@@ -1,0 +1,61 @@
+From 2ba2807de2670c9824d10cfc3fc28bce67808684 Mon Sep 17 00:00:00 2001
+From: Christian Marangi <ansuelsmth@gmail.com>
+Date: Fri, 17 Nov 2023 01:16:25 +0100
+Subject: [PATCH 04/11] net: phy: add support for shared priv data size for PHY
+ package in DT
+
+Add support for defining shared data size for PHY package defined in DT.
+
+A PHY driver has to define the value .phy_package_priv_data_size to make
+the generic OF PHY package function alloc priv data in the shared struct
+for the PHY package.
+
+Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
+---
+ drivers/net/phy/phy_device.c | 7 ++++++-
+ include/linux/phy.h          | 3 +++
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+--- a/drivers/net/phy/phy_device.c
++++ b/drivers/net/phy/phy_device.c
+@@ -3145,6 +3145,7 @@ static int of_phy_package(struct phy_dev
+ 	struct device_node *node = phydev->mdio.dev.of_node;
+ 	struct device_node *package_node;
+ 	const u8 *global_phys_offset;
++	int shared_priv_data_size;
+ 	int *global_phys_addr;
+ 	u8 global_phys_num;
+ 	u32 base_addr;
+@@ -3183,8 +3184,12 @@ static int of_phy_package(struct phy_dev
+ 		global_phys_addr[i] = addr;
+ 	}
+ 
++	shared_priv_data_size = 0;
++	if (phydev->drv->phy_package_priv_data_size)
++		shared_priv_data_size = phydev->drv->phy_package_priv_data_size;
++
+ 	ret = devm_phy_package_join(&phydev->mdio.dev, phydev, global_phys_addr,
+-				    global_phys_num, 0);
++				    global_phys_num, shared_priv_data_size);
+ 	if (ret)
+ 		goto exit;
+ 
+--- a/include/linux/phy.h
++++ b/include/linux/phy.h
+@@ -811,6 +811,8 @@ struct phy_led {
+  *  global PHYs for PHY package global configuration.
+  * @phy_package_global_phys_num: Num of the required global PHYs
+  *   for PHY package global configuration.
++ * @phy_package_priv_data_size: Size of the priv data to alloc
++ *   for shared struct of PHY package.
+  *
+  * All functions are optional. If config_aneg or read_status
+  * are not implemented, the phy core uses the genphy versions.
+@@ -830,6 +832,7 @@ struct phy_driver {
+ 	const void *driver_data;
+ 	const u8 *phy_package_global_phys_offset;
+ 	const u8 phy_package_global_phys_num;
++	unsigned int phy_package_priv_data_size;
+ 
+ 	/**
+ 	 * @soft_reset: Called to issue a PHY software reset
