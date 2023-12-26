@@ -1,0 +1,83 @@
+From c15a459cf36a2e833917ca71eb1a769ca8e8bfdb Mon Sep 17 00:00:00 2001
+From: Christian Marangi <ansuelsmth@gmail.com>
+Date: Fri, 17 Nov 2023 00:59:38 +0100
+Subject: [PATCH 06/15] net: phy: add support for named global PHY in DT PHY
+ package
+
+Add support for named global PHY in DT PHY package definition.
+A phy-package node can provide the property "global-phy-names" to
+provide named global PHY to correctly reference the phandle defined in
+the global-phys list.
+
+Each PHY driver has to define the .phy_package_global_phy_names list
+to verify correct order of named PHY phandle defined in DT with the
+expected order in the PHY driver.
+
+If the list is not defined or "global-phy-names" is not defined in
+DT, global phy addresses are insered in order defined in the "global-phys"
+property.
+
+Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
+---
+ drivers/net/phy/phy_device.c | 13 +++++++++++++
+ include/linux/phy.h          |  6 +++++-
+ 2 files changed, 18 insertions(+), 1 deletion(-)
+
+--- a/drivers/net/phy/phy_device.c
++++ b/drivers/net/phy/phy_device.c
+@@ -3145,6 +3145,7 @@ static int of_phy_package(struct phy_dev
+ 	struct device_node *node = phydev->mdio.dev.of_node;
+ 	struct of_phandle_args phy_phandle;
+ 	struct device_node *package_node;
++	const char *global_phy_name;
+ 	int i, global_phys_num, ret;
+ 	int *global_phy_addrs;
+ 
+@@ -3183,6 +3184,18 @@ static int of_phy_package(struct phy_dev
+ 		if (ret)
+ 			goto exit;
+ 
++		ret = of_property_read_string_index(package_node, "global-phy-names",
++						    i, &global_phy_name);
++		if (!ret && phydev->drv->phy_package_global_phy_names) {
++			const char *name;
++
++			name = phydev->drv->phy_package_global_phy_names[i];
++			if (strcmp(global_phy_name, name)) {
++				ret = -EINVAL;
++				goto exit;
++			}
++		}
++
+ 		global_phy_addrs[i] = addr;
+ 	}
+ 
+--- a/include/linux/phy.h
++++ b/include/linux/phy.h
+@@ -808,6 +808,10 @@ struct phy_led {
+  * @driver_data: Static driver data
+  * @phy_package_global_phy_num: Num of the required global phy
+  * for PHY package global configuration.
++ * @phy_package_global_phy_names: List of global PHY names used
++ *   for PHY package global init. If defined, list is compared
++ *   with DT values to match correct PHY phandle order. List
++ *   last element MUST BE an empty string.
+  *
+  * All functions are optional. If config_aneg or read_status
+  * are not implemented, the phy core uses the genphy versions.
+@@ -826,6 +830,7 @@ struct phy_driver {
+ 	u32 flags;
+ 	const void *driver_data;
+ 	unsigned int phy_package_global_phy_num;
++	const char * const *phy_package_global_phy_names;
+ 
+ 	/**
+ 	 * @soft_reset: Called to issue a PHY software reset
+@@ -1068,7 +1073,6 @@ struct phy_driver {
+ 	 */
+ 	int (*led_hw_control_get)(struct phy_device *dev, u8 index,
+ 				  unsigned long *rules);
+-
+ };
+ #define to_phy_driver(d) container_of(to_mdio_common_driver(d),		\
+ 				      struct phy_driver, mdiodrv)

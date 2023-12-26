@@ -1,0 +1,113 @@
+From c92170eea95b56481dc27257123ad8dd6a5d4bf1 Mon Sep 17 00:00:00 2001
+From: Christian Marangi <ansuelsmth@gmail.com>
+Date: Fri, 17 Nov 2023 03:00:37 +0100
+Subject: [PATCH 09/15] net: phy: add support for PHY package interface mode
+
+Some PHY in PHY package supports running only at a specific mode for
+each PHY in the package. Add support for enforcing this special thing a
+verify consistency with the requested mode to prevent misconfiguration.
+
+To set the PHY package mode, simply set "phy-mode" in the phy-package
+node. Each PHY on init will verify if the requested mode match the one
+set for the PHY package and will return -EINVAL if this is not true.
+
+If PHY package doesn't specify any mode, it's assumed that PHY in the
+package doesn't have such limitation.
+
+Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
+---
+ drivers/net/phy/phy_device.c | 37 ++++++++++++++++++++++++++++++++++++
+ include/linux/phy.h          |  6 ++++++
+ 2 files changed, 43 insertions(+)
+
+--- a/drivers/net/phy/phy_device.c
++++ b/drivers/net/phy/phy_device.c
+@@ -25,6 +25,7 @@
+ #include <linux/mm.h>
+ #include <linux/module.h>
+ #include <linux/of.h>
++#include <linux/of_net.h>
+ #include <linux/netdevice.h>
+ #include <linux/phy.h>
+ #include <linux/phy_led_triggers.h>
+@@ -1195,8 +1196,17 @@ static int phy_poll_reset(struct phy_dev
+ 
+ int phy_init_hw(struct phy_device *phydev)
+ {
++	phy_interface_t package_interface;
+ 	int ret = 0;
+ 
++	/* Validate we are requesting consistent mode if we
++	 * are in a PHY package and the PHY package requires a
++	 * specific mode.
++	 */
++	ret = phy_package_get_mode(phydev, &package_interface);
++	if (!ret && phydev->interface != package_interface)
++		return -EINVAL;
++
+ 	/* Deassert the reset signal */
+ 	phy_device_reset(phydev, 0);
+ 
+@@ -1732,6 +1742,32 @@ void phy_package_leave(struct phy_device
+ }
+ EXPORT_SYMBOL_GPL(phy_package_leave);
+ 
++/**
++ * phy_package_get_mode - get PHY interface mode for PHY package
++ * @phydev: target phy_device struct
++ * @interface: phy_interface_t pointer where to save the PHY package mode
++ *
++ * Gets PHY interface mode for the shared data of the PHY package.
++ * Returns 0 and updates @interface with the PHY package value, or -ENODEV
++ * if PHY is not in PHY package or -EINVAL if a PHY package interface mode
++ * is not set.
++ */
++int phy_package_get_mode(struct phy_device *phydev, phy_interface_t *interface)
++{
++	struct phy_package_shared *shared = phydev->shared;
++
++	if (!shared)
++		return -ENODEV;
++
++	if (shared->package_interface == PHY_INTERFACE_MODE_NA)
++		return -EINVAL;
++
++	*interface = shared->package_interface;
++
++	return 0;
++}
++EXPORT_SYMBOL_GPL(phy_package_get_mode);
++
+ static void devm_phy_package_leave(struct device *dev, void *res)
+ {
+ 	phy_package_leave(*(struct phy_device **)res);
+@@ -3217,6 +3253,7 @@ static int of_phy_package(struct phy_dev
+ 		goto exit;
+ 
+ 	phydev->shared->np = package_node;
++	of_get_phy_mode(package_node, &phydev->shared->package_interface);
+ 
+ exit:
+ 	kfree(global_phy_addrs);
+--- a/include/linux/phy.h
++++ b/include/linux/phy.h
+@@ -334,6 +334,11 @@ struct mdio_bus_stats {
+ struct phy_package_shared {
+ 	/* With PHY package defined in DT this points to the PHY package node */
+ 	struct device_node *np;
++	/* PHY package interface
++	 * If defined, each PHY of the package MUST have the interface
++	 * set to the PHY package.
++	 */
++	phy_interface_t package_interface;
+ 	/* addrs list pointer */
+ 	/* note that this pointer is shared between different phydevs.
+ 	 * It is allocated and freed automatically by phy_package_join() and
+@@ -1882,6 +1887,7 @@ int phy_ethtool_nway_reset(struct net_de
+ int phy_package_join(struct phy_device *phydev, int *addrs, size_t addrs_num,
+ 		     size_t priv_size);
+ void phy_package_leave(struct phy_device *phydev);
++int phy_package_get_mode(struct phy_device *phydev, phy_interface_t *interface);
+ int devm_phy_package_join(struct device *dev, struct phy_device *phydev,
+ 			  int *addrs, size_t addrs_num, size_t priv_size);
+ 
