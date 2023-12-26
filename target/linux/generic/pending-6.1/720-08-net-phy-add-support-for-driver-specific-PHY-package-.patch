@@ -1,0 +1,85 @@
+From 2dd5231a5953dcb6e53121e1146355d0bd1f668b Mon Sep 17 00:00:00 2001
+From: Christian Marangi <ansuelsmth@gmail.com>
+Date: Fri, 17 Nov 2023 02:25:16 +0100
+Subject: [PATCH 08/15] net: phy: add support for driver specific PHY package
+ probe/config
+
+Add PHY driver specific function to probe and configure PHY package.
+These function are run only once before the PHY probe and config_init.
+
+They are used in conjunction with DT PHY package define for basic PHY
+package implementation to setup and probe PHY package with simple
+functions directly defined in the PHY driver struct.
+
+Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
+---
+ drivers/net/phy/phy_device.c | 14 ++++++++++++++
+ include/linux/phy.h          | 21 +++++++++++++++++++++
+ 2 files changed, 35 insertions(+)
+
+--- a/drivers/net/phy/phy_device.c
++++ b/drivers/net/phy/phy_device.c
+@@ -1216,6 +1216,13 @@ int phy_init_hw(struct phy_device *phyde
+ 	if (ret < 0)
+ 		return ret;
+ 
++	if (phydev->drv->phy_package_config_init_once &&
++	    phy_package_init_once(phydev)) {
++		ret = phydev->drv->phy_package_config_init_once(phydev);
++		if (ret < 0)
++			return ret;
++	}
++
+ 	if (phydev->drv->config_init) {
+ 		ret = phydev->drv->config_init(phydev);
+ 		if (ret < 0)
+@@ -3335,6 +3342,13 @@ static int phy_probe(struct device *dev)
+ 	/* Deassert the reset signal */
+ 	phy_device_reset(phydev, 0);
+ 
++	if (phydev->drv->phy_package_probe_once &&
++	    phy_package_probe_once(phydev)) {
++		err = phydev->drv->phy_package_probe_once(phydev);
++		if (err)
++			goto out;
++	}
++
+ 	if (phydev->drv->probe) {
+ 		err = phydev->drv->probe(phydev);
+ 		if (err)
+--- a/include/linux/phy.h
++++ b/include/linux/phy.h
+@@ -841,12 +841,33 @@ struct phy_driver {
+ 	int (*soft_reset)(struct phy_device *phydev);
+ 
+ 	/**
++	 * @phy_package_config_init_once: Driver specific PHY package
++	 *   config init call
++	 * @def: PHY device to use to probe PHY package
++	 *
++	 * Called to initialize the PHY package, including after
++	 * a reset.
++	 * Called BEFORE PHY config_init.
++	 */
++	int (*phy_package_config_init_once)(struct phy_device *dev);
++
++	/**
+ 	 * @config_init: Called to initialize the PHY,
+ 	 * including after a reset
+ 	 */
+ 	int (*config_init)(struct phy_device *phydev);
+ 
+ 	/**
++	 * @phy_package_probe_once: Driver specific PHY package probe
++	 * @def: PHY device to use to probe PHY package
++	 *
++	 * Called during discovery once per PHY package. Used to set
++	 * up device-specific PHY package structures, if any.
++	 * Called BEFORE PHY probe.
++	 */
++	int (*phy_package_probe_once)(struct phy_device *dev);
++
++	/**
+ 	 * @probe: Called during discovery.  Used to set
+ 	 * up device-specific structures, if any
+ 	 */

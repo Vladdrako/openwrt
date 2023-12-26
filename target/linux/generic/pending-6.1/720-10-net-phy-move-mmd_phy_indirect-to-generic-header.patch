@@ -1,0 +1,60 @@
+From b73604aa1096a4381100e42afcde856f82ad4040 Mon Sep 17 00:00:00 2001
+From: Christian Marangi <ansuelsmth@gmail.com>
+Date: Fri, 17 Nov 2023 15:05:17 +0100
+Subject: [PATCH 10/15] net: phy: move mmd_phy_indirect to generic header
+
+Move mmd_phy_indirect function from phy-core to generic phy.h to permit
+future usage for PHY package read/write_mmd.
+
+Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
+---
+ drivers/net/phy/phy-core.c | 14 --------------
+ include/linux/phy.h        | 14 ++++++++++++++
+ 2 files changed, 14 insertions(+), 14 deletions(-)
+
+--- a/drivers/net/phy/phy-core.c
++++ b/drivers/net/phy/phy-core.c
+@@ -514,20 +514,6 @@ int phy_speed_down_core(struct phy_devic
+ 	return 0;
+ }
+ 
+-static void mmd_phy_indirect(struct mii_bus *bus, int phy_addr, int devad,
+-			     u16 regnum)
+-{
+-	/* Write the desired MMD Devad */
+-	__mdiobus_write(bus, phy_addr, MII_MMD_CTRL, devad);
+-
+-	/* Write the desired MMD register address */
+-	__mdiobus_write(bus, phy_addr, MII_MMD_DATA, regnum);
+-
+-	/* Select the Function : DATA with no post increment */
+-	__mdiobus_write(bus, phy_addr, MII_MMD_CTRL,
+-			devad | MII_MMD_CTRL_NOINCR);
+-}
+-
+ /**
+  * __phy_read_mmd - Convenience function for reading a register
+  * from an MMD on a given PHY.
+--- a/include/linux/phy.h
++++ b/include/linux/phy.h
+@@ -1246,6 +1246,20 @@ static inline int __phy_modify_changed(s
+ 					regnum, mask, set);
+ }
+ 
++static inline void mmd_phy_indirect(struct mii_bus *bus, int phy_addr, int devad,
++				    u16 regnum)
++{
++	/* Write the desired MMD Devad */
++	__mdiobus_write(bus, phy_addr, MII_MMD_CTRL, devad);
++
++	/* Write the desired MMD register address */
++	__mdiobus_write(bus, phy_addr, MII_MMD_DATA, regnum);
++
++	/* Select the Function : DATA with no post increment */
++	__mdiobus_write(bus, phy_addr, MII_MMD_CTRL,
++			devad | MII_MMD_CTRL_NOINCR);
++}
++
+ /*
+  * phy_read_mmd - Convenience function for reading a register
+  * from an MMD on a given PHY.
