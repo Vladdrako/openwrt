@@ -52,7 +52,7 @@
  	dev->needs_free_netdev = true;
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
-@@ -4587,6 +4587,15 @@ void dev_uc_flush(struct net_device *dev
+@@ -4591,6 +4591,15 @@ void dev_uc_flush(struct net_device *dev
  void dev_uc_init(struct net_device *dev);
 
  /**
@@ -68,7 +68,7 @@
   *  __dev_uc_sync - Synchonize device's unicast list
   *  @dev:  device to sync
   *  @sync: function to call if address should be added
-@@ -5123,6 +5132,11 @@ static inline bool netif_is_failover_sla
+@@ -5136,6 +5145,11 @@ static inline bool netif_is_failover_sla
  	return dev->priv_flags & IFF_FAILOVER_SLAVE;
  }
 
@@ -338,13 +338,13 @@
  	return q;
  }
 +EXPORT_SYMBOL(qdisc_lookup);
-
+ 
  struct Qdisc *qdisc_lookup_rcu(struct net_device *dev, u32 handle)
  {
-@@ -2322,4 +2323,26 @@ static int __init pktsched_init(void)
+@@ -2386,4 +2387,26 @@ static int __init pktsched_init(void)
  	return 0;
  }
-
+ 
 +/* QCA NSS Qdisc Support - Start */
 +bool tcf_destroy(struct tcf_proto *tp, bool force)
 +{
@@ -370,22 +370,13 @@
  subsys_initcall(pktsched_init);
 --- a/net/sched/sch_generic.c
 +++ b/net/sched/sch_generic.c
-@@ -1046,7 +1046,7 @@ static void qdisc_free_cb(struct rcu_hea
- 	qdisc_free(q);
- }
-
--static void qdisc_destroy(struct Qdisc *qdisc)
-+void qdisc_destroy(struct Qdisc *qdisc)
- {
- 	const struct Qdisc_ops  *ops = qdisc->ops;
-
-@@ -1069,6 +1069,7 @@ static void qdisc_destroy(struct Qdisc *
+@@ -1069,6 +1069,7 @@ static void __qdisc_destroy(struct Qdisc
 
  	call_rcu(&qdisc->rcu, qdisc_free_cb);
  }
 +EXPORT_SYMBOL(qdisc_destroy);
-
- void qdisc_put(struct Qdisc *qdisc)
+ 
+ void qdisc_destroy(struct Qdisc *qdisc)
  {
 --- a/include/net/sch_generic.h
 +++ b/include/net/sch_generic.h
@@ -397,7 +388,7 @@
  	u32			limit;
  	const struct Qdisc_ops	*ops;
  	struct qdisc_size_table	__rcu *stab;
-@@ -711,6 +712,40 @@ static inline bool skb_skip_tc_classify(
+@@ -719,6 +720,40 @@ static inline bool skb_skip_tc_classify(
  	return false;
  }
 
@@ -438,7 +429,7 @@
  /* Reset all TX qdiscs greater than index of a device.  */
  static inline void qdisc_reset_all_tx_gt(struct net_device *dev, unsigned int i)
  {
-@@ -1295,4 +1330,9 @@ static inline void qdisc_synchronize(con
+@@ -1305,4 +1340,9 @@ static inline void qdisc_synchronize(con
  		msleep(1);
  }
 
