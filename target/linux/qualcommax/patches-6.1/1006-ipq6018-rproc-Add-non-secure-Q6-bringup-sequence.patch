@@ -14,7 +14,7 @@ Signed-off-by: Manikanta Mylavarapu <quic_mmanikan@quicinc.com>
 
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-@@ -811,8 +811,24 @@
+@@ -806,8 +806,24 @@
  				      "wcss_reset",
  				      "wcss_q6_reset";
  

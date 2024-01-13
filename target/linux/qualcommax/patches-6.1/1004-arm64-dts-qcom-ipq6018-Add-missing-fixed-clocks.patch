@@ -37,7 +37,7 @@ Signed-off-by: Alexandru Gagniuc <mr.nuke.me@gmail.com>
  	};
  
  	cpus: cpus {
-@@ -413,8 +433,16 @@
+@@ -408,8 +428,16 @@
  		gcc: gcc@1800000 {
  			compatible = "qcom,gcc-ipq6018";
  			reg = <0x0 0x01800000 0x0 0x80000>;

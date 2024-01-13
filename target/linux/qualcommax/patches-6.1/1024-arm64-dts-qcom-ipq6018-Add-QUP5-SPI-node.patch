@@ -11,11 +11,9 @@ Signed-off-by: Chukun Pan <amadeus@jmu.edu.cn>
  arch/arm64/boot/dts/qcom/ipq6018.dtsi | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
 
-diff --git a/arch/arm64/boot/dts/qcom/ipq6018.dtsi b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-index bf9381376dba..a730e28012cd 100644
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-@@ -644,6 +644,20 @@
+@@ -639,6 +639,20 @@
  			status = "disabled";
  		};
  
@@ -36,6 +34,3 @@ index bf9381376dba..a730e28012cd 100644
  		blsp1_i2c2: i2c@78b6000 {
  			compatible = "qcom,i2c-qup-v2.2.1";
  			#address-cells = <1>;
--- 
-2.25.1
-

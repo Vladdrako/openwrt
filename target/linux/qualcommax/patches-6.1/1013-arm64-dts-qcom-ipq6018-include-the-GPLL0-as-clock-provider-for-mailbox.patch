@@ -127,7 +127,7 @@ Changes in V2:
 
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-@@ -715,8 +715,8 @@
+@@ -710,8 +710,8 @@
  			compatible = "qcom,ipq6018-apcs-apps-global";
  			reg = <0x0 0x0b111000 0x0 0x1000>;
  			#clock-cells = <1>;
