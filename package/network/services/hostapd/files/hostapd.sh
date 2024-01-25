@@ -1595,7 +1595,3 @@ EOF
 	fi
 	return 0
 }
-
-hostapd_common_cleanup() {
-	killall meshd-nl80211
-}
