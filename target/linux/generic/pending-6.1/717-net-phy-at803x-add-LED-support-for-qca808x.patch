@@ -114,7 +114,7 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 @@ -306,6 +369,7 @@ struct at803x_priv {
  	struct regulator_dev *vddio_rdev;
  	struct regulator_dev *vddh_rdev;
- 	u64 stats[ARRAY_SIZE(at803x_hw_stats)];
+ 	u64 stats[ARRAY_SIZE(qca83xx_hw_stats)];
 +	bool led_active_high;
  };
  
@@ -375,9 +375,9 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
  	.handle_interrupt	= at803x_handle_interrupt,
  	.get_tunable		= at803x_get_tunable,
 @@ -2173,6 +2460,11 @@ static struct phy_driver at803x_driver[]
- 	.soft_reset		= qca808x_soft_reset,
  	.cable_test_start	= qca808x_cable_test_start,
  	.cable_test_get_status	= qca808x_cable_test_get_status,
+ 	.link_change_notify	= qca808x_link_change_notify,
 +	.led_brightness_set	= qca808x_led_brightness_set,
 +	.led_blink_set		= qca808x_led_blink_set,
 +	.led_hw_is_supported	= qca808x_led_hw_is_supported,
