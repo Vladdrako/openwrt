@@ -5,15 +5,15 @@
  	void			(*function)(struct timer_list *);
  	u32			flags;
 +	unsigned long		cust_data;
-
+ 
  #ifdef CONFIG_LOCKDEP
  	struct lockdep_map	lockdep_map;
 --- a/drivers/net/ifb.c
 +++ b/drivers/net/ifb.c
 @@ -151,6 +151,31 @@ resched:
-
+ 
  }
-
+ 
 +void ifb_update_offload_stats(struct net_device *dev, struct pcpu_sw_netstats *offload_stats)
 +{
 +	struct ifb_dev_private *dp;
@@ -52,9 +52,9 @@
  	dev->needs_free_netdev = true;
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
-@@ -4591,6 +4591,15 @@ void dev_uc_flush(struct net_device *dev
+@@ -4588,6 +4588,15 @@ void dev_uc_flush(struct net_device *dev
  void dev_uc_init(struct net_device *dev);
-
+ 
  /**
 + *  ifb_update_offload_stats - Update the IFB interface stats
 + *  @dev: IFB device to update the stats
@@ -68,10 +68,10 @@
   *  __dev_uc_sync - Synchonize device's unicast list
   *  @dev:  device to sync
   *  @sync: function to call if address should be added
-@@ -5136,6 +5145,11 @@ static inline bool netif_is_failover_sla
+@@ -5133,6 +5142,11 @@ static inline bool netif_is_failover_sla
  	return dev->priv_flags & IFF_FAILOVER_SLAVE;
  }
-
+ 
 +static inline bool netif_is_ifb_dev(const struct net_device *dev)
 +{
 +	return dev->priv_flags_ext & IFF_EXT_IFB;
@@ -83,9 +83,9 @@
 --- a/include/uapi/linux/pkt_sched.h
 +++ b/include/uapi/linux/pkt_sched.h
 @@ -1278,4 +1278,248 @@ enum {
-
+ 
  #define TCA_ETS_MAX (__TCA_ETS_MAX - 1)
-
+ 
 +/* QCA NSS Clients Support - Start */
 +enum {
 +	TCA_NSS_ACCEL_MODE_NSS_FW,
@@ -371,7 +371,7 @@
 --- a/net/sched/sch_generic.c
 +++ b/net/sched/sch_generic.c
 @@ -1069,6 +1069,7 @@ static void __qdisc_destroy(struct Qdisc
-
+ 
  	call_rcu(&qdisc->rcu, qdisc_free_cb);
  }
 +EXPORT_SYMBOL(qdisc_destroy);
@@ -391,7 +391,7 @@
 @@ -719,6 +720,40 @@ static inline bool skb_skip_tc_classify(
  	return false;
  }
-
+ 
 +/*
 + * Set skb classify bit field.
 + */
@@ -432,7 +432,7 @@
 @@ -1305,4 +1340,9 @@ static inline void qdisc_synchronize(con
  		msleep(1);
  }
-
+ 
 +/* QCA NSS Qdisc Support - Start */
 +void qdisc_destroy(struct Qdisc *qdisc);
 +void tcf_destroy_chain(struct tcf_proto __rcu **fl);
