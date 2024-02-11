@@ -5,7 +5,6 @@
 #include "ipq8074.dtsi"
 #include "ipq8074-hk-cpu.dtsi"
 #include "ipq8074-ess.dtsi"
-#include "qca8075.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/input.h>
@@ -230,52 +229,34 @@
 		compatible = "ethernet-phy-ieee802.3-c45";
 		reg = <0x8>;
 	};
-};
 
-&qca8075 {
-	phy-mode = "qsgmii";
-};
+	qca8075_1: ethernet-phy@19 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x19>;
+	};
 
-&qca8075_0 {
-	reg = <24>;
-};
+	qca8075_2: ethernet-phy@1a {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x1a>;
+	};
 
-&qca8075_1 {
-	reg = <25>;
-};
-
-&qca8075_2 {
-	reg = <26>;
-};
-
-&qca8075_3 {
-	reg = <27>;
-};
-
-&qca8075_4 {
-	reg = <28>;
-};
-
-&qca8075_pqsgmii {
-	reg = <29>;
+	qca8075_3: ethernet-phy@1b {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x1b>;
+	};
 };
 
 &switch {
 	status = "okay";
 
-	switch_lan_bmp = <(ESS_PORT1 | ESS_PORT2 | ESS_PORT3 | ESS_PORT4 | ESS_PORT5)>;
-	switch_wan_bmp = <ESS_PORT6>;
+	switch_lan_bmp = <(ESS_PORT2 | ESS_PORT3 | ESS_PORT4 | ESS_PORT6)>;
+	switch_wan_bmp = <ESS_PORT5>;
 	malibu_first_phy_addr = <0x18>;
 	switch_mac_mode = <MAC_MODE_QSGMII>;
 	switch_mac_mode1 = <MAC_MODE_USXGMII>;
 	switch_mac_mode2 = <MAC_MODE_USXGMII>;
 
 	qcom,port_phyinfo {
-		port@1 {
-			port_id = <1>;
-			phy_address = <0x18>;
-		};
-
 		port@2 {
 			port_id = <2>;
 			phy_address = <0x19>;
@@ -311,8 +292,7 @@
 
 &dp2 {
 	status = "okay";
-	phy-mode = "qsgmii";
-	phy-handle = <&qca8075_2>;
+	phy-handle = <&qca8075_1>;
 	label = "lan4";
 	nvmem-cells = <&macaddr_appsblenv_ethaddr>;
 	nvmem-cell-names = "mac-address";
@@ -320,8 +300,7 @@
 
 &dp3 {
 	status = "okay";
-	phy-mode = "qsgmii";
-	phy-handle = <&qca8075_3>;
+	phy-handle = <&qca8075_2>;
 	label = "lan3";
 	nvmem-cells = <&macaddr_appsblenv_ethaddr>;
 	nvmem-cell-names = "mac-address";
@@ -329,8 +308,7 @@
 
 &dp4 {
 	status = "okay";
-	phy-mode = "qsgmii";
-	phy-handle = <&qca8075_4>;
+	phy-handle = <&qca8075_3>;
 	label = "lan2";
 	nvmem-cells = <&macaddr_appsblenv_ethaddr>;
 	nvmem-cell-names = "mac-address";
