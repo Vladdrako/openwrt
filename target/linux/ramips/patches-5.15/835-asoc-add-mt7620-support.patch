@@ -572,7 +572,7 @@ Signed-off-by: John Crispin <blogic@openwrt.org>
 +		.rates = SNDRV_PCM_RATE_CONTINUOUS,
 +		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 +	},
-+	.symmetric_rates = 1,
++	.symmetric_rate = 1,
 +};
 +
 +static struct snd_pcm_hardware ralink_pcm_hardware = {
@@ -738,7 +738,7 @@ Signed-off-by: John Crispin <blogic@openwrt.org>
 +	return 0;
 +}
 +
-+static inline void ralink_i2s_debugfs_remove(struct fsl_ssi_dbg *ssi_dbg)
++static inline void ralink_i2s_debugfs_remove(struct ralink_i2s *i2s)
 +{
 +}
 +#endif
