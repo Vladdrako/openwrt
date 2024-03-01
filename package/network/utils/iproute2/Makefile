@@ -15,7 +15,7 @@ PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
 PKG_SOURCE_URL:=@KERNEL/linux/utils/net/iproute2
 PKG_HASH:=ff942dd9828d7d1f867f61fe72ce433078c31e5d8e4a78e20f02cb5892e8841d
 PKG_BUILD_PARALLEL:=1
-PKG_BUILD_DEPENDS:=PACKAGE_tc-mod-iptables:iptables
+PKG_BUILD_DEPENDS:=iptables
 PKG_LICENSE:=GPL-2.0
 PKG_CPE_ID:=cpe:/a:iproute2_project:iproute2
 
@@ -58,7 +58,7 @@ $(call Package/iproute2/Default)
   VARIANT:=tctiny
   DEFAULT_VARIANT:=1
   PROVIDES:=tc
-  CONFLICTS:=tc-full
+  ALTERNATIVES:=200:/sbin/tc:/usr/libexec/tc-tiny
   DEPENDS:=+kmod-sched-core +(PACKAGE_devlink||PACKAGE_rdma):libmnl
 endef
 
@@ -76,13 +76,14 @@ $(call Package/iproute2/Default)
   TITLE:=Traffic control utility (full)
   VARIANT:=tcfull
   PROVIDES:=tc
-  DEPENDS:=+kmod-sched-core +libbpf +PACKAGE_iptables:tc-mod-iptables +(PACKAGE_devlink||PACKAGE_rdma):libmnl
+  ALTERNATIVES:=400:/sbin/tc:/usr/libexec/tc-full
+  DEPENDS:=+kmod-sched-core +(PACKAGE_devlink||PACKAGE_rdma):libmnl +libbpf +libxtables +tc-mod-iptables
 endef
 
 define Package/tc-mod-iptables
 $(call Package/iproute2/Default)
   TITLE:=Traffic control module - iptables action
-  VARIANT:=tciptables
+  VARIANT:=tcfull
   DEPENDS:=+libxtables +libbpf
 endef
 
@@ -134,31 +135,33 @@ endif
 
 ifeq ($(BUILD_VARIANT),tctiny)
   LIBBPF_FORCE:=off
-  SHARED_LIBS:=y
 endif
 
-ifeq ($(BUILD_VARIANT),tcfull)
+ifeq ($(BUILD_VARIANT),tcbpf)
   HAVE_ELF:=y
   LIBBPF_FORCE:=on
   SHARED_LIBS:=y
 endif
 
-ifdef CONFIG_PACKAGE_devlink
-  HAVE_MNL:=y
-endif
-
-ifeq ($(BUILD_VARIANT),tciptables)
+ifeq ($(BUILD_VARIANT),tcfull)
   #enable iptables/xtables requirement only if tciptables variant is selected
   TC_CONFIG_XT:=y
   TC_CONFIG_XT_OLD:=y
   TC_CONFIG_XT_OLD_H:=y
   TC_CONFIG_IPSET:=y
+  HAVE_ELF:=y
+  LIBBPF_FORCE:=on
+  SHARED_LIBS:=y
 else
   #disable iptables requirement by default
   TC_CONFIG_XT:=n
   TC_CONFIG_XT_OLD:=n
   TC_CONFIG_XT_OLD_H:=n
   TC_CONFIG_IPSET:=n
+endif
+
+ifdef CONFIG_PACKAGE_devlink
+  HAVE_MNL:=y
 endif
 
 ifdef CONFIG_PACKAGE_rdma
@@ -215,11 +218,19 @@ define Package/ip-full/install
 endef
 
 define Package/tc-tiny/install
-	$(INSTALL_DIR) $(1)/usr/sbin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tc/tc $(1)/usr/sbin/
+	$(INSTALL_DIR) $(1)/usr/libexec
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tc/tc $(1)/usr/libexec/tc-tiny
 endef
 
-Package/tc-full/install = $(Package/tc-tiny/install)
+define Package/tc-bpf/install
+	$(INSTALL_DIR) $(1)/usr/libexec
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tc/tc $(1)/usr/libexec/tc-bpf
+endef
+
+define Package/tc-full/install
+	$(INSTALL_DIR) $(1)/usr/libexec
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/tc/tc $(1)/usr/libexec/tc-full
+endef
 
 define Package/tc-mod-iptables/install
 	$(INSTALL_DIR) $(1)/usr/lib/tc
@@ -262,6 +273,7 @@ $(eval $(call BuildPackage,ip-full))
 # spurious rebuilds when building multiple variants.
 $(eval $(call BuildPackage,tc-mod-iptables))
 $(eval $(call BuildPackage,tc-tiny))
+$(eval $(call BuildPackage,tc-bpf))
 $(eval $(call BuildPackage,tc-full))
 $(eval $(call BuildPackage,genl))
 $(eval $(call BuildPackage,ip-bridge))
