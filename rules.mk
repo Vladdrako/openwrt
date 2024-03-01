@@ -244,7 +244,7 @@ HOSTCC:=$(STAGING_DIR_HOST)/bin/gcc
 HOSTCXX:=$(STAGING_DIR_HOST)/bin/g++
 HOST_CPPFLAGS:=-I$(STAGING_DIR_HOST)/include $(if $(IS_PACKAGE_BUILD),-I$(STAGING_DIR_HOSTPKG)/include -I$(STAGING_DIR)/host/include)
 HOST_CXXFLAGS:=
-HOST_CFLAGS:=$(if $(CONFIG_BUILD_NATIVE_ARCH),-march=native) -O2 $(HOST_CPPFLAGS)
+HOST_CFLAGS:=-O2 $(HOST_CPPFLAGS)
 HOST_LDFLAGS:=-L$(STAGING_DIR_HOST)/lib $(if $(IS_PACKAGE_BUILD),-L$(STAGING_DIR_HOSTPKG)/lib -L$(STAGING_DIR)/host/lib)
 
 BUILD_KEY=$(TOPDIR)/key-build
@@ -305,7 +305,6 @@ ifneq ($(CONFIG_CCACHE),)
   export CCACHE_BASEDIR:=$(TOPDIR)
   export CCACHE_DIR:=$(if $(call qstrip,$(CONFIG_CCACHE_DIR)),$(call qstrip,$(CONFIG_CCACHE_DIR)),$(TOPDIR)/.ccache)
   export CCACHE_COMPILERCHECK:=%compiler% -dumpmachine; %compiler% -dumpversion
-  export CCACHE_DEPEND CCACHE_NODIRECT
 endif
 
 TARGET_CONFIGURE_OPTS = \
