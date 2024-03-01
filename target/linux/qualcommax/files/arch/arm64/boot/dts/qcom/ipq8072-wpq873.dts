@@ -6,7 +6,6 @@
 #include "ipq8074.dtsi"
 #include "ipq8074-hk-cpu.dtsi"
 #include "ipq8074-ess.dtsi"
-#include "qca8075.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
@@ -357,6 +356,28 @@
 	pinctrl-0 = <&mdio_pins>;
 	pinctrl-names = "default";
 	reset-gpios = <&tlmm 37 GPIO_ACTIVE_LOW>;
+
+	ethernet-phy-package@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "qcom,qca8075-package";
+		reg = <0>;
+
+		qca8075_1: ethernet-phy@1 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <1>;
+		};
+
+		qca8075_2: ethernet-phy@2 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <2>;
+		};
+
+		qca8075_3: ethernet-phy@3 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <3>;
+		};
+	};
 
 	qca8081: ethernet-phy@28 {
 		compatible = "ethernet-phy-ieee802.3-c22";

@@ -9,7 +9,6 @@
 #include "ipq8074.dtsi"
 #include "ipq8074-hk-cpu.dtsi"
 #include "ipq8074-ess.dtsi"
-#include "qca8075.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
 #include <dt-bindings/input/input.h>
@@ -272,6 +271,33 @@
 	pinctrl-names = "default";
 	reset-gpios = <&tlmm 37 GPIO_ACTIVE_LOW>;
 
+	ethernet-phy-package@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "qcom,qca8075-package";
+		reg = <0>;
+
+		qca8075_0: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0>;
+		};
+
+		qca8075_1: ethernet-phy@1 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <1>;
+		};
+
+		qca8075_2: ethernet-phy@2 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <2>;
+		};
+
+		qca8075_3: ethernet-phy@3 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <3>;
+		};
+	};
+
 	qca8081: ethernet-phy@28 {
 		compatible = "ethernet-phy-id004d.d101";
 		reg = <28>;
@@ -279,7 +305,7 @@
 		reset-gpios = <&tlmm 31 GPIO_ACTIVE_LOW>;
 	};
 
-	aqr113c: ethernet-phy@8 {
+	aqr113c: ethernet-phy@5 {
 		compatible = "ethernet-phy-ieee802.3-c45";
 		reg = <8>;
 		reset-gpios = <&tlmm 63 GPIO_ACTIVE_LOW>;
@@ -379,6 +405,7 @@
 
 &dp6_syn {
 	status = "okay";
+	phy-mode = "usxgmii";
 	phy-handle = <&aqr113c>;
 	label = "10g";
 	nvmem-cells = <&macaddr_lan 0>;
