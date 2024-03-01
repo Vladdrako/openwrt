@@ -42,11 +42,6 @@ $(Package/ath11k-firmware-default)
   TITLE:=IPQ8074 ath11k firmware
 endef
 
-define Package/ath11k-firmware-ipq6018
-$(Package/ath11k-firmware-default)
-  TITLE:=IPQ6018 ath11k firmware
-endef
-
 define Package/ath11k-firmware-qcn9074
 $(Package/ath11k-firmware-default)
   TITLE:=QCN9074 ath11k firmware
@@ -54,13 +49,6 @@ endef
 
 define Build/Compile
 
-endef
-
-define Package/ath11k-firmware-ipq6018/install
-	$(INSTALL_DIR) $(1)/lib/firmware/IPQ6018
-	$(INSTALL_DATA) \
-		$(PKG_BUILD_DIR)/ath11k-firmware/IPQ6018/hw1.0/2.5.0.1/WLAN.HK.2.5.0.1-01208-QCAHKSWPL_SILICONZ-1/* \
-		$(1)/lib/firmware/IPQ6018/
 endef
 
 QCN9074_BOARD_REV:=8e140c65f36137714b6d8934e09dcd73cb05c2f6
@@ -74,10 +62,25 @@ define Download/qcn9074-board
 endef
 $(eval $(call Download,qcn9074-board))
 
+define Download/ath11k-firmware-old
+  URL:=https://github.com/kvalo/ath11k-firmware.git
+  VERSION:=540105aa5c0903b5f773d4e80b8501e8da5217e7
+  PROTO:=git
+  FILE:=ath11k-firmware-old.tar.xz
+  SUBDIR:=ath11k-firmware-old
+  MIRROR_HASH:=a35a164726fab2adc4ad447c974c06746355ba74deab9b849d39f06b5187bb6d
+endef
+$(eval $(call Download,ath11k-firmware-old))
+
+define Build/Prepare
+	$(call Build/Prepare/Default)
+	xzcat $(DL_DIR)/ath11k-firmware-old.tar.xz | tar -C $(PKG_BUILD_DIR)/ -xf -
+endef
+
 define Package/ath11k-firmware-ipq6018/install
 	$(INSTALL_DIR) $(1)/lib/firmware/IPQ6018
 	$(INSTALL_DATA) \
-		$(PKG_BUILD_DIR)/ath11k-firmware/IPQ6018/hw1.0/2.7.0.1/WLAN.HK.2.7.0.1-01744-QCAHKSWPL_SILICONZ-1/* \
+		$(PKG_BUILD_DIR)/ath11k-firmware-old/IPQ6018/hw1.0/2.4.0.1/WLAN.HK.2.4.0.1-01746-QCAHKSWPL_SILICONZ-1/* \
 		$(1)/lib/firmware/IPQ6018/
 endef
 
