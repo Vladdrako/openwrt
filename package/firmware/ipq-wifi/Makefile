@@ -6,9 +6,9 @@ PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL=$(PROJECT_GIT)/project/firmware/qca-wireless.git
-PKG_SOURCE_DATE:=2024-02-23
-PKG_SOURCE_VERSION:=9f9d9ba9cd77043744dcd5235497a15eea51c375
-PKG_MIRROR_HASH:=38f6d15259a8e4d7d9d1f8043abe9981fc3ed03c57a909a8a484f59710f86815
+PKG_SOURCE_DATE:=2024-02-25
+PKG_SOURCE_VERSION:=fc30aeeb8ec5d069710a446f4eb5e30fc26145c1
+PKG_MIRROR_HASH:=7fe83e3f36541444e0385a56fa8a048772d0531e16787cc10bce29775c7db235
 
 PKG_FLAGS:=nonshared
 
@@ -38,6 +38,7 @@ ALLWIFIBOARDS:= \
 	edimax_cax1800 \
 	linksys_mx4200 \
 	linksys_mx5300 \
+	netgear_lbr20 \
 	netgear_rax120v2 \
 	netgear_wax218 \
 	netgear_wax620 \
@@ -89,7 +90,7 @@ define ipq-wifi-install-one
     $(call ipq-wifi-install-one-to,$(1),$(2),QCA99X0/hw2.0),\
   $(if $(filter $(suffix $(1)),.IPQ6018 .ipq6018),\
     $(call ipq-wifi-install-ath11-one-to,$(1),$(2),IPQ6018/hw1.0),\
-  $(if $(filter $(suffix $(1)),.IPQ8074 .ipq8074 .ipq8174),\
+  $(if $(filter $(suffix $(1)),.IPQ8074 .ipq8074),\
     $(call ipq-wifi-install-ath11-one-to,$(1),$(2),IPQ8074/hw2.0),\
   $(if $(filter $(suffix $(1)),.QCN9074 .qcn9074),\
     $(call ipq-wifi-install-ath11-one-to,$(1),$(2),QCN9074/hw1.0),\
@@ -154,6 +155,7 @@ $(eval $(call generate-ipq-wifi-package,edgecore_eap102,Edgecore EAP102))
 $(eval $(call generate-ipq-wifi-package,edimax_cax1800,Edimax CAX1800))
 $(eval $(call generate-ipq-wifi-package,linksys_mx4200,Linksys MX4200))
 $(eval $(call generate-ipq-wifi-package,linksys_mx5300,Linksys MX5300))
+$(eval $(call generate-ipq-wifi-package,netgear_lbr20,Netgear LBR20))
 $(eval $(call generate-ipq-wifi-package,netgear_rax120v2,Netgear RAX120v2))
 $(eval $(call generate-ipq-wifi-package,netgear_wax218,Netgear WAX218))
 $(eval $(call generate-ipq-wifi-package,netgear_wax620,Netgear WAX620))
