@@ -33,22 +33,19 @@ EOF
 
 platform_do_upgrade() {
 	case "$(board_name)" in
+	cambiumnetworks,xe3-4)
+		fw_setenv bootcount 0
+		nand_do_upgrade "$1"
+		;;
 	linksys,mr7350)
-	CI_UBIPART="rootfs"
-	boot_part="$(fw_printenv -n boot_part)"
-		if [ -n "$UPGRADE_OPT_CURR_PARTITION" ]; then
-			if [ "$boot_part" -eq "2" ]; then
-				CI_KERNPART="alt_kernel"
-				CI_UBIPART="alt_rootfs"
-			fi
+		boot_part="$(fw_printenv -n boot_part)"
+		if [ "$boot_part" -eq "1" ]; then
+			fw_setenv boot_part 2
+			CI_KERNPART="alt_kernel"
+			CI_UBIPART="alt_rootfs"
 		else
-			if [ "$boot_part" -eq "1" ]; then
-				fw_setenv boot_part 2
-				CI_KERNPART="alt_kernel"
-				CI_UBIPART="alt_rootfs"
-			else
-				fw_setenv boot_part 1
-			fi
+			fw_setenv boot_part 1
+			CI_UBIPART="rootfs"
 		fi
 		fw_setenv boot_part_ready 3
 		fw_setenv auto_recovery yes
