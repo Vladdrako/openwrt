@@ -148,13 +148,15 @@ platform_do_upgrade() {
 		fw_setenv bootcount 0
 		nand_do_upgrade "$1"
 		;;
+	glinet,gl-ax1800|\
+	glinet,gl-axt1800|\
+	netgear,wax214|\
+	qihoo,360v6)
+		nand_do_upgrade "$1"
+		;;
 	linksys,mr7350)
 		linksys_mx_pre_upgrade "$1"
 		remove_oem_ubi_volume ubifs
-		nand_do_upgrade "$1"
-		;;
-	netgear,wax214|\
-	qihoo,360v6)
 		nand_do_upgrade "$1"
 		;;
 	tplink,eap610-outdoor)
