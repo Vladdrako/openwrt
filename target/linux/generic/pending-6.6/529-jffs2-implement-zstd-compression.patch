@@ -59,10 +59,10 @@ Signed-off-by: Rui Salvaterra <rsalvaterra@gmail.com>
  	default:
  		pr_err("unknown compression mode\n");
  	}
-@@ -378,6 +382,9 @@ int __init jffs2_compressors_init(void)
- #ifdef CONFIG_JFFS2_LZO
- 	jffs2_lzo_init();
- #endif
+@@ -383,6 +383,9 @@
+ 		goto exit_dynrubin;
+ 
+ 
 +#ifdef CONFIG_JFFS2_ZSTD
 +	jffs2_zstd_init();
 +#endif

@@ -168,15 +168,17 @@
 +#define	QH_XACTERR_MAX		225		/* XactErr retry limit */
  
  	u8			unlink_reason;
---- a/drivers/usb/host/fotg210.h
-+++ b/drivers/usb/host/fotg210.h
-@@ -453,5 +453,5 @@
+--- a/drivers/usb/fotg210/fotg210-hcd.h
++++ b/drivers/usb/fotg210/fotg210-hcd.h
+@@ -453,7 +453,7 @@
+ #define	QH_STATE_COMPLETING	5		/* don't touch token.HALT */
  
  	u8			xacterrs;	/* XactErr retry counter */
 -#define	QH_XACTERR_MAX		32		/* XactErr retry limit */
 +#define	QH_XACTERR_MAX		225		/* XactErr retry limit */
  
- 	u8			unlink_reason;
+ 	/* periodic schedule info */
+ 	u8			usecs;		/* intr bandwidth */
 --- a/drivers/usb/host/xhci-hub.c
 +++ b/drivers/usb/host/xhci-hub.c
 @@ -1269,7 +1269,7 @@
@@ -188,15 +190,15 @@
  				slot_id = xhci_find_slot_id_by_port(hcd, xhci,
  						wIndex + 1);
  				if (slot_id) {
-@@ -1455,8 +1455,8 @@
+@@ -1475,8 +1475,8 @@
  				}
- 				xhci_set_link_state(xhci, ports[wIndex], USB_SS_PORT_LS_U3);
+ 				xhci_set_link_state(xhci, port, USB_SS_PORT_LS_U3);
  				spin_unlock_irqrestore(&xhci->lock, flags);
 -				while (retries--) {
 -					usleep_range(4000, 8000);
 +				while (retries++ < 225) {
 +					usleep_range(3000 + retries*20, 10000);
- 					temp = readl(ports[wIndex]->addr);
+ 					temp = readl(port->addr);
  					if ((temp & PORT_PLS_MASK) == XDEV_U3)
  						break;
 @@ -1531,7 +1531,7 @@

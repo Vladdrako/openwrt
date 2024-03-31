@@ -23,14 +23,14 @@
 +         We set this to default to 64 (2^6) concurrent modprobe threads for
 +         small systems, for larger systems this defaults to 128 (2^7)
 +         concurrent modprobe threads.
---- a/kernel/kmod.c
-+++ b/kernel/kmod.c
-@@ -46,7 +46,7 @@
+--- a/kernel/module/kmod.c
++++ b/kernel/module/kmod.c
+@@ -43,7 +43,7 @@
   * and this would only be an upper limit, after which the OOM killer would take
   * effect. Systems like these are very unlikely if modules are enabled.
   */
 -#define MAX_KMOD_CONCURRENT 50
 +#define MAX_KMOD_CONCURRENT (1 << CONFIG_MAX_KMOD_CONCURRENT_P2)
- static atomic_t kmod_concurrent_max = ATOMIC_INIT(MAX_KMOD_CONCURRENT);
- static DECLARE_WAIT_QUEUE_HEAD(kmod_wq);
+ static DEFINE_SEMAPHORE(kmod_concurrent_max, MAX_KMOD_CONCURRENT);
  
+ /*
