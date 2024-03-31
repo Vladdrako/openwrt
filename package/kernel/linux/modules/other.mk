@@ -949,9 +949,11 @@ $(eval $(call KernelPackage,ikconfig))
 define KernelPackage/io-schedulers
   SUBMENU:=$(OTHER_MENU)
   TITLE:=Extra I/O Schedulers
-  KCONFIG:=CONFIG_MQ_IOSCHED_DEADLINE \
-	   CONFIG_MQ_IOSCHED_KYBER \
-	   CONFIG_IOSCHED_BFQ
+  KCONFIG:=CONFIG_IOSCHED_BFQ=y \
+	   CONFIG_BFQ_GROUP_IOSCHED=y \
+	   CONFIG_BFQ_CGROUP_DEBUG=n \
+	   CONFIG_MQ_IOSCHED_DEADLINE=y \
+	   CONFIG_MQ_IOSCHED_KYBER=y
   FILES:= \
 	$(LINUX_DIR)/block/mq-deadline.ko \
 	$(LINUX_DIR)/block/kyber-iosched.ko \
