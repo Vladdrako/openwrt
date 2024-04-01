@@ -214,12 +214,12 @@ ifeq ($(DUMP),1)
     else
       CPU_TYPE ?= mips32
     endif
-    CPU_CFLAGS += -mno-branch-likely -mno-interlink-compressed -msym32 -mframe-header-opt
+    CPU_CFLAGS += -mno-branch-likely
     CPU_CFLAGS_mips32 = -mips32 -mtune=mips32
     CPU_CFLAGS_mips64 = -mips64 -mtune=mips64 -mabi=64
     CPU_CFLAGS_mips64r2 = -mips64r2 -mtune=mips64r2 -mabi=64
     CPU_CFLAGS_4kec = -mips32r2 -mtune=4kec
-    CPU_CFLAGS_24kc = -mips32r2 -march=1004kc
+    CPU_CFLAGS_24kc = -mips32r2 -march=1004kc -mno-interlink-compressed -msym32 -mframe-header-opt
     CPU_CFLAGS_24kec = -march=24kec
     CPU_CFLAGS_74kc = -mips32r2 -mtune=74kc -march=74kc
     CPU_CFLAGS_1004kc = -march=1004kc
@@ -254,6 +254,7 @@ ifeq ($(DUMP),1)
     CPU_TYPE ?= generic
     CPU_CFLAGS_generic = -mcpu=generic
     CPU_CFLAGS_cortex-a53 = -mcpu=cortex-a53
+    CPU_CFLAGS_cortex-a73 = -mcpu=cortex-a73
   endif
   ifeq ($(ARCH),arc)
     CPU_TYPE ?= arc700
