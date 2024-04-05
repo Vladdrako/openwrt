@@ -220,6 +220,15 @@
  static int add_chan(struct pppox_sock *sock,
  		    struct pptp_addr *sa)
  {
+@@ -136,7 +211,7 @@ static struct rtable *pptp_route_output(
+ 	struct net *net;
+ 
+ 	net = sock_net(sk);
+-	flowi4_init_output(fl4, sk->sk_bound_dev_if, sk->sk_mark, 0,
++	flowi4_init_output(fl4, 0, sk->sk_mark, 0,
+ 			   RT_SCOPE_UNIVERSE, IPPROTO_GRE, 0,
+ 			   po->proto.pptp.dst_addr.sin_addr.s_addr,
+ 			   po->proto.pptp.src_addr.sin_addr.s_addr,
 @@ -163,8 +238,11 @@ static int pptp_xmit(struct ppp_channel
  
  	struct rtable *rt;
