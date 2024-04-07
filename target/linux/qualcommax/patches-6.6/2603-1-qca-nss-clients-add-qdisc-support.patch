@@ -52,7 +52,7 @@
  	dev->needs_free_netdev = true;
 --- a/include/linux/netdevice.h
 +++ b/include/linux/netdevice.h
-@@ -4696,6 +4696,15 @@ void dev_uc_flush(struct net_device *dev
+@@ -4686,6 +4686,15 @@ void dev_uc_flush(struct net_device *dev
  void dev_uc_init(struct net_device *dev);
  
  /**
@@ -68,7 +68,7 @@
   *  __dev_uc_sync - Synchonize device's unicast list
   *  @dev:  device to sync
   *  @sync: function to call if address should be added
-@@ -5222,6 +5231,11 @@ static inline bool netif_is_failover_sla
+@@ -5212,6 +5221,11 @@ static inline bool netif_is_failover_sla
  	return dev->priv_flags & IFF_FAILOVER_SLAVE;
  }
  
@@ -370,13 +370,13 @@
  subsys_initcall(pktsched_init);
 --- a/net/sched/sch_generic.c
 +++ b/net/sched/sch_generic.c
-@@ -1069,6 +1069,7 @@ static void __qdisc_destroy(struct Qdisc
+@@ -1077,6 +1077,7 @@ void qdisc_destroy(struct Qdisc *qdisc)
  
- 	call_rcu(&qdisc->rcu, qdisc_free_cb);
+ 	__qdisc_destroy(qdisc);
  }
 +EXPORT_SYMBOL(qdisc_destroy);
  
- void qdisc_destroy(struct Qdisc *qdisc)
+ void qdisc_put(struct Qdisc *qdisc)
  {
 --- a/include/net/sch_generic.h
 +++ b/include/net/sch_generic.h
@@ -388,11 +388,10 @@
  	u32			limit;
  	const struct Qdisc_ops	*ops;
  	struct qdisc_size_table	__rcu *stab;
-@@ -751,6 +752,42 @@ static inline bool skb_skip_tc_classify(
+@@ -751,6 +752,40 @@ static inline bool skb_skip_tc_classify(
  	return false;
  }
  
-+/* QCA NSS Qdisc Support - Start */
 +/*
 + * Set skb classify bit field.
 + */
@@ -426,12 +425,11 @@
 +#endif
 +	return false;
 +}
-+/* QCA NSS Qdisc Support - End */
 +
  /* Reset all TX qdiscs greater than index of a device.  */
  static inline void qdisc_reset_all_tx_gt(struct net_device *dev, unsigned int i)
  {
-@@ -1323,4 +1360,9 @@ static inline void qdisc_synchronize(con
+@@ -1323,4 +1358,9 @@ static inline void qdisc_synchronize(con
  		msleep(1);
  }
  
@@ -441,23 +439,3 @@
 +/* QCA NSS Qdisc Support - End */
 +
  #endif
---- a/include/linux/skbuff.h
-+++ b/include/linux/skbuff.h
-@@ -764,6 +764,7 @@ typedef unsigned char *sk_buff_data_t;
-  *	@offload_fwd_mark: Packet was L2-forwarded in hardware
-  *	@offload_l3_fwd_mark: Packet was L3-forwarded in hardware
-  *	@tc_skip_classify: do not classify packet. set by IFB device
-+ *	@tc_skip_classify_offload: do not classify packet set by offload IFB device
-  *	@tc_at_ingress: used within tc_classify to distinguish in/egress
-  *	@redirected: packet was redirected by packet classifier
-  *	@from_ingress: packet was redirected from the ingress path
-@@ -945,6 +946,9 @@ struct sk_buff {
- 	__u8			tc_at_ingress:1;	/* See TC_AT_INGRESS_MASK */
- 	__u8			tc_skip_classify:1;
- #endif
-+#ifdef CONFIG_NET_CLS_ACT
-+	__u8			tc_skip_classify_offload:1; /* QCA NSS Qdisc Support */
-+#endif
- 	__u8			remcsum_offload:1;
- 	__u8			csum_complete_sw:1;
- 	__u8			csum_level:2;

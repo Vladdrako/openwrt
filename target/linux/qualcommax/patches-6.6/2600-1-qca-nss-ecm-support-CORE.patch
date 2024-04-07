@@ -55,26 +55,31 @@
  #endif
 --- a/include/linux/if_vlan.h
 +++ b/include/linux/if_vlan.h
-@@ -143,7 +143,10 @@ extern struct net_device *__vlan_find_de
- extern int vlan_for_each(struct net_device *dev,
- 			 int (*action)(struct net_device *dev, int vid,
- 				       void *arg), void *arg);
-+extern void __vlan_dev_update_accel_stats(struct net_device *dev,
-+				    struct rtnl_link_stats64 *stats); /* QCA NSS ECM support */
- extern struct net_device *vlan_dev_real_dev(const struct net_device *dev);
-+extern struct net_device *vlan_dev_next_dev(const struct net_device *dev); /* QCA NSS ECM support */
- extern u16 vlan_dev_vlan_id(const struct net_device *dev);
- extern __be16 vlan_dev_vlan_proto(const struct net_device *dev);
+@@ -235,7 +235,28 @@ extern void vlan_vids_del_by_dev(struct
  
-@@ -236,6 +239,12 @@ extern void vlan_vids_del_by_dev(struct
  extern bool vlan_uses_dev(const struct net_device *dev);
  
++/* QCA NSS ECM support - Start */
++extern void __vlan_dev_update_accel_stats(struct net_device *dev,
++                                    struct rtnl_link_stats64 *stats);
++extern u16 vlan_dev_get_egress_prio(struct net_device *dev, u32 skb_prio);
++extern struct net_device *vlan_dev_next_dev(const struct net_device *dev);
++/* QCA NSS ECM support - End */
++
  #else
++/* QCA NSS ECM support - Start */
 +static inline void __vlan_dev_update_accel_stats(struct net_device *dev,
 +					   struct rtnl_link_stats64 *stats)
 +{
 +
-+} /* QCA NSS ECM support */
++}
++
++static inline u16 vlan_dev_get_egress_prio(struct net_device *dev,
++						u32 skb_prio)
++{
++	return 0;
++}
++/* QCA NSS ECM support - End */
 +
  static inline struct net_device *
  __vlan_find_dev_deep_rcu(struct net_device *real_dev,
@@ -85,13 +90,25 @@
  	NETDEV_OFFLOAD_XSTATS_REPORT_USED,
  	NETDEV_OFFLOAD_XSTATS_REPORT_DELTA,
  	NETDEV_XDP_FEAT_CHANGE,
-+	/* QCA NSS ECM Support - Start */
-+	NETDEV_BR_JOIN,
-+	NETDEV_BR_LEAVE,
-+	/* QCA NSS ECM Support - End */
++   /* QCA NSS ECM Support - Start */
++   NETDEV_BR_JOIN,
++   NETDEV_BR_LEAVE,
++   /* QCA NSS ECM Support - End */
  };
  const char *netdev_cmd_to_name(enum netdev_cmd cmd);
  
+--- a/include/net/addrconf.h
++++ b/include/net/addrconf.h
+@@ -514,4 +514,9 @@ int if6_proc_init(void);
+ void if6_proc_exit(void);
+ #endif
+ 
++/* QCA NSS ECM support - Start */
++struct net_device *ipv6_dev_find_and_hold(struct net *net, struct in6_addr *addr,
++				 						  int strict);
++/* QCA NSS ECM support - End */
++
+ #endif
 --- a/include/net/ip6_route.h
 +++ b/include/net/ip6_route.h
 @@ -207,6 +207,11 @@ void rt6_multipath_rebalance(struct fib6
@@ -108,36 +125,20 @@
  	const struct dst_entry *dst = skb_dst(skb);
 --- a/include/net/neighbour.h
 +++ b/include/net/neighbour.h
-@@ -249,6 +249,13 @@ static inline int neigh_parms_family(str
- 	return p->tbl->family;
+@@ -600,4 +600,15 @@ static inline void neigh_update_is_route
+ 		*notify = 1;
+ 	}
  }
- 
++
 +/* QCA NSS ECM support - Start */
 +struct neigh_mac_update {
 +	unsigned char old_mac[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
 +	unsigned char update_mac[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
 +};
-+/* QCA NSS ECM support - End */
 +
- #define NEIGH_PRIV_ALIGN	sizeof(long long)
- #define NEIGH_ENTRY_SIZE(size)	ALIGN((size), NEIGH_PRIV_ALIGN)
- 
-@@ -395,6 +402,11 @@ void __neigh_for_each_release(struct nei
- 			      int (*cb)(struct neighbour *));
- int neigh_xmit(int fam, struct net_device *, const void *, struct sk_buff *);
- 
-+/* QCA NSS ECM support - Start */
 +extern void neigh_mac_update_register_notify(struct notifier_block *nb);
 +extern void neigh_mac_update_unregister_notify(struct notifier_block *nb);
 +/* QCA NSS ECM support - End */
-+
- struct neigh_seq_state {
- 	struct seq_net_private p;
- 	struct neigh_table *tbl;
-@@ -600,4 +612,5 @@ static inline void neigh_update_is_route
- 		*notify = 1;
- 	}
- }
 +
  #endif
 --- a/include/net/route.h
@@ -156,17 +157,20 @@
  void fib_del_ifaddr(struct in_ifaddr *, struct in_ifaddr *);
 --- a/net/bridge/br_private.h
 +++ b/net/bridge/br_private.h
-@@ -2266,4 +2266,6 @@ void br_do_suppress_nd(struct sk_buff *s
+@@ -2266,4 +2266,9 @@ void br_do_suppress_nd(struct sk_buff *s
  		       u16 vid, struct net_bridge_port *p, struct nd_msg *msg);
  struct nd_msg *br_is_nd_neigh_msg(struct sk_buff *skb, struct nd_msg *m);
  bool br_is_neigh_suppress_enabled(const struct net_bridge_port *p, u16 vid);
++
++/* QCA NSS ECM support - Start */
 +#define __br_get(__hook, __default, __args ...) \
-+		(__hook ? (__hook(__args)) : (__default)) /* QCA NSS ECM support */
++		(__hook ? (__hook(__args)) : (__default))
++/* QCA NSS ECM support - End */
  #endif
 --- a/net/8021q/vlan_core.c
 +++ b/net/8021q/vlan_core.c
-@@ -72,6 +72,28 @@ bool vlan_do_receive(struct sk_buff **sk
- 	return true;
+@@ -555,4 +555,52 @@ static int __init vlan_offload_init(void
+ 	return 0;
  }
  
 +/* QCA NSS ECM support - Start */
@@ -189,17 +193,27 @@
 +	u64_stats_update_end(&stats->syncp);
 +}
 +EXPORT_SYMBOL(__vlan_dev_update_accel_stats);
-+/* QCA NSS ECM support - End */
 +
- /* Must be invoked with rcu_read_lock. */
- struct net_device *__vlan_find_dev_deep_rcu(struct net_device *dev,
- 					__be16 vlan_proto, u16 vlan_id)
-@@ -110,6 +132,15 @@ struct net_device *vlan_dev_real_dev(con
- }
- EXPORT_SYMBOL(vlan_dev_real_dev);
- 
-+/* QCA NSS ECM support - Start */
-+/* Caller is responsible to hold the reference of the returned device */
++/* Lookup the 802.1p egress_map table and return the 802.1p value */
++u16 vlan_dev_get_egress_prio(struct net_device *dev, u32 skb_prio)
++{
++	struct vlan_priority_tci_mapping *mp;
++
++	mp = vlan_dev_priv(dev)->egress_priority_map[(skb_prio & 0xf)];
++	while (mp) {
++		if (mp->priority == skb_prio) {
++			/* This should already be shifted
++			 * to mask correctly with the
++			 * VLAN's TCI
++			 */
++			return mp->vlan_qos;
++		}
++		mp = mp->next;
++	}
++	return 0;
++}
++EXPORT_SYMBOL(vlan_dev_get_egress_prio);
++
 +struct net_device *vlan_dev_next_dev(const struct net_device *dev)
 +{
 +	return vlan_dev_priv(dev)->real_dev;
@@ -207,16 +221,16 @@
 +EXPORT_SYMBOL(vlan_dev_next_dev);
 +/* QCA NSS ECM support - End */
 +
- u16 vlan_dev_vlan_id(const struct net_device *dev)
- {
- 	return vlan_dev_priv(dev)->vlan_id;
+ fs_initcall(vlan_offload_init);
 --- a/net/bridge/br_fdb.c
 +++ b/net/bridge/br_fdb.c
-@@ -33,6 +33,20 @@ static const struct rhashtable_params br
+@@ -33,6 +33,35 @@ static const struct rhashtable_params br
  
  static struct kmem_cache *br_fdb_cache __read_mostly;
  
++/* QCA NSS ECM support - Start */
 +ATOMIC_NOTIFIER_HEAD(br_fdb_notifier_list);
++ATOMIC_NOTIFIER_HEAD(br_fdb_update_notifier_list);
 +
 +void br_fdb_register_notify(struct notifier_block *nb)
 +{
@@ -230,13 +244,27 @@
 +}
 +EXPORT_SYMBOL_GPL(br_fdb_unregister_notify);
 +
++void br_fdb_update_register_notify(struct notifier_block *nb)
++{
++	atomic_notifier_chain_register(&br_fdb_update_notifier_list, nb);
++}
++EXPORT_SYMBOL_GPL(br_fdb_update_register_notify);
++
++void br_fdb_update_unregister_notify(struct notifier_block *nb)
++{
++	atomic_notifier_chain_unregister(&br_fdb_update_notifier_list, nb);
++}
++EXPORT_SYMBOL_GPL(br_fdb_update_unregister_notify);
++/* QCA NSS ECM support - End */
++
  int __init br_fdb_init(void)
  {
  	br_fdb_cache = kmem_cache_create("bridge_fdb_cache",
-@@ -195,6 +209,25 @@ static void fdb_notify(struct net_bridge
- 	if (swdev_notify)
- 		br_switchdev_fdb_notify(br, fdb, type);
+@@ -192,7 +221,26 @@ static void fdb_notify(struct net_bridge
+ 	struct sk_buff *skb;
+ 	int err = -ENOBUFS;
  
+-	if (swdev_notify)
 +	/* QCA NSS ECM support - Start */
 +	if (fdb->dst) {
 +		int event;
@@ -256,33 +284,11 @@
 +	}
 +	/* QCA NSS ECM support - End */
 +
- 	skb = nlmsg_new(fdb_nlmsg_size(), GFP_ATOMIC);
- 	if (skb == NULL)
- 		goto errout;
-@@ -519,6 +552,22 @@ out:
- 	spin_unlock_bh(&br->hash_lock);
- }
++   if (swdev_notify)
+ 		br_switchdev_fdb_notify(br, fdb, type);
  
-+/* QCA NSS ECM support - Start */
-+ATOMIC_NOTIFIER_HEAD(br_fdb_update_notifier_list);
-+
-+void br_fdb_update_register_notify(struct notifier_block *nb)
-+{
-+	atomic_notifier_chain_register(&br_fdb_update_notifier_list, nb);
-+}
-+EXPORT_SYMBOL_GPL(br_fdb_update_register_notify);
-+
-+void br_fdb_update_unregister_notify(struct notifier_block *nb)
-+{
-+	atomic_notifier_chain_unregister(&br_fdb_update_notifier_list, nb);
-+}
-+EXPORT_SYMBOL_GPL(br_fdb_update_unregister_notify);
-+/* QCA NSS ECM support - End */
-+
- void br_fdb_cleanup(struct work_struct *work)
- {
- 	struct net_bridge *br = container_of(work, struct net_bridge,
-@@ -527,6 +576,7 @@ void br_fdb_cleanup(struct work_struct *
+ 	skb = nlmsg_new(fdb_nlmsg_size(), GFP_ATOMIC);
+@@ -527,6 +575,7 @@ void br_fdb_cleanup(struct work_struct *
  	unsigned long delay = hold_time(br);
  	unsigned long work_delay = delay;
  	unsigned long now = jiffies;
@@ -290,7 +296,7 @@
  
  	/* this part is tricky, in order to avoid blocking learning and
  	 * consequently forwarding, we rely on rcu to delete objects with
-@@ -553,8 +603,15 @@ void br_fdb_cleanup(struct work_struct *
+@@ -553,8 +602,15 @@ void br_fdb_cleanup(struct work_struct *
  			work_delay = min(work_delay, this_timer - now);
  		} else {
  			spin_lock_bh(&br->hash_lock);
@@ -307,7 +313,7 @@
  			spin_unlock_bh(&br->hash_lock);
  		}
  	}
-@@ -891,6 +948,12 @@ void br_fdb_update(struct net_bridge *br
+@@ -891,6 +947,12 @@ void br_fdb_update(struct net_bridge *br
  				 */
  				if (unlikely(test_bit(BR_FDB_LOCKED, &fdb->flags)))
  					clear_bit(BR_FDB_LOCKED, &fdb->flags);
@@ -320,10 +326,11 @@
  			}
  
  			if (unlikely(test_bit(BR_FDB_ADDED_BY_USER, &flags)))
-@@ -914,6 +977,64 @@ void br_fdb_update(struct net_bridge *br
- 	}
+@@ -1508,3 +1570,62 @@ void br_fdb_clear_offload(const struct n
+ 	spin_unlock_bh(&p->br->hash_lock);
  }
- 
+ EXPORT_SYMBOL_GPL(br_fdb_clear_offload);
++
 +/* QCA NSS ECM support - Start */
 +/* Refresh FDB entries for bridge packets being forwarded by offload engines */
 +void br_refresh_fdb_entry(struct net_device *dev, const char *addr)
@@ -380,11 +387,8 @@
 +	return fdb;
 +}
 +EXPORT_SYMBOL_GPL(br_fdb_has_entry);
-+
 +/* QCA NSS ECM support - End */
- /* Dump information about entries, in response to GETNEIGH */
- int br_fdb_dump(struct sk_buff *skb,
- 		struct netlink_callback *cb,
++
 --- a/net/bridge/br_if.c
 +++ b/net/bridge/br_if.c
 @@ -26,6 +26,12 @@
@@ -418,10 +422,22 @@
  	/* Since more than one interface can be attached to a bridge,
  	 * there still maybe an alternate path for netconsole to use;
  	 * therefore there is no reason for a NETDEV_RELEASE event.
-@@ -775,3 +785,97 @@ bool br_port_flag_is_set(const struct ne
+@@ -775,3 +785,96 @@ bool br_port_flag_is_set(const struct ne
  	return p->flags & flag;
  }
  EXPORT_SYMBOL_GPL(br_port_flag_is_set);
++
++/* QCA NSS ECM support - Start */
++/* API to know if hairpin feature is enabled/disabled on this bridge port */
++bool br_is_hairpin_enabled(struct net_device *dev)
++{
++	struct net_bridge_port *port = br_port_get_check_rcu(dev);
++
++	if (likely(port))
++		return port->flags & BR_HAIRPIN_MODE;
++	return false;
++}
++EXPORT_SYMBOL_GPL(br_is_hairpin_enabled);
 +
 +/* br_port_dev_get()
 + *      If a skb is provided, and the br_port_dev_get_hook_t hook exists,
@@ -502,19 +518,6 @@
 +	u64_stats_update_end(&tstats->syncp);
 +}
 +EXPORT_SYMBOL_GPL(br_dev_update_stats);
-+
-+/* QCA NSS ECM support - Start */
-+/* API to know if hairpin feature is enabled/disabled on this bridge port */
-+bool br_is_hairpin_enabled(struct net_device *dev)
-+{
-+	struct net_bridge_port *port = br_port_get_check_rcu(dev);
-+
-+	if (likely(port))
-+		return port->flags & BR_HAIRPIN_MODE;
-+	return false;
-+}
-+EXPORT_SYMBOL_GPL(br_is_hairpin_enabled);
-+
 +/* QCA NSS ECM support - End */
 --- a/net/core/neighbour.c
 +++ b/net/core/neighbour.c
@@ -653,16 +656,16 @@
  		   const struct in6_addr *daddr)
 --- a/net/ipv6/route.c
 +++ b/net/ipv6/route.c
-@@ -197,6 +197,9 @@ static void rt6_uncached_list_flush_dev(
- 	}
+@@ -3853,6 +3853,9 @@ out_free:
+ 	return ERR_PTR(err);
  }
  
 +/* Define route change notification chain. */
 +ATOMIC_NOTIFIER_HEAD(ip6route_chain);	/* QCA NSS ECM support */
 +
- static inline const void *choose_neigh_daddr(const struct in6_addr *p,
- 					     struct sk_buff *skb,
- 					     const void *daddr)
+ int ip6_route_add(struct fib6_config *cfg, gfp_t gfp_flags,
+ 		  struct netlink_ext_ack *extack)
+ {
 @@ -3864,6 +3867,10 @@ int ip6_route_add(struct fib6_config *cf
  		return PTR_ERR(rt);
  
@@ -684,7 +687,7 @@
  out:
  	fib6_info_release(rt);
  	return err;
-@@ -6329,6 +6339,20 @@ static int ip6_route_dev_notify(struct n
+@@ -6336,6 +6346,20 @@ static int ip6_route_dev_notify(struct n
  	return NOTIFY_OK;
  }
  
@@ -711,7 +714,7 @@
  	N(PRE_CHANGEADDR) N(OFFLOAD_XSTATS_ENABLE) N(OFFLOAD_XSTATS_DISABLE)
  	N(OFFLOAD_XSTATS_REPORT_USED) N(OFFLOAD_XSTATS_REPORT_DELTA)
  	N(XDP_FEAT_CHANGE)
-+	N(BR_JOIN) N(BR_LEAVE)
++   N(BR_JOIN) N(BR_LEAVE)
  	}
  #undef N
  	return "UNKNOWN_NETDEV_EVENT";
@@ -725,6 +728,43 @@
  
  static void
  ipv6_link_dev_addr(struct inet6_dev *idev, struct inet6_ifaddr *ifp)
+@@ -2068,6 +2069,36 @@ struct inet6_ifaddr *ipv6_get_ifaddr(str
+ 
+ 	return result;
+ }
++EXPORT_SYMBOL(ipv6_get_ifaddr);
++
++/* ipv6_dev_find_and_hold()
++ *  	Find (and hold) net device that has the given address.
++ *  	Or NULL on failure.
++ */
++struct net_device *ipv6_dev_find_and_hold(struct net *net, struct in6_addr *addr,
++                                int strict)
++{
++    struct inet6_ifaddr *ifp;
++    struct net_device *dev;
++
++    ifp = ipv6_get_ifaddr(net, addr, NULL, strict);
++    if (!ifp)
++        return NULL;
++
++    if (!ifp->idev) {
++        in6_ifa_put(ifp);
++        return NULL;
++    }
++
++    dev = ifp->idev->dev;
++    if (dev)
++    	dev_hold(dev);
++
++    in6_ifa_put(ifp);
++
++    return dev;
++}
++EXPORT_SYMBOL(ipv6_dev_find_and_hold);
+ 
+ /* Gets referenced address, destroys ifaddr */
+ 
 --- a/include/net/vxlan.h
 +++ b/include/net/vxlan.h
 @@ -440,6 +440,15 @@ static inline __be32 vxlan_compute_rco(u
@@ -743,133 +783,3 @@
  static inline unsigned short vxlan_get_sk_family(struct vxlan_sock *vs)
  {
  	return vs->sock->sk->sk_family;
---- a/include/uapi/linux/in.h
-+++ b/include/uapi/linux/in.h
-@@ -63,6 +63,8 @@ enum {
- #define IPPROTO_MTP		IPPROTO_MTP
-   IPPROTO_BEETPH = 94,		/* IP option pseudo header for BEET	*/
- #define IPPROTO_BEETPH		IPPROTO_BEETPH
-+  IPPROTO_ETHERIP = 97,		/* ETHERIP protocol number		*/
-+#define IPPROTO_ETHERIP		IPPROTO_ETHERIP
-   IPPROTO_ENCAP = 98,		/* Encapsulation Header			*/
- #define IPPROTO_ENCAP		IPPROTO_ENCAP
-   IPPROTO_PIM = 103,		/* Protocol Independent Multicast	*/
-@@ -327,7 +329,7 @@ struct sockaddr_in {
- #endif
- 
- /* <asm/byteorder.h> contains the htonl type stuff.. */
--#include <asm/byteorder.h> 
-+#include <asm/byteorder.h>
- 
- 
- #endif /* _UAPI_LINUX_IN_H */
---- a/tools/include/uapi/linux/in.h
-+++ b/tools/include/uapi/linux/in.h
-@@ -63,6 +63,8 @@ enum {
- #define IPPROTO_MTP		IPPROTO_MTP
-   IPPROTO_BEETPH = 94,		/* IP option pseudo header for BEET	*/
- #define IPPROTO_BEETPH		IPPROTO_BEETPH
-+  IPPROTO_ETHERIP = 97,		/* ETHERIP protocol number		*/
-+#define IPPROTO_ETHERIP		IPPROTO_ETHERIP
-   IPPROTO_ENCAP = 98,		/* Encapsulation Header			*/
- #define IPPROTO_ENCAP		IPPROTO_ENCAP
-   IPPROTO_PIM = 103,		/* Protocol Independent Multicast	*/
-@@ -327,7 +329,7 @@ struct sockaddr_in {
- #endif
- 
- /* <asm/byteorder.h> contains the htonl type stuff.. */
--#include <asm/byteorder.h> 
-+#include <asm/byteorder.h>
- 
- 
- #endif /* _UAPI_LINUX_IN_H */
---- a/net/netfilter/nf_conntrack_ecache.c
-+++ b/net/netfilter/nf_conntrack_ecache.c
-@@ -266,7 +266,6 @@ void nf_conntrack_register_notifier(stru
- 	mutex_lock(&nf_ct_ecache_mutex);
- 	notify = rcu_dereference_protected(net->ct.nf_conntrack_event_cb,
- 					   lockdep_is_held(&nf_ct_ecache_mutex));
--	WARN_ON_ONCE(notify);
- 	rcu_assign_pointer(net->ct.nf_conntrack_event_cb, new);
- 	mutex_unlock(&nf_ct_ecache_mutex);
- }
---- a/include/net/netns/conntrack.h
-+++ b/include/net/netns/conntrack.h
-@@ -26,6 +26,7 @@ struct nf_tcp_net {
- 	unsigned int timeouts[TCP_CONNTRACK_TIMEOUT_MAX];
- 	u8 tcp_loose;
- 	u8 tcp_be_liberal;
-+	u8 tcp_no_window_check;
- 	u8 tcp_max_retrans;
- 	u8 tcp_ignore_invalid_rst;
- #if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
---- a/net/netfilter/nf_conntrack_proto_tcp.c
-+++ b/net/netfilter/nf_conntrack_proto_tcp.c
-@@ -515,11 +515,15 @@ tcp_in_window(struct nf_conn *ct, enum i
- 	struct ip_ct_tcp *state = &ct->proto.tcp;
- 	struct ip_ct_tcp_state *sender = &state->seen[dir];
- 	struct ip_ct_tcp_state *receiver = &state->seen[!dir];
-+	const struct nf_tcp_net *tn = nf_tcp_pernet(nf_ct_net(ct));
- 	__u32 seq, ack, sack, end, win, swin;
- 	bool in_recv_win, seq_ok;
- 	s32 receiver_offset;
- 	u16 win_raw;
- 
-+	if (tn->tcp_no_window_check)
-+		return NFCT_TCP_ACCEPT;
-+
- 	/*
- 	 * Get the required data from the packet.
- 	 */
-@@ -1285,7 +1289,7 @@ int nf_conntrack_tcp_packet(struct nf_co
- 		 IP_CT_TCP_FLAG_DATA_UNACKNOWLEDGED &&
- 		 timeouts[new_state] > timeouts[TCP_CONNTRACK_UNACK])
- 		timeout = timeouts[TCP_CONNTRACK_UNACK];
--	else if (ct->proto.tcp.last_win == 0 &&
-+	else if (!tn->tcp_no_window_check && ct->proto.tcp.last_win == 0 &&
- 		 timeouts[new_state] > timeouts[TCP_CONNTRACK_RETRANS])
- 		timeout = timeouts[TCP_CONNTRACK_RETRANS];
- 	else
-@@ -1601,6 +1605,9 @@ void nf_conntrack_tcp_init_net(struct ne
- 	 */
- 	tn->tcp_be_liberal = 0;
- 
-+	/* Skip Windows Check */
-+	tn->tcp_no_window_check = 0;
-+
- 	/* If it's non-zero, we turn off RST sequence number check */
- 	tn->tcp_ignore_invalid_rst = 0;
- 
---- a/net/netfilter/nf_conntrack_standalone.c
-+++ b/net/netfilter/nf_conntrack_standalone.c
-@@ -633,6 +633,7 @@ enum nf_ct_sysctl_index {
- #endif
- 	NF_SYSCTL_CT_PROTO_TCP_LOOSE,
- 	NF_SYSCTL_CT_PROTO_TCP_LIBERAL,
-+	NF_SYSCTL_CT_PROTO_TCP_NO_WINDOW_CHECK,
- 	NF_SYSCTL_CT_PROTO_TCP_IGNORE_INVALID_RST,
- 	NF_SYSCTL_CT_PROTO_TCP_MAX_RETRANS,
- 	NF_SYSCTL_CT_PROTO_TIMEOUT_UDP,
-@@ -840,6 +841,14 @@ static struct ctl_table nf_ct_sysctl_tab
- 		.extra1 	= SYSCTL_ZERO,
- 		.extra2 	= SYSCTL_ONE,
- 	},
-+	[NF_SYSCTL_CT_PROTO_TCP_NO_WINDOW_CHECK] = {
-+		.procname       = "nf_conntrack_tcp_no_window_check",
-+		.maxlen         = sizeof(u8),
-+		.mode           = 0644,
-+		.proc_handler	= proc_dou8vec_minmax,
-+		.extra1 	= SYSCTL_ZERO,
-+		.extra2 	= SYSCTL_ONE,
-+	},
- 	[NF_SYSCTL_CT_PROTO_TCP_IGNORE_INVALID_RST] = {
- 		.procname	= "nf_conntrack_tcp_ignore_invalid_rst",
- 		.maxlen		= sizeof(u8),
-@@ -1050,6 +1059,7 @@ static void nf_conntrack_standalone_init
- 
- 	XASSIGN(LOOSE, &tn->tcp_loose);
- 	XASSIGN(LIBERAL, &tn->tcp_be_liberal);
-+	XASSIGN(NO_WINDOW_CHECK, &tn->tcp_no_window_check);
- 	XASSIGN(MAX_RETRANS, &tn->tcp_max_retrans);
- 	XASSIGN(IGNORE_INVALID_RST, &tn->tcp_ignore_invalid_rst);
- #undef XASSIGN
