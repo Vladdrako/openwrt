@@ -2,8 +2,6 @@
 
 START=99
 
-. /lib/functions.sh
-
 boot() {
 	case $(board_name) in
 	linksys,mr7350)
