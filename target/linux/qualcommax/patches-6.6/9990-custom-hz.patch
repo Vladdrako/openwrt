@@ -60,3 +60,4 @@ kernel/Kconfig.hz : allow custom tickrates
  
  config SCHED_HRTICK
  	def_bool HIGH_RES_TIMERS
+
