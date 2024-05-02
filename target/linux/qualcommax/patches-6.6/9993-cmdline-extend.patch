@@ -1,8 +1,8 @@
 revert arm64: Drop support for CMDLINE_EXTEND
 https://github.com/gregkh/linux/commit/cae118b6acc309539b33339e846cbb19187c164c
---- a/arch/arm64/Kconfig	2024-03-30 21:54:09.683579623 +0800
-+++ b/arch/arm64/Kconfig	2024-03-30 21:55:01.848895771 +0800
-@@ -2262,6 +2262,12 @@
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -2261,6 +2261,12 @@ config CMDLINE_FROM_BOOTLOADER
  	  the boot loader doesn't provide any, the default kernel command
  	  string provided in CMDLINE will be used.
  
@@ -15,10 +15,9 @@ https://github.com/gregkh/linux/commit/cae118b6acc309539b33339e846cbb19187c164c
  config CMDLINE_FORCE
  	bool "Always use the default kernel command string"
  	help
-
---- a/arch/arm64/kernel/idreg-override.c	2024-03-30 22:13:32.812364333 +0800
-+++ b/arch/arm64/kernel/idreg-override.c	2024-03-30 22:13:58.585071306 +0800
-@@ -304,8 +304,11 @@
+--- a/arch/arm64/kernel/idreg-override.c
++++ b/arch/arm64/kernel/idreg-override.c
+@@ -304,8 +304,11 @@ static __init void parse_cmdline(void)
  {
  	const u8 *prop = get_bootargs_cmdline();
  
@@ -31,4 +30,3 @@ https://github.com/gregkh/linux/commit/cae118b6acc309539b33339e846cbb19187c164c
  
  	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE) && prop)
  		__parse_cmdline(prop, true);
-

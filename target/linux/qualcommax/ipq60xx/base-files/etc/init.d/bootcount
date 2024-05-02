@@ -4,13 +4,12 @@ START=99
 
 boot() {
 	case $(board_name) in
-		linksys,mr7350)
-			sleep 120
-			mtd resetbc s_env || true
-		;;
-		yuncore,fap650)
-			fw_setenv owrt_bootcount 0
-		;;
-		esac
+	linksys,mr7350)
+		(sleep 120 ; mtd resetbc s_env || true) &
+	;;
+	yuncore,fap650)
+		fw_setenv owrt_bootcount 0
+	;;
+	esac
 }
 

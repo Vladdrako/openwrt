@@ -9,7 +9,7 @@ Signed-off-by: Sultan Alsawaf <sultan@kerneltoast.com>
 
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -220,6 +220,7 @@
+@@ -246,6 +246,7 @@ config ARM64
  	select PCI_DOMAINS_GENERIC if PCI
  	select PCI_ECAM if (ACPI && PCI)
  	select PCI_SYSCALL if PCI
@@ -17,4 +17,3 @@ Signed-off-by: Sultan Alsawaf <sultan@kerneltoast.com>
  	select POWER_RESET
  	select POWER_SUPPLY
  	select SPARSE_IRQ
-
