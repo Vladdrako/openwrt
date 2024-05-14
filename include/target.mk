@@ -21,10 +21,15 @@ DEFAULT_PACKAGES:=\
 	logd \
 	mtd \
 	netifd \
-	opkg \
 	uci \
 	uclient-fetch \
 	urandom-seed
+
+ifdef CONFIG_USE_APK
+DEFAULT_PACKAGES+=apk
+else
+DEFAULT_PACKAGES+=opkg
+endif
 
 ifneq ($(CONFIG_SELINUX),)
 DEFAULT_PACKAGES+=busybox-selinux procd-selinux
