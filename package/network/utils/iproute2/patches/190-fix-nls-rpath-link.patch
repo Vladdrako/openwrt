@@ -1,6 +1,6 @@
 --- a/configure
 +++ b/configure
-@@ -241,7 +241,7 @@ int main(int argc, char **argv) {
+@@ -270,7 +270,7 @@ int main(int argc, char **argv) {
  }
  EOF
  
@@ -9,7 +9,7 @@
      local ret=$?
  
      rm -f $TMPDIR/libbpf_test.c $TMPDIR/libbpf_test
-@@ -259,7 +259,7 @@ int main(int argc, char **argv) {
+@@ -288,7 +288,7 @@ int main(int argc, char **argv) {
  }
  EOF
  
