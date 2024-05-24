@@ -6,6 +6,15 @@
 ifneq ($(__target_inc),1)
 __target_inc=1
 
+ifneq ($(DUMP),)
+  # Parse generic config that might be set before a .config is generated to modify the
+  # default package configuration
+  GENERIC_CONFIG := CONFIG_USE_APK CONFIG_SELINUX CONFIG_SMALL_FLASH CONFIG_SECCOMP
+  $(foreach config, $(GENERIC_CONFIG), \
+    $(eval $(config) := $(shell grep "$(config)=y" $(TOPDIR)/.config 2>/dev/null)) \
+  )
+endif
+
 # default device type
 DEVICE_TYPE?=router
 
@@ -24,7 +33,7 @@ DEFAULT_PACKAGES:=\
 	uclient-fetch \
 	urandom-seed
 
-ifdef CONFIG_USE_APK
+ifneq ($(CONFIG_USE_APK),)
 DEFAULT_PACKAGES+=apk-mbedtls
 else
 DEFAULT_PACKAGES+=opkg
