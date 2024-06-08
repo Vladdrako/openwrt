@@ -6,7 +6,7 @@
 include $(TOPDIR)/rules.mk
 
 LUCI_TITLE:=LuCI support for PPTP VPN Server
-LUCI_DEPENDS:=+pptpd +kmod-mppe +ppp
+LUCI_DEPENDS:=+pptpd +kmod-mppe +ppp-mod-pptp
 LUCI_PKGARCH:=all
 
 PKG_NAME:=luci-app-pptp-server

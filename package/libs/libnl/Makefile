@@ -20,7 +20,7 @@ PKG_CPE_ID:=cpe:/a:libnl_project:libnl
 PKG_INSTALL:=1
 PKG_FIXUP:=autoreconf
 
-PKG_BUILD_FLAGS:=gc-sections
+PKG_BUILD_FLAGS:=gc-sections no-lto
 
 include $(INCLUDE_DIR)/package.mk
 

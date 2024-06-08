@@ -23,6 +23,7 @@ PKG_CPE_ID:=cpe:/a:tcpdump:libpcap
 PKG_ASLR_PIE_REGULAR:=1
 
 PKG_CONFIG_DEPENDS := CONFIG_PACKAGE_rpcapd
+PKG_BUILD_FLAGS:=no-lto
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/cmake.mk

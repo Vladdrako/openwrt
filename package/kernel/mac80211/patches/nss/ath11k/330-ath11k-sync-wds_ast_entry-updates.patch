@@ -47,13 +47,13 @@ Signed-off-by: Rameshkumar Sundaram <ramess@codeaurora.org>
 --- a/drivers/net/wireless/ath/ath11k/ahb.c
 +++ b/drivers/net/wireless/ath/ath11k/ahb.c
 @@ -1245,6 +1245,7 @@ static void ath11k_ahb_remove_prepare(st
+ 
  	set_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags);
  	cancel_work_sync(&ab->restart_work);
- 	cancel_work_sync(&ab->qmi.event_work);
 +	cancel_work_sync(&ab->wmi_ast_work);
- }
  
- static void ath11k_ahb_free_resources(struct ath11k_base *ab)
+ 	ath11k_core_deinit(ab);
+ qmi_fail:
 --- a/drivers/net/wireless/ath/ath11k/core.c
 +++ b/drivers/net/wireless/ath/ath11k/core.c
 @@ -2211,6 +2211,7 @@ struct ath11k_base *ath11k_core_alloc(st
