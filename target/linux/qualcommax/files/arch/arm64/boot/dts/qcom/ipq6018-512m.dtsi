@@ -7,13 +7,8 @@
 	no-map;
 };
 
-&tz {
+&tzapp_region {
 	reg = <0x0 0x4a600000 0x0 0x00400000>;
-	no-map;
-};
-
-&smem_region {
-	reg = <0x0 0x4aa00000 0x0 0x00100000>;
 	no-map;
 };
 
@@ -23,5 +18,5 @@
 };
 
 &wifi {
-	qcom,ath11k-fw-memory-mode = <1>;
+	qcom,ath11k-fw-memory-mode = <2>;
 };
