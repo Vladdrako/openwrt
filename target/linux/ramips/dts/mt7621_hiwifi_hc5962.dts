@@ -13,7 +13,6 @@
 		led-failsafe = &led_system;
 		led-running = &led_status;
 		led-upgrade = &led_status;
-		label-mac-device = &gmac0;
 	};
 
 	chosen {
@@ -148,11 +147,6 @@
 	};
 };
 
-&gmac0 {
-	mtd-mac-address-ascii = <&bdinfo 0x18a>;
-	phy-mode = "trgmii";
-};
-
 &gmac1 {
 	status = "okay";
 	label = "wan";
@@ -178,10 +172,6 @@
 		port@3 {
 			status = "okay";
 			label = "lan3";
-		};
-
-		port@6 {
-			phy-mode = "trgmii";
 		};
 	};
 };
