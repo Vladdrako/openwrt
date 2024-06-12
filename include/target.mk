@@ -36,11 +36,6 @@ else
 DEFAULT_PACKAGES+=busybox procd
 endif
 
-# include seccomp ld-preload hooks if kernel supports it
-ifneq ($(CONFIG_SECCOMP),)
-DEFAULT_PACKAGES+=procd-seccomp
-endif
-
 # For the basic set
 DEFAULT_PACKAGES.basic:=
 # For nas targets
