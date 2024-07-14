@@ -1198,7 +1198,6 @@ endef
 
 $(eval $(call KernelPackage,crypto-xxhash))
 
-
 define KernelPackage/crypto-qce
   TITLE:=QTI Crypto Engine (QCE)
   KCONFIG:= \
