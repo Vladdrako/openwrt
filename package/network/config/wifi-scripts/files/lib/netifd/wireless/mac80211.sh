@@ -143,6 +143,7 @@ mac80211_hostapd_setup_base() {
 		append base_cfg "acs_exclude_dfs=1" "$N"
 
 	json_get_vars noscan ht_coex min_tx_power:0 vendor_vht
+	json_get_vars noscan ht_coex min_tx_power:0
 	json_get_values ht_capab_list ht_capab
 	json_get_vars tx_burst
 	json_get_values channel_list channels
@@ -295,8 +296,9 @@ mac80211_hostapd_setup_base() {
 		esac
 		[ -n "$op_class" ] && append base_cfg "op_class=$op_class" "$N"
 	}
+	[ "$hwmode" = "a" ] || enable_ac=0
 
-	if [ "$enable_ac" != "0" -o "$vendor_vht" = "1" ]; then
+	if [ "$enable_ac" != "0" ]; then
 		json_get_vars \
 			rxldpc:1 \
 			short_gi_80:1 \
@@ -525,7 +527,7 @@ mac80211_hostapd_setup_bss() {
 		append hostapd_cfg "wds_sta=1" "$N"
 		[ -n "$wds_bridge" ] && append hostapd_cfg "wds_bridge=$wds_bridge" "$N"
 	}
-	[ "$start_disabled" -eq 1 ] && append hostapd_cfg "start_disabled=1" "$N"
+	[ "$staidx" -gt 0 -o "$start_disabled" -eq 1 ] && append hostapd_cfg "start_disabled=1" "$N"
 
 	cat >> /var/run/hostapd-$phy.conf <<EOF
 $hostapd_cfg
