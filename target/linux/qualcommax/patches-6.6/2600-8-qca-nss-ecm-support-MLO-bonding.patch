@@ -327,9 +327,10 @@ Signed-off-by: Shivani Soni <quic_soni@quicinc.com>
  		/* Should never happen, mode already checked */
  		netdev_err(dev, "Unknown bonding mode %d\n", BOND_MODE(bond));
 @@ -6182,6 +6302,15 @@ static void bond_destructor(struct net_d
- 		clear_bit(bond->id, &bond_id_mask);
- 	/* QCA NSS ECM bonding support - End */
- 
+    if (bond->id != (~0U))
+        clear_bit(bond->id, &bond_id_mask);
+ 	/* QCA NSS ECM bonding support */
++
 +   /*
 +	 * Wifi driver registered callback to destroy wiphy for MLO bond netdevice
 +	 */
@@ -338,10 +339,9 @@ Signed-off-by: Shivani Soni <quic_soni@quicinc.com>
 +			bond->mlo_info.bond_mlo_netdev_priv_destructor(bond_dev);
 +		}
 +	}
-+
- 	free_percpu(bond->rr_tx_counter);
  }
  
+ void bond_setup(struct net_device *bond_dev)
 @@ -6743,6 +6872,76 @@ out:
  	return res;
  }
@@ -465,7 +465,7 @@ Signed-off-by: Shivani Soni <quic_soni@quicinc.com>
 @@ -264,6 +281,8 @@ struct bonding {
  #endif /* CONFIG_XFRM_OFFLOAD */
  	struct bpf_prog *xdp_prog;
- 	u32 id;/* QCA NSS ECM bonding support */
+    u32    id; /* QCA NSS ECM bonding support */
 +    /* MLO mode info */
 +    struct mlo_bond_info mlo_info;
  };
