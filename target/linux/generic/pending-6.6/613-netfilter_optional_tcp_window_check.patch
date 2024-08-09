@@ -7,6 +7,16 @@ Signed-off-by: Christian 'Ansuel' Marangi <ansuelsmth@gmail.com>
  net/netfilter/nf_conntrack_proto_tcp.c | 13 +++++++++++++
  1 file changed, 13 insertions(+)
 
+--- a/include/net/netns/conntrack.h
++++ b/include/net/netns/conntrack.h
+@@ -26,6 +26,7 @@ struct nf_tcp_net {
+ 	unsigned int timeouts[TCP_CONNTRACK_TIMEOUT_MAX];
+ 	u8 tcp_loose;
+ 	u8 tcp_be_liberal;
++	u8 tcp_no_window_check;
+ 	u8 tcp_max_retrans;
+ 	u8 tcp_ignore_invalid_rst;
+ #if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
 --- a/net/netfilter/nf_conntrack_proto_tcp.c
 +++ b/net/netfilter/nf_conntrack_proto_tcp.c
 @@ -515,11 +515,15 @@ tcp_in_window(struct nf_conn *ct, enum i
@@ -46,7 +56,7 @@ Signed-off-by: Christian 'Ansuel' Marangi <ansuelsmth@gmail.com>
  
 --- a/net/netfilter/nf_conntrack_standalone.c
 +++ b/net/netfilter/nf_conntrack_standalone.c
-@@ -631,6 +631,7 @@ enum nf_ct_sysctl_index {
+@@ -630,6 +630,7 @@ enum nf_ct_sysctl_index {
  #endif
  	NF_SYSCTL_CT_PROTO_TCP_LOOSE,
  	NF_SYSCTL_CT_PROTO_TCP_LIBERAL,
@@ -54,7 +64,7 @@ Signed-off-by: Christian 'Ansuel' Marangi <ansuelsmth@gmail.com>
  	NF_SYSCTL_CT_PROTO_TCP_IGNORE_INVALID_RST,
  	NF_SYSCTL_CT_PROTO_TCP_MAX_RETRANS,
  	NF_SYSCTL_CT_PROTO_TIMEOUT_UDP,
-@@ -838,6 +839,14 @@ static struct ctl_table nf_ct_sysctl_tab
+@@ -834,6 +835,14 @@ static struct ctl_table nf_ct_sysctl_tab
  		.extra1 	= SYSCTL_ZERO,
  		.extra2 	= SYSCTL_ONE,
  	},
@@ -69,7 +79,7 @@ Signed-off-by: Christian 'Ansuel' Marangi <ansuelsmth@gmail.com>
  	[NF_SYSCTL_CT_PROTO_TCP_IGNORE_INVALID_RST] = {
  		.procname	= "nf_conntrack_tcp_ignore_invalid_rst",
  		.maxlen		= sizeof(u8),
-@@ -1048,6 +1057,7 @@ static void nf_conntrack_standalone_init
+@@ -1035,6 +1044,7 @@ static void nf_conntrack_standalone_init
  
  	XASSIGN(LOOSE, &tn->tcp_loose);
  	XASSIGN(LIBERAL, &tn->tcp_be_liberal);
@@ -77,13 +87,4 @@ Signed-off-by: Christian 'Ansuel' Marangi <ansuelsmth@gmail.com>
  	XASSIGN(MAX_RETRANS, &tn->tcp_max_retrans);
  	XASSIGN(IGNORE_INVALID_RST, &tn->tcp_ignore_invalid_rst);
  #undef XASSIGN
---- a/include/net/netns/conntrack.h
-+++ b/include/net/netns/conntrack.h
-@@ -26,6 +26,7 @@ struct nf_tcp_net {
- 	unsigned int timeouts[TCP_CONNTRACK_TIMEOUT_MAX];
- 	u8 tcp_loose;
- 	u8 tcp_be_liberal;
-+	u8 tcp_no_window_check;
- 	u8 tcp_max_retrans;
- 	u8 tcp_ignore_invalid_rst;
- #if IS_ENABLED(CONFIG_NF_FLOW_TABLE)
+
