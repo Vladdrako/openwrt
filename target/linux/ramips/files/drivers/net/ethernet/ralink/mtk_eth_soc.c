@@ -1630,7 +1630,7 @@ static int fe_probe(struct platform_device *pdev)
 	netif_napi_add_weight(netdev, &priv->rx_napi, fe_poll, napi_weight);
 	fe_set_ethtool_ops(netdev);
 
-	err = devm_register_netdev(&pdev->dev, netdev);
+	err = devm_register_netdev(pdev->dev, netdev);
 	if (err) {
 		dev_err(&pdev->dev, "error bringing up device\n");
 		return err;
