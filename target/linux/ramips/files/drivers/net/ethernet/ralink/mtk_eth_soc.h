@@ -151,10 +151,7 @@ enum fe_work_flag {
 #define MT7620A_GDMA_OFFSET		0x0600
 #endif
 #define	MT7620A_GDMA1_FWD_CFG		(MT7620A_GDMA_OFFSET + 0x00)
-#define MT7620A_FE_GDMA1_SCH_CFG	(MT7620A_GDMA_OFFSET + 0x04)
-#define MT7620A_FE_GDMA1_SHPR_CFG	(MT7620A_GDMA_OFFSET + 0x08)
-#define MT7620A_FE_GDMA1_MAC_ADRL	(MT7620A_GDMA_OFFSET + 0x0C)
-#define MT7620A_FE_GDMA1_MAC_ADRH	(MT7620A_GDMA_OFFSET + 0x10)
+#define MT7620A_FE_GDMA1_SHPR_CFG	(MT7620A_GDMA_OFFSET + 0x04)
 
 #define RT5350_TX_BASE_PTR0	(RT5350_PDMA_OFFSET + 0x00)
 #define RT5350_TX_MAX_CNT0	(RT5350_PDMA_OFFSET + 0x04)
@@ -461,9 +458,15 @@ struct fe_rx_ring {
 	u16 rx_calc_idx;
 };
 
+enum fe_state_t {
+	__FE_DOWN,
+};
+
 struct fe_priv {
 	/* make sure that register operations are atomic */
 	spinlock_t			page_lock;
+
+	unsigned long state;
 
 	struct fe_soc_data		*soc;
 	struct net_device		*netdev;
