@@ -1547,7 +1547,7 @@ static int fe_probe(struct platform_device *pdev)
 	else
 		soc->reg_table = fe_reg_table;
 
-	fe_base = devm_platform_ioremap_resource(&pdev->dev, 0);
+	fe_base = devm_platform_ioremap_resource(pdev->dev, 0);
 	if (IS_ERR(fe_base))
 		return PTR_ERR(fe_base);
 
@@ -1630,7 +1630,7 @@ static int fe_probe(struct platform_device *pdev)
 	netif_napi_add_weight(netdev, &priv->rx_napi, fe_poll, napi_weight);
 	fe_set_ethtool_ops(netdev);
 
-	err = devm_register_netdev(pdev->dev, netdev);
+	err = devm_register_netdev(&pdev->dev, netdev);
 	if (err) {
 		dev_err(&pdev->dev, "error bringing up device\n");
 		return err;
