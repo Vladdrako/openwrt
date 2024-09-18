@@ -1547,7 +1547,7 @@ static int fe_probe(struct platform_device *pdev)
 	else
 		soc->reg_table = fe_reg_table;
 
-	fe_base = devm_platform_ioremap_resource(pdev->dev, 0);
+	fe_base = devm_platform_ioremap_resource(*pdev->dev, 0);
 	if (IS_ERR(fe_base))
 		return PTR_ERR(fe_base);
 
