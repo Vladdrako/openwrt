@@ -151,7 +151,7 @@ hostapd_prepare_device_config() {
 	set_default legacy_rates 0
 	set_default airtime_mode 0
 	set_default cell_density 0
-
+[ "$noscan" = "0" ] && {
 	[ -n "$country" ] && {
 		append base_cfg "country_code=$country" "$N"
 		[ -n "$country3" ] && append base_cfg "country3=$country3" "$N"
@@ -163,6 +163,7 @@ hostapd_prepare_device_config() {
 		}
 		[ "$hwmode" = "a" -a "$doth" -gt 0 ] && append base_cfg "ieee80211h=1" "$N"
 	}
+}
 
 	[ -n "$acs_chan_bias" ] && append base_cfg "acs_chan_bias=$acs_chan_bias" "$N"
 
