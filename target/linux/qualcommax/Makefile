@@ -5,7 +5,7 @@ BOARD:=qualcommax
 BOARDNAME:=Qualcomm Atheros 802.11ax WiSoC-s
 FEATURES:=squashfs ramdisk fpu nand rtc emmc
 KERNELNAME:=Image
-SUBTARGETS:=ipq807x ipq60xx
+SUBTARGETS:=ipq807x ipq60xx ipq50xx
 
 KERNEL_PATCHVER:=6.6
 
