@@ -62,12 +62,16 @@ hostapd_append_wpa_key_mgmt() {
 		sae)
 			append wpa_key_mgmt "SAE"
 			[ "${ieee80211r:-0}" -gt 0 ] && append wpa_key_mgmt "FT-SAE"
+			append wpa_key_mgmt "SAE-EXT-KEY"
+			[ "${ieee80211r:-0}" -gt 0 ] && append wpa_key_mgmt "FT-SAE-EXT-KEY"
 		;;
 		psk-sae)
 			append wpa_key_mgmt "WPA-PSK"
 			[ "${ieee80211w:-0}" -gt 0 ] && append wpa_key_mgmt "WPA-PSK-SHA256"
 			append wpa_key_mgmt "SAE"
 			[ "${ieee80211r:-0}" -gt 0 ] && append wpa_key_mgmt "FT-SAE"
+			append wpa_key_mgmt "SAE-EXT-KEY"
+			[ "${ieee80211r:-0}" -gt 0 ] && append wpa_key_mgmt "FT-SAE-EXT-KEY"
 		;;
 		owe)
 			append wpa_key_mgmt "OWE"
