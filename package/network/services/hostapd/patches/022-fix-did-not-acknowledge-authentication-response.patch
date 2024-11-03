@@ -1,0 +1,19 @@
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -6432,7 +6432,15 @@ static void handle_auth_cb(struct hostap
+ 	if (!ok) {
+ 		hostapd_logger(hapd, mgmt->da, HOSTAPD_MODULE_IEEE80211,
+ 			       HOSTAPD_LEVEL_NOTICE,
+-			       "did not acknowledge authentication response");
++			       "did not acknowledge authentication response, "
++			       "status_code:%d, added_unassoc:%d",
++			       status_code, sta->added_unassoc);
++
++		if (status_code == WLAN_STATUS_SUCCESS) {
++			hostapd_drv_sta_disassoc(hapd, sta->addr, WLAN_REASON_DISASSOC_LOW_ACK);
++			ap_sta_disassociate(hapd, sta, WLAN_REASON_DISASSOC_LOW_ACK);
++		}
++
+ 		goto fail;
+ 	}
+ 
