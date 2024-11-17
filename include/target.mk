@@ -87,9 +87,6 @@ else
   endif
 endif
 
-ifeq ($(filter small_flash,$(FEATURES)),)
-  DEFAULT_PACKAGES+=procd-ujail
-
 # Add device specific packages (here below to allow device type set from subtarget)
 DEFAULT_PACKAGES += $(DEFAULT_PACKAGES.$(DEVICE_TYPE))
 
