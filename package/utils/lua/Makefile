@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=lua
 PKG_VERSION:=5.1.5
-PKG_RELEASE:=11
+PKG_RELEASE:=12
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://www.lua.org/ftp/ \
@@ -22,8 +22,6 @@ PKG_BUILD_FLAGS:=no-lto
 PKG_LICENSE:=MIT
 PKG_LICENSE_FILES:=COPYRIGHT
 PKG_CPE_ID:=cpe:/a:lua:lua
-
-PKG_BUILD_FLAGS:=no-lto
 
 HOST_PATCH_DIR := ./patches-host
 
@@ -40,8 +38,8 @@ define Package/lua/Default
 endef
 
 define Package/lua/Default/description
- Lua is a powerful light-weight programming language designed for extending 
- applications. Lua is also frequently used as a general-purpose, stand-alone 
+ Lua is a powerful light-weight programming language designed for extending
+ applications. Lua is also frequently used as a general-purpose, stand-alone
  language. Lua is free software.
 endef
 
@@ -95,7 +93,11 @@ endef
 define Build/Configure
 endef
 
-TARGET_CFLAGS += -DLUA_USE_LINUX $(FPIC) -std=gnu99
+TARGET_CFLAGS += \
+	-DLUA_USE_LINUX \
+	$(FPIC) \
+	-std=gnu99
+TARGET_LDFLAGS += $(FPIC)
 
 define Build/Compile
 	$(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR) \
