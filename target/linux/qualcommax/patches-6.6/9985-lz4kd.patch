@@ -24,7 +24,7 @@ diff -ruN linux-6.6.61.orig/crypto/Kconfig linux-6.6.61/crypto/Kconfig
 diff -ruN linux-6.6.61.orig/crypto/lz4kd.c linux-6.6.61/crypto/lz4kd.c
 --- linux-6.6.61.orig/crypto/lz4kd.c	1970-01-01 08:00:00.000000000 +0800
 +++ linux-6.6.61/crypto/lz4kd.c	2024-11-19 23:50:17.082313648 +0800
-@@ -0,0 +1,95 @@
+@@ -0,0 +1,96 @@
 +/*
 + * Cryptographic API.
 + *
@@ -37,6 +37,7 @@ diff -ruN linux-6.6.61.orig/crypto/lz4kd.c linux-6.6.61/crypto/lz4kd.c
 +#include <linux/crypto.h>
 +#include <linux/vmalloc.h>
 +#include <linux/lz4kd.h>
++#include <crypto/algapi.h>
 +
 +
 +struct lz4kd_ctx {
@@ -1214,7 +1215,7 @@ diff -ruN linux-6.6.61.orig/lib/lz4kd/lz4kd_private.h linux-6.6.61/lib/lz4kd/lz4
 +#include <linux/string.h> /* memcpy() */
 +#include <linux/types.h> /* uint8_t, int8_t, uint16_t, int16_t,
 +uint32_t, int32_t, uint64_t, int64_t */
-+#include <stddef.h>
++#include <linux/stddef.h>
 +
 +typedef uint64_t uint_fast32_t;
 +typedef int64_t int_fast32_t;
