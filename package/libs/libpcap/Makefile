@@ -23,7 +23,6 @@ PKG_CPE_ID:=cpe:/a:tcpdump:libpcap
 PKG_ASLR_PIE_REGULAR:=1
 
 PKG_CONFIG_DEPENDS := CONFIG_PACKAGE_rpcapd
-PKG_BUILD_FLAGS:=no-lto
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/cmake.mk
@@ -82,6 +81,9 @@ CMAKE_OPTIONS += \
 CMAKE_OPTIONS += \
 	-DBDEBUG=OFF \
 	-DYYDEBUG=OFF \
+
+TARGET_CFLAGS += $(FPIC)
+TARGET_LDFLAGS += $(FPIC)
 
 define Build/InstallDev
 	$(call Build/InstallDev/cmake,$(1))
