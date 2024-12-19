@@ -210,17 +210,6 @@
  retry:
  		t1 = readl(ports[port_index]->addr);
  		t2 = xhci_port_state_to_neutral(t1);
---- a/drivers/usb/host/xhci.h
-+++ b/drivers/usb/host/xhci.h
-@@ -459,7 +459,7 @@
-  * so check status 10 times with 36ms sleep in places we need to wait for
-  * polling to complete.
-  */
--#define XHCI_PORT_POLLING_LFPS_TIME  36
-+#define XHCI_PORT_POLLING_LFPS_TIME  2
- 
- /**
-  * struct xhci_intr_reg - Interrupt Register Set
 --- a/drivers/usb/core/quirks.c
 +++ b/drivers/usb/core/quirks.c
 @@ -334,4 +334,7 @@

@@ -1,6 +1,6 @@
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -523,11 +523,15 @@
+@@ -522,10 +522,14 @@
  		 * TODO: accept the key if we have a station entry and
  		 *       add it to the device after the station.
  		 */
@@ -8,8 +8,7 @@
 +		if (!sta) {
 +                       sdata_info(sdata, "mwv1 - no sta\n");
  			ieee80211_key_free_unused(key);
- 			err = -ENOENT;
- 			goto out_unlock;
+ 			return -ENOENT;
  		}
 +		if (!test_sta_flag(sta, WLAN_STA_ASSOC)) {
 +                       sdata_info(sdata, "mwv2 - no sta assoc\n");

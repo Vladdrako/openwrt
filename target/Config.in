@@ -24,9 +24,11 @@ config GPIO_SUPPORT
 
 config PCI_SUPPORT
 	select AUDIO_SUPPORT
+	default y
 	bool
 
 config PCIE_SUPPORT
+	default y
 	bool
 
 config PCMCIA_SUPPORT

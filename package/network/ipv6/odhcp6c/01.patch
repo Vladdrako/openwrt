@@ -1,0 +1,622 @@
+From cf4a9ca74c70a5041714956a8f441bc72d605e9b Mon Sep 17 00:00:00 2001
+From: Alin Nastac <alin.nastac@gmail.com>
+Date: Fri, 12 May 2023 15:09:32 +0200
+Subject: [PATCH] restart DHCPv6 transaction on receival of RA who contains a
+ new prefix
+
+When upstream DHCPv6 server does not provide IA_NA or IA_PD options,
+odhcp6c enters in stateless mode, which will not be exited from until
+SIGUSR2 signal is received.
+
+This change enforce DHCPv6 transaction restart on receival of a RA that:
+  a) advertise the presence of DHCPv6 server in the network, either
+     by containing M or O flags
+  b) has a PI (prefix information) option that contains a new prefix
+thus allowing the switch to DHCPv6 stateful mode when RA PI options
+suggest that upstream DHCPv6 server now manages a new prefix.
+
+Transaction restart is useful even when DHCPv6 client is already in
+stateful mode, so DHCPv6 server will be able to refresh client's IA_NA
+and IA_PD options before renewal timeout is triggered, hence avoiding
+usage of potentially deprecated addresses.
+
+Signed-off-by: Alin Nastac <alin.nastac@gmail.com>
+---
+ src/dhcpv6.c  |  2 +-
+ src/odhcp6c.c | 37 ++++++++++++++++++++++++++++++++++---
+ src/odhcp6c.h |  1 +
+ src/ra.c      |  2 ++
+ 4 files changed, 38 insertions(+), 4 deletions(-)
+
+diff --git a/src/dhcpv6.c b/src/dhcpv6.c
+index ca5957e..d0ab2da 100644
+--- a/src/dhcpv6.c
++++ b/src/dhcpv6.c
+@@ -1357,7 +1357,7 @@ static unsigned int dhcpv6_parse_ia(void *opt, void *end)
+ 	// Update address IA
+ 	dhcpv6_for_each_option(&ia_hdr[1], end, otype, olen, odata) {
+ 		struct odhcp6c_entry entry = {IN6ADDR_ANY_INIT, 0, 0,
+-				IN6ADDR_ANY_INIT, 0, 0, 0, 0, 0, 0};
++				IN6ADDR_ANY_INIT, 0, 0, 0, 0, 0, 0, 0};
+ 
+ 		entry.iaid = ia_hdr->iaid;
+ 
+diff --git a/src/odhcp6c.c b/src/odhcp6c.c
+index 4a6d7bd..6c34f7c 100644
+--- a/src/odhcp6c.c
++++ b/src/odhcp6c.c
+@@ -33,6 +33,7 @@
+ #include <sys/syscall.h>
+ #include <arpa/inet.h>
+ #include <linux/if_addr.h>
++#include <netinet/icmp6.h>
+ 
+ #include "odhcp6c.h"
+ #include "ra.h"
+@@ -470,9 +471,7 @@ int main(_unused int argc, char* const argv[])
+ 		if (mode != DHCPV6_STATELESS)
+ 			mode = dhcpv6_request(DHCPV6_MSG_SOLICIT);
+ 
+-		odhcp6c_signal_process();
+-
+-		if (mode < 0)
++		if (odhcp6c_signal_process() || mode < 0)
+ 			continue;
+ 
+ 		do {
+@@ -558,6 +557,9 @@ int main(_unused int argc, char* const argv[])
+ 					continue; // Renew was successful
+ 				}
+ 
++				if (signal_usr2 || signal_term)
++					break; // Other signal type
++
+ 				odhcp6c_clear_state(STATE_SERVER_ID); // Remove binding
+ 				odhcp6c_clear_state(STATE_SERVER_ADDR);
+ 
+@@ -676,16 +678,43 @@ static uint8_t* odhcp6c_resize_state(enum odhcp6c_state state, ssize_t len)
+ 	return n;
+ }
+ 
++static bool odhcp6c_server_advertised()
++{
++	size_t len;
++	uint8_t *start = odhcp6c_get_state(STATE_RA_ROUTE, &len);
++
++	for (struct odhcp6c_entry *c = (struct odhcp6c_entry*)start;
++			(uint8_t*)c < &start[len] &&
++			(uint8_t*)odhcp6c_next_entry(c) <= &start[len];
++			c = odhcp6c_next_entry(c)) {
++		// Only default route entries have flags
++		if (c->length != 0 || IN6_IS_ADDR_UNSPECIFIED(&c->router))
++			continue;
++
++		if (c->flags & (ND_RA_FLAG_MANAGED | ND_RA_FLAG_OTHER))
++			return true;
++	}
++
++	return false;
++}
++
+ bool odhcp6c_signal_process(void)
+ {
+ 	while (signal_io) {
+ 		signal_io = false;
+ 
++		size_t old_ra_prefix_size = state_len[STATE_RA_PREFIX];
+ 		bool ra_updated = ra_process();
+ 
+ 		if (ra_link_up()) {
+ 			signal_usr2 = true;
+ 			ra = false;
++		} else if (old_ra_prefix_size != state_len[STATE_RA_PREFIX] &&
++				odhcp6c_server_advertised()) {
++			// Restart DHCPv6 transaction when router advertisement flags
++			// show presence of a DHCPv6 server and new prefixes were
++			// added to STATE_RA_PREFIX state
++			signal_usr2 = true;
+ 		}
+ 
+ 		if (ra_updated && (bound || allow_slaac_only >= 0)) {
+@@ -797,6 +826,8 @@ bool odhcp6c_update_entry(enum odhcp6c_state state, struct odhcp6c_entry *new,
+ 				new->preferred - x->preferred < holdoff_interval)
+ 			return false;
+ 
++		x->flags = new->flags;
++		x->priority = new->priority;
+ 		x->valid = new->valid;
+ 		x->preferred = new->preferred;
+ 		x->t1 = new->t1;
+diff --git a/src/odhcp6c.h b/src/odhcp6c.h
+index 5d9d5e3..c93f2a9 100644
+--- a/src/odhcp6c.h
++++ b/src/odhcp6c.h
+@@ -348,6 +348,7 @@ struct odhcp6c_entry {
+ 	uint8_t auxlen;
+ 	uint8_t length;
+ 	struct in6_addr target;
++	uint8_t flags;
+ 	int16_t priority;
+ 	uint32_t valid;
+ 	uint32_t preferred;
+diff --git a/src/ra.c b/src/ra.c
+index 01a8b72..8b2bad5 100644
+--- a/src/ra.c
++++ b/src/ra.c
+@@ -432,6 +432,7 @@ bool ra_process(void)
+ 		entry->target = any;
+ 		entry->length = 0;
+ 		entry->router = from.sin6_addr;
++		entry->flags = adv->nd_ra_flags_reserved & (ND_RA_FLAG_MANAGED | ND_RA_FLAG_OTHER);
+ 		entry->priority = pref_to_priority(adv->nd_ra_flags_reserved);
+ 		if (entry->priority < 0)
+ 			entry->priority = pref_to_priority(0);
+@@ -440,6 +441,7 @@ bool ra_process(void)
+ 		entry->preferred = entry->valid;
+ 		changed |= odhcp6c_update_entry(STATE_RA_ROUTE, entry,
+ 						0, ra_holdoff_interval);
++		entry->flags = 0; // other STATE_RA_* entries don't have flags
+ 
+ 		// Parse hoplimit
+ 		changed |= ra_set_hoplimit(adv->nd_ra_curhoplimit);
+
+From dcfdd314e828ae77af5c29d07bfb1028ef0777bf Mon Sep 17 00:00:00 2001
+From: xuxb <xuxb@lightwan.com>
+Date: Sun, 3 Dec 2023 02:11:21 -0500
+Subject: [PATCH] fix odhcp6c deamon raw buffer inc
+
+---
+ src/odhcp6c.c | 20 ++++++++++----------
+ 1 file changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/odhcp6c.c b/src/odhcp6c.c
+index 4a6d7bd..4d3c31e 100644
+--- a/src/odhcp6c.c
++++ b/src/odhcp6c.c
+@@ -421,20 +421,12 @@ int main(_unused int argc, char* const argv[])
+ 	signal(SIGUSR1, sighandler);
+ 	signal(SIGUSR2, sighandler);
+ 
+-	if ((urandom_fd = open("/dev/urandom", O_CLOEXEC | O_RDONLY)) < 0 ||
+-			init_dhcpv6(ifname, client_options, sk_prio, sol_timeout) ||
+-			ra_init(ifname, &ifid, ra_options, ra_holdoff_interval) ||
+-			script_init(script, ifname)) {
+-		syslog(LOG_ERR, "failed to initialize: %s", strerror(errno));
+-		return 3;
+-	}
+-
+ 	if (daemonize) {
+ 		openlog("odhcp6c", LOG_PID, LOG_DAEMON); // Disable LOG_PERROR
+ 		if (daemon(0, 0)) {
+ 			syslog(LOG_ERR, "Failed to daemonize: %s",
+ 					strerror(errno));
+-			return 4;
++			return 3;
+ 		}
+ 
+ 		if (!pidfile) {
+@@ -449,7 +441,15 @@ int main(_unused int argc, char* const argv[])
+ 		}
+ 	}
+ 
+-	script_call("started", 0, false);
++    if ((urandom_fd = open("/dev/urandom", O_CLOEXEC | O_RDONLY)) < 0 ||
++            init_dhcpv6(ifname, client_options, sk_prio, sol_timeout) ||
++            ra_init(ifname, &ifid, ra_options, ra_holdoff_interval) ||
++            script_init(script, ifname)) {
++        syslog(LOG_ERR, "failed to initialize: %s", strerror(errno));
++        return 4;
++     }
++
++    script_call("started", 0, false);
+ 
+ 	while (!signal_term) { // Main logic
+ 		odhcp6c_clear_state(STATE_SERVER_ID);
+
+From 1ca3574df2926f3e7d997639d62b3049edef5fb7 Mon Sep 17 00:00:00 2001
+From: Alin Nastac <alin.nastac@gmail.com>
+Date: Wed, 3 Jan 2024 15:59:55 +0100
+Subject: [PATCH] odhcp6c: sync and accumulate RA & DHCPv6 events as fast as
+ possible
+
+This fixes dc186d6d2b0dd4ad23ca5fc69c00e81f796ff6d9 commit which
+introduce accumulation delay differences between the 2 possible scenarios:
+ 1) When DHCPv6 bound event precede RA receival, sync script is called
+   after 1 second since accumulation has been completed (i.e. RA has
+   been received).
+ 2) When RA receival precedes DHCPv6 bound event, sync script is called
+    after a delay of 10 seconds since accumulation is done.
+
+Signed-off-by: Alin Nastac <alin.nastac@gmail.com>
+---
+ src/odhcp6c.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/odhcp6c.c b/src/odhcp6c.c
+index 4a6d7bd..adebcb0 100644
+--- a/src/odhcp6c.c
++++ b/src/odhcp6c.c
+@@ -500,7 +500,7 @@ int main(_unused int argc, char* const argv[])
+ 
+ 			while (!signal_usr2 && !signal_term) {
+ 				signal_usr1 = false;
+-				script_call("informed", script_sync_delay, true);
++				script_call("informed", ra ? script_accu_delay : script_sync_delay, true);
+ 
+ 				res = dhcpv6_poll_reconfigure();
+ 				odhcp6c_signal_process();
+@@ -528,7 +528,7 @@ int main(_unused int argc, char* const argv[])
+ 
+ 		case DHCPV6_STATEFUL:
+ 			bound = true;
+-			script_call("bound", script_sync_delay, true);
++			script_call("bound", ra ? script_accu_delay : script_sync_delay, true);
+ 			syslog(LOG_NOTICE, "entering stateful-mode on %s", ifname);
+ 
+ 			while (!signal_usr2 && !signal_term) {
+
+From f78f8eafd47b810b8856b1b3f101227673330fab Mon Sep 17 00:00:00 2001
+From: Bert Goemans <bert.goemans_ext@softathome.com>
+Date: Thu, 11 Jan 2024 17:17:42 +0100
+Subject: [PATCH] odhcp6c: set server address from Information-request reply
+
+Update the address of the DHCPv6 server when a reply to an
+Information-request message is received.
+
+Signed-off-by: Bert Goemans <bert.goemans_ext@softathome.com>
+---
+ src/dhcpv6.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/dhcpv6.c b/src/dhcpv6.c
+index ca5957e..70110c8 100644
+--- a/src/dhcpv6.c
++++ b/src/dhcpv6.c
+@@ -1327,6 +1327,9 @@ static int dhcpv6_handle_reply(enum dhcpv6_msg orig, _unused const int rc,
+ 		if (!odhcp6c_is_bound())
+ 			dhcpv6_clear_all_server_cand();
+ 
++		odhcp6c_clear_state(STATE_SERVER_ADDR);
++		odhcp6c_add_state(STATE_SERVER_ADDR, &from->sin6_addr, 16);
++
+ 		t1 = refresh;
+ 		break;
+ 
+
+From a604a18647e680f4a315644dc8ef7967d4d09461 Mon Sep 17 00:00:00 2001
+From: Gasper Stukelj <gstukelj@plume.com>
+Date: Mon, 8 Apr 2024 11:48:09 +0200
+Subject: [PATCH] script: don't ignore RA with zero router lifetime
+
+As per RFC 4861 (section 4.2), 0 is a valid value for
+Router Lifetime field in Router Advertisement messages.
+To quote from the RFC:
+
+> A Lifetime of 0 indicates that the router is not a
+> default router and SHOULD NOT appear on the default
+> router list.
+
+In fact, this is the mechanism by which a router,
+previously advertising itself as a default router must
+invalidate itself. From the RFC 7084 (4.1, G-5):
+
+> By default, if the IPv6 CE router is an advertising
+> router and loses its IPv6 default router(s) and/or
+> detects loss of connectivity on the WAN interface,
+> it MUST explicitly invalidate itself as an IPv6
+> default router on each of its advertising interfaces
+> by immediately transmitting one or more Router
+> Advertisement messages with the "Router Lifetime"
+> field set to zero [RFC4861].
+
+Given that Router Lifetime is stored in the `valid`
+field of the `struct odhcp6c_entry`, entries with
+the field set to 0 shouldn't be ignored when entry
+type is `ENTRY_ROUTE`.
+
+Signed-off-by: Gasper Stukelj <gstukelj@plume.com>
+---
+ src/script.c | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/script.c b/src/script.c
+index bb93a53..4b06c69 100644
+--- a/src/script.c
++++ b/src/script.c
+@@ -180,11 +180,14 @@ static void entry_to_env(const char *name, const void *data, size_t len, enum en
+ 
+ 	for (size_t i = 0; i < len / sizeof(*e); ++i) {
+ 		/*
+-		 * The only invalid entries allowed to be passed to the script are prefix entries.
+-		 * This will allow immediate removal of the old ipv6-prefix-assignment that might
+-		 * otherwise be kept for up to 2 hours (see L-13 requirement of RFC 7084).
++		 * The only invalid entries allowed to be passed to the script are prefix and RA
++		 * entries. This will allow immediate removal of the old ipv6-prefix-assignment
++		 * that might otherwise be kept for up to 2 hours (see L-13 requirement of RFC 7084).
++		 * Similarly, a RA with router lifetime set to 0 indicates that the advertising
++		 * router "is not a default router and SHOULD NOT appear on the default router list"
++		 * (see RFC 4861, section 4.2).
+ 		 */
+-		if (!e[i].valid && type != ENTRY_PREFIX)
++		if (!e[i].valid && type != ENTRY_PREFIX && type != ENTRY_ROUTE)
+ 			continue;
+ 
+ 		inet_ntop(AF_INET6, &e[i].target, &buf[buf_len], INET6_ADDRSTRLEN);
+
+From 1291d54c50f233caa8526d9a10f5361e4593fca9 Mon Sep 17 00:00:00 2001
+From: Richard Patterson <richard@helix.net.nz>
+Date: Mon, 19 Aug 2024 17:26:52 +0100
+Subject: [PATCH] odhcp6c: Do not request S46 OROs by default
+
+This prevents odhcp6c from requesting MAP-T/E, LW4o6, and DS-Lite options by default, as the required packages aren't installed by default.
+
+This commit should be merged along with commits to the map and ds-lite packages, that add configuration to requests the OROs when the packages are install
+
+Signed-off-by: Richard Patterson <richard@helix.net.nz>
+---
+ src/dhcpv6.c  | 4 ----
+ src/odhcp6c.h | 2 +-
+ 2 files changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/dhcpv6.c b/src/dhcpv6.c
+index ca5957e..32429f6 100644
+--- a/src/dhcpv6.c
++++ b/src/dhcpv6.c
+@@ -256,14 +256,10 @@ int init_dhcpv6(const char *ifname, unsigned int options, int sk_prio, int sol_t
+ 			htons(DHCPV6_OPT_DNS_DOMAIN),
+ 			htons(DHCPV6_OPT_SNTP_SERVERS),
+ 			htons(DHCPV6_OPT_NTP_SERVER),
+-			htons(DHCPV6_OPT_AFTR_NAME),
+ 			htons(DHCPV6_OPT_PD_EXCLUDE),
+ #ifdef EXT_CER_ID
+ 			htons(DHCPV6_OPT_CER_ID),
+ #endif
+-			htons(DHCPV6_OPT_S46_CONT_MAPE),
+-			htons(DHCPV6_OPT_S46_CONT_MAPT),
+-			htons(DHCPV6_OPT_S46_CONT_LW),
+ 		};
+ 		odhcp6c_add_state(STATE_ORO, oro, sizeof(oro));
+ 	}
+diff --git a/src/odhcp6c.h b/src/odhcp6c.h
+index 5d9d5e3..8a9e067 100644
+--- a/src/odhcp6c.h
++++ b/src/odhcp6c.h
+@@ -88,7 +88,7 @@ enum dhcvp6_opt {
+ 	DHCPV6_OPT_CER_ID = EXT_CER_ID,
+ #endif
+ 	DHCPV6_OPT_DHCPV4_MSG = 87,
+-	/* draft-ietf-softwire-map-dhcp-08 */
++	/* RFC 7598 */
+ 	DHCPV6_OPT_S46_RULE = 89,
+ 	DHCPV6_OPT_S46_BR = 90,
+ 	DHCPV6_OPT_S46_DMR = 91,
+
+From 563e11f9aeecee58a08cbcc0c7b3d04c5975f16d Mon Sep 17 00:00:00 2001
+From: Vladislav Grishenko <themiron@mail.ru>
+Date: Fri, 26 Jul 2024 00:51:09 +0500
+Subject: [PATCH] odhcp6c: allow to request specific ipv6 prefix
+
+Expand -P option with optional exact ipv6 prefix format.
+This allows to keep the IPv6 prefix in some cases, for example
+if the prefix is issued dynamically on upstream.
+
+Examples:
+    -P <length>
+    -P <prefix/length>
+
+Based on https://github.com/openwrt/odhcp6c/pull/86
+---
+ src/dhcpv6.c  |  3 ++-
+ src/odhcp6c.c | 20 ++++++++++++++++----
+ src/odhcp6c.h |  3 ++-
+ 3 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/src/dhcpv6.c b/src/dhcpv6.c
+index ca5957e..c1603f5 100644
+--- a/src/dhcpv6.c
++++ b/src/dhcpv6.c
+@@ -384,7 +384,8 @@ static void dhcpv6_send(enum dhcpv6_msg type, uint8_t trid[3], uint32_t ecs)
+ 			struct dhcpv6_ia_prefix pref = {
+ 				.type = htons(DHCPV6_OPT_IA_PREFIX),
+ 				.len = htons(sizeof(pref) - 4),
+-				.prefix = request_prefixes[i].length
++				.prefix = request_prefixes[i].length,
++				.addr = request_prefixes[i].addr
+ 			};
+ 			memcpy(ia_pd + ia_pd_len, &hdr_ia_pd, sizeof(hdr_ia_pd));
+ 			ia_pd_len += sizeof(hdr_ia_pd);
+diff --git a/src/odhcp6c.c b/src/odhcp6c.c
+index 4a6d7bd..20b4040 100644
+--- a/src/odhcp6c.c
++++ b/src/odhcp6c.c
+@@ -241,17 +241,29 @@ int main(_unused int argc, char* const argv[])
+ 			if (allow_slaac_only >= 0 && allow_slaac_only < 10)
+ 				allow_slaac_only = 10;
+ 
++			struct odhcp6c_request_prefix prefix = { 0 };
++
++			optpos = strchr(optarg, '/');
++			if (optpos) {
++				strncpy((char *)buf, optarg, optpos - optarg);
++				buf[optpos - optarg] = '\0';
++				if (inet_pton(AF_INET6, (char *)buf, &prefix.addr) <= 0) {
++					syslog(LOG_ERR, "invalid argument: '%s'", optarg);
++					return 1;
++				}
++				optpos++;
++			} else
++				optpos = optarg;
++
+ 			char *iaid_begin;
+ 			int iaid_len = 0;
+-			int prefix_length = strtoul(optarg, &iaid_begin, 10);
++			prefix.length = strtoul(optpos, &iaid_begin, 10);
+ 
+ 			if (*iaid_begin != '\0' && *iaid_begin != ',' && *iaid_begin != ':') {
+ 				syslog(LOG_ERR, "invalid argument: '%s'", optarg);
+ 				return 1;
+ 			}
+ 
+-			struct odhcp6c_request_prefix prefix = { 0, prefix_length };
+-
+ 			if (*iaid_begin == ',' && (iaid_len = strlen(iaid_begin)) > 1)
+ 				memcpy(&prefix.iaid, iaid_begin + 1, iaid_len > 4 ? 4 : iaid_len);
+ 			else if (*iaid_begin == ':')
+@@ -614,7 +626,7 @@ static int usage(void)
+ 	"	-S <time>	Wait at least <time> sec for a DHCP-server (0)\n"
+ 	"	-D		Discard advertisements without any address or prefix proposed\n"
+ 	"	-N <mode>	Mode for requesting addresses [try|force|none]\n"
+-	"	-P <length>	Request IPv6-Prefix (0 = auto)\n"
++	"	-P <[pfx/]len>	Request IPv6-Prefix (0 = auto)\n"
+ 	"	-F		Force IPv6-Prefix\n"
+ 	"	-V <class>	Set vendor-class option (base-16 encoded)\n"
+ 	"	-u <user-class> Set user-class option string\n"
+diff --git a/src/odhcp6c.h b/src/odhcp6c.h
+index 5d9d5e3..7904946 100644
+--- a/src/odhcp6c.h
++++ b/src/odhcp6c.h
+@@ -367,7 +367,8 @@ struct odhcp6c_entry {
+ 
+ struct odhcp6c_request_prefix {
+ 	uint32_t iaid;
+-	uint16_t length;
++	uint8_t length;
++	struct in6_addr addr;
+ };
+ 
+ enum odhcp6c_opt_flags {
+
+From 816e349803e9844f1f6e373558f941744ea5690d Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jerome=20K=C3=BCttner?=
+ <12213711+jkuettner@users.noreply.github.com>
+Date: Thu, 10 Oct 2024 01:45:34 +0200
+Subject: [PATCH] if `DHCPV6_Success` was reached once, then it should not be
+ aborted
+
+---
+ src/dhcpv6.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/dhcpv6.c b/src/dhcpv6.c
+index ca5957e..d732b73 100644
+--- a/src/dhcpv6.c
++++ b/src/dhcpv6.c
+@@ -1138,6 +1138,7 @@ static int dhcpv6_handle_reply(enum dhcpv6_msg orig, _unused const int rc,
+ 				uint16_t code = DHCPV6_Success;
+ 				uint16_t stype, slen;
+ 				uint8_t *sdata;
++				bool success = false;
+ 				// Get and handle status code
+ 				dhcpv6_for_each_option(&ia_hdr[1], odata + olen,
+ 						stype, slen, sdata) {
+@@ -1148,6 +1149,7 @@ static int dhcpv6_handle_reply(enum dhcpv6_msg orig, _unused const int rc,
+ 						code = ((int)sdata[0]) << 8 | ((int)sdata[1]);
+ 
+ 						if (code == DHCPV6_Success)
++						    success = true;
+ 							continue;
+ 
+ 						dhcpv6_handle_ia_status_code(orig, ia_hdr,
+@@ -1160,7 +1162,7 @@ static int dhcpv6_handle_reply(enum dhcpv6_msg orig, _unused const int rc,
+ 					}
+ 				}
+ 
+-				if (code != DHCPV6_Success)
++				if (!success && code != DHCPV6_Success)
+ 					continue;
+ 
+ 				updated_IAs += dhcpv6_parse_ia(ia_hdr, odata + olen);
+
+From b3e8c26439d6cb5db1744bc1f3089ab6fcef7fa6 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jerome=20K=C3=BCttner?=
+ <12213711+jkuettner@users.noreply.github.com>
+Date: Thu, 10 Oct 2024 01:50:42 +0200
+Subject: [PATCH] use more specific variable name
+
+---
+ src/dhcpv6.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/dhcpv6.c b/src/dhcpv6.c
+index d732b73..66bf947 100644
+--- a/src/dhcpv6.c
++++ b/src/dhcpv6.c
+@@ -1138,7 +1138,7 @@ static int dhcpv6_handle_reply(enum dhcpv6_msg orig, _unused const int rc,
+ 				uint16_t code = DHCPV6_Success;
+ 				uint16_t stype, slen;
+ 				uint8_t *sdata;
+-				bool success = false;
++				bool dhcpv6_successful_once = false;
+ 				// Get and handle status code
+ 				dhcpv6_for_each_option(&ia_hdr[1], odata + olen,
+ 						stype, slen, sdata) {
+@@ -1149,7 +1149,7 @@ static int dhcpv6_handle_reply(enum dhcpv6_msg orig, _unused const int rc,
+ 						code = ((int)sdata[0]) << 8 | ((int)sdata[1]);
+ 
+ 						if (code == DHCPV6_Success)
+-						    success = true;
++						    dhcpv6_successful_once = true;
+ 							continue;
+ 
+ 						dhcpv6_handle_ia_status_code(orig, ia_hdr,
+@@ -1162,7 +1162,7 @@ static int dhcpv6_handle_reply(enum dhcpv6_msg orig, _unused const int rc,
+ 					}
+ 				}
+ 
+-				if (!success && code != DHCPV6_Success)
++				if (!dhcpv6_successful_once && code != DHCPV6_Success)
+ 					continue;
+ 
+ 				updated_IAs += dhcpv6_parse_ia(ia_hdr, odata + olen);
+
+From 280290b2f4ff8db07b7585ccc186cbd0d6e5828c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jerome=20K=C3=BCttner?=
+ <12213711+jkuettner@users.noreply.github.com>
+Date: Thu, 10 Oct 2024 01:52:32 +0200
+Subject: [PATCH] fix indention
+
+---
+ src/dhcpv6.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/dhcpv6.c b/src/dhcpv6.c
+index 66bf947..70e8946 100644
+--- a/src/dhcpv6.c
++++ b/src/dhcpv6.c
+@@ -1149,7 +1149,7 @@ static int dhcpv6_handle_reply(enum dhcpv6_msg orig, _unused const int rc,
+ 						code = ((int)sdata[0]) << 8 | ((int)sdata[1]);
+ 
+ 						if (code == DHCPV6_Success)
+-						    dhcpv6_successful_once = true;
++							dhcpv6_successful_once = true;
+ 							continue;
+ 
+ 						dhcpv6_handle_ia_status_code(orig, ia_hdr,
+
+From 559d39e5e42ea3bd39ae3561def44b1ee7537b22 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jerome=20K=C3=BCttner?=
+ <12213711+jkuettner@users.noreply.github.com>
+Date: Thu, 10 Oct 2024 02:02:50 +0200
+Subject: [PATCH] fix misleading-indentation
+
+---
+ src/dhcpv6.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/dhcpv6.c b/src/dhcpv6.c
+index 70e8946..7629482 100644
+--- a/src/dhcpv6.c
++++ b/src/dhcpv6.c
+@@ -1148,9 +1148,11 @@ static int dhcpv6_handle_reply(enum dhcpv6_msg orig, _unused const int rc,
+ 
+ 						code = ((int)sdata[0]) << 8 | ((int)sdata[1]);
+ 
+-						if (code == DHCPV6_Success)
++						if (code == DHCPV6_Success) {
+ 							dhcpv6_successful_once = true;
+ 							continue;
++						}
++
+ 
+ 						dhcpv6_handle_ia_status_code(orig, ia_hdr,
+ 							code, mdata, mlen, handled_status_codes, &ret);

@@ -41,13 +41,13 @@
 	keys {
 		compatible = "gpio-keys";
 
-		wps {
+		wps-button {
 			label = "wps";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&tlmm 56 GPIO_ACTIVE_LOW>;
 		};
 
-		reset {
+		reset-button {
 			label = "reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&tlmm 57 GPIO_ACTIVE_LOW>;
@@ -57,7 +57,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		lan1-amber {
+		/*lan1-amber {
 			label = "amber:lan1";
 			color = <LED_COLOR_ID_AMBER>;
 			gpios = <&qca8075_0 0 GPIO_ACTIVE_HIGH>;
@@ -115,7 +115,7 @@
 			color = <LED_COLOR_ID_GREEN>;
 			function = LED_FUNCTION_WAN;
 			gpios = <&qca8075_4 1 GPIO_ACTIVE_HIGH>;
-		};
+		};*/
 
 		usb {
 			color = <LED_COLOR_ID_BLUE>;
@@ -132,14 +132,7 @@
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		gpio = <&tlmm 61 GPIO_ACTIVE_LOW>;
-		regulator-always-on;
-	};
-};
-
-// Overclock CPU frequency to 1.6GHz
-&cpu_opp_table {
-	opp-1608000000 {
-		opp-supported-hw = <0x3>;
+		regulator-boot-on;
 	};
 };
 
@@ -262,6 +255,8 @@
 
 &qusb_phy_0 {
 	status = "okay";
+
+	vdd-supply = <&reg_usb_vbus>;
 };
 
 &ssphy_0 {
@@ -285,41 +280,125 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0>;
-		qcom,package-mode = "psgmii";
 
 		qca8075_0: ethernet-phy@0 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <0>;
-			gpio-controller;
-			#gpio-cells = <2>;
+
+			leds {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				led@0 {
+					reg = <0>;
+					color = <LED_COLOR_ID_ORANGE>;
+					function = LED_FUNCTION_LAN;
+					default-state = "keep";
+				};
+
+				led@1 {
+					reg = <1>;
+					color = <LED_COLOR_ID_GREEN>;
+					function = LED_FUNCTION_LAN;
+					default-state = "keep";
+				};
+			};
 		};
 
 		qca8075_1: ethernet-phy@1 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <1>;
-			gpio-controller;
-			#gpio-cells = <2>;
+
+			leds {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				led@0 {
+					reg = <0>;
+					color = <LED_COLOR_ID_ORANGE>;
+					function = LED_FUNCTION_LAN;
+					default-state = "keep";
+				};
+
+				led@1 {
+					reg = <1>;
+					color = <LED_COLOR_ID_GREEN>;
+					function = LED_FUNCTION_LAN;
+					default-state = "keep";
+				};
+			};
 		};
 
 		qca8075_2: ethernet-phy@2 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <2>;
-			gpio-controller;
-			#gpio-cells = <2>;
+
+			leds {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				led@0 {
+					reg = <0>;
+					color = <LED_COLOR_ID_ORANGE>;
+					function = LED_FUNCTION_LAN;
+					default-state = "keep";
+				};
+
+				led@1 {
+					reg = <1>;
+					color = <LED_COLOR_ID_GREEN>;
+					function = LED_FUNCTION_LAN;
+					default-state = "keep";
+				};
+			};
 		};
 
 		qca8075_3: ethernet-phy@3 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <3>;
-			gpio-controller;
-			#gpio-cells = <2>;
+
+			leds {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				led@0 {
+					reg = <0>;
+					color = <LED_COLOR_ID_ORANGE>;
+					function = LED_FUNCTION_LAN;
+					default-state = "keep";
+				};
+
+				led@1 {
+					reg = <1>;
+					color = <LED_COLOR_ID_GREEN>;
+					function = LED_FUNCTION_LAN;
+					default-state = "keep";
+				};
+			};
 		};
 
 		qca8075_4: ethernet-phy@4 {
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <4>;
-			gpio-controller;
-			#gpio-cells = <2>;
+
+			leds {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				led@0 {
+					reg = <0>;
+					color = <LED_COLOR_ID_ORANGE>;
+					function = LED_FUNCTION_WAN;
+					default-state = "keep";
+				};
+
+				led@1 {
+					reg = <1>;
+					color = <LED_COLOR_ID_GREEN>;
+					function = LED_FUNCTION_WAN;
+					default-state = "keep";
+				};
+			};
 		};
 	};
 };

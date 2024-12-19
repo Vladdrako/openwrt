@@ -156,9 +156,11 @@ base-commit: 12f167f02a1abe2c8817496a902de00758285b92
  		ath11k_err(ar->ab, "ieee80211 registration failed: %d\n", ret);
 --- a/drivers/net/wireless/ath/ath11k/mac.h
 +++ b/drivers/net/wireless/ath/ath11k/mac.h
-@@ -174,4 +174,5 @@ int ath11k_mac_wait_tx_complete(struct a
+@@ -175,6 +175,7 @@ int ath11k_mac_wait_tx_complete(struct a
  int ath11k_mac_vif_set_keepalive(struct ath11k_vif *arvif,
  				 enum wmi_sta_keepalive_method method,
  				 u32 interval);
 +void ath11k_mac_tx_push_pending(struct ath11k *ar);
- #endif
+ void ath11k_mac_fill_reg_tpc_info(struct ath11k *ar,
+ 				  struct ieee80211_vif *vif,
+ 				  struct ieee80211_chanctx_conf *ctx);

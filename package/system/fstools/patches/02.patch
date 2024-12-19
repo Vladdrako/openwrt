@@ -1,0 +1,56 @@
+From f66278067de99a99fc6482d842374923f50e7869 Mon Sep 17 00:00:00 2001
+From: zexiong <xiezexiong@foxmail.com>
+Date: Fri, 12 Jul 2024 20:01:20 +0800
+Subject: [PATCH] libfstools:support to specify filesystem when formatting
+ overlay
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The old strategy uses F2FS when the block device size > F2FS_MINSIZE, otherwise it uses EXT4.
+This strategy is not very flexible, because users usually don’t choose the filesystem just based on the size of the device,
+so we need to add a macro to let users decide which filesystem to use.
+
+use the "-DCMAKE_BLKDEV_FILESYSTEM_TYPE=EXT4" option to select EXT4 file system
+
+Signed-off-by: zexiong <xiezexiong@foxmail.com>
+---
+ CMakeLists.txt      | 4 ++++
+ libfstools/common.c | 9 ++++++++-
+ 2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index ce321c8..8370278 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -67,6 +67,10 @@ IF(DEFINED CMAKE_OVL_MOUNT_FULL_ACCESS_TIME)
+ 	ADD_DEFINITIONS(-DOVL_MOUNT_FULL_ACCESS_TIME)
+ ENDIF(DEFINED CMAKE_OVL_MOUNT_FULL_ACCESS_TIME)
+ 
++IF(DEFINED CMAKE_BLKDEV_FILESYSTEM_TYPE)
++	ADD_DEFINITIONS(-DCMAKE_BLKDEV_FILESYSTEM_TYPE="${CMAKE_BLKDEV_FILESYSTEM_TYPE}")
++ENDIF(DEFINED CMAKE_BLKDEV_FILESYSTEM_TYPE)
++
+ ADD_EXECUTABLE(mount_root mount_root.c)
+ TARGET_LINK_LIBRARIES(mount_root fstools)
+ INSTALL(TARGETS mount_root RUNTIME DESTINATION sbin)
+diff --git a/libfstools/common.c b/libfstools/common.c
+index 6c513f0..1a03709 100644
+--- a/libfstools/common.c
++++ b/libfstools/common.c
+@@ -98,7 +98,14 @@ static bool use_f2fs(struct volume *v, uint64_t offset, const char *bdev)
+ 	uint64_t size = 0;
+ 	bool ret = false;
+ 	int fd;
+-
++#ifdef CMAKE_BLKDEV_FILESYSTEM_TYPE
++	ULOG_INFO("%s will be formatted as %s\n", v->blk,CMAKE_BLKDEV_FILESYSTEM_TYPE);
++	if (strcmp("EXT4",CMAKE_BLKDEV_FILESYSTEM_TYPE) == 0) {
++		return false;
++	} else if (strcmp("F2FS",CMAKE_BLKDEV_FILESYSTEM_TYPE) == 0) {
++		return true;
++	}
++#endif
+ 	fd = open(bdev, O_RDONLY);
+ 	if (fd < 0)
+ 		return false;

@@ -2285,6 +2285,26 @@ index 45493af714e25e..c69acde14641df 100644
  			compatible = "qcom,gcc-ipq6018";
  			reg = <0x0 0x01800000 0x0 0x80000>;
  			clocks = <&xo>,
+@@ -704,6 +704,7 @@ dwc_0: usb@8a00000 {
+ 				clocks = <&xo>;
+ 				clock-names = "ref";
+ 				tx-fifo-resize;
++				snps,parkmode-disable-ss-quirk;
+ 				snps,is-utmi-l1-suspend;
+ 				snps,hird-threshold = /bits/ 8 <0x0>;
+ 				snps,dis_u2_susphy_quirk;
+@@ -897,6 +897,11 @@
+ 			compatible = "qcom,ipq6018-wifi";
+ 			reg = <0x0 0xc000000 0x0 0x1000000>;
+ 			qcom,rproc = <&q6v5_wcss>;
++
++			qcom,bdf-addr = <0x4ABC0000>;
++			qcom,caldb-addr = <0x4B500000>;
++			qcom,caldb-size = <0x480000>;
++
+ 			interrupts = <GIC_SPI 320 IRQ_TYPE_EDGE_RISING>,
+ 				     <GIC_SPI 319 IRQ_TYPE_EDGE_RISING>,
+ 				     <GIC_SPI 318 IRQ_TYPE_EDGE_RISING>,
 --- a/drivers/crypto/qce/core.c
 +++ b/drivers/crypto/qce/core.c
 @@ -277,7 +277,7 @@ err_mem_path_disable:
@@ -2313,3 +2333,716 @@ index 45493af714e25e..c69acde14641df 100644
  	.driver = {
  		.name = KBUILD_MODNAME,
  		.of_match_table = qce_crypto_of_match,
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -259,6 +259,45 @@
+ 	help
+ 	  ARM 64-bit (AArch64) Linux support.
+ 
++config HZ_FIXED
++	int
++	default 128 if SOC_AT91RM9200
++	default 0
++
++choice
++	depends on HZ_FIXED = 0
++	prompt "Timer frequency"
++
++config HZ_100
++	bool "100 Hz"
++
++config HZ_200
++	bool "200 Hz"
++
++config HZ_250
++	bool "250 Hz"
++
++config HZ_300
++	bool "300 Hz"
++
++config HZ_500
++	bool "500 Hz"
++
++config HZ_1000
++	bool "1000 Hz"
++
++endchoice
++
++config HZ
++	int
++	default HZ_FIXED if HZ_FIXED != 0
++	default 100 if HZ_100
++	default 200 if HZ_200
++	default 250 if HZ_250
++	default 300 if HZ_300
++	default 500 if HZ_500
++	default 1000
++
+ config CLANG_SUPPORTS_DYNAMIC_FTRACE_WITH_ARGS
+ 	def_bool CC_IS_CLANG
+ 	# https://github.com/ClangBuiltLinux/linux/issues/1507
+--- a/drivers/clk/qcom/gcc-ipq6018.c
++++ b/drivers/clk/qcom/gcc-ipq6018.c
+@@ -545,6 +544,7 @@
+ 	F(78125000, P_UNIPHY1_RX, 4, 0, 0),
+ 	F(125000000, P_UNIPHY1_RX, 2.5, 0, 0),
+ 	F(125000000, P_UNIPHY0_RX, 1, 0, 0),
++	F(125000000, P_UNIPHY1_RX, 1, 0, 0),
+ 	F(156250000, P_UNIPHY1_RX, 2, 0, 0),
+ 	F(312500000, P_UNIPHY1_RX, 1, 0, 0),
+ 	{ }
+@@ -592,6 +592,7 @@
+ 	F(78125000, P_UNIPHY1_TX, 4, 0, 0),
+ 	F(125000000, P_UNIPHY1_TX, 2.5, 0, 0),
+ 	F(125000000, P_UNIPHY0_TX, 1, 0, 0),
++	F(125000000, P_UNIPHY1_TX, 1, 0, 0),
+ 	F(156250000, P_UNIPHY1_TX, 2, 0, 0),
+ 	F(312500000, P_UNIPHY1_TX, 1, 0, 0),
+ 	{ }
+@@ -2684,7 +2684,7 @@ static struct clk_rcg2 lpass_q6_axim_clk_src = {
+ 	},
+ };
+ 
+-static struct freq_tbl ftbl_rbcpr_wcss_clk_src[] = {
++static const struct freq_tbl ftbl_rbcpr_wcss_clk_src[] = {
+ 	F(24000000, P_XO, 1, 0, 0),
+ 	F(50000000, P_GPLL0, 16, 0, 0),
+ 	{ }
+--- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
++++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
+@@ -110,14 +110,14 @@
+ 		opp-864000000 {
+ 			opp-hz = /bits/ 64 <864000000>;
+ 			opp-microvolt = <1>;
+-			opp-supported-hw = <0xf>;
++			opp-supported-hw = <0x7>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+ 		opp-1056000000 {
+ 			opp-hz = /bits/ 64 <1056000000>;
+ 			opp-microvolt = <2>;
+-			opp-supported-hw = <0xf>;
++			opp-supported-hw = <0x7>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+@@ -130,35 +130,35 @@
+ 
+ 		opp-1320000000 {
+ 			opp-hz = /bits/ 64 <1320000000>;
+-			opp-microvolt = <4>;
++			opp-microvolt = <3>;
+ 			opp-supported-hw = <0x3>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+ 		opp-1440000000 {
+ 			opp-hz = /bits/ 64 <1440000000>;
+-			opp-microvolt = <5>;
++			opp-microvolt = <4>;
+ 			opp-supported-hw = <0x3>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+ 		opp-1512000000 {
+ 			opp-hz = /bits/ 64 <1512000000>;
+-			opp-microvolt = <6>;
++			opp-microvolt = <5>;
+ 			opp-supported-hw = <0x2>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+ 		opp-1608000000 {
+ 			opp-hz = /bits/ 64 <1608000000>;
+-			opp-microvolt = <7>;
++			opp-microvolt = <5>;
+ 			opp-supported-hw = <0x1>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+ 		opp-1800000000 {
+ 			opp-hz = /bits/ 64 <1800000000>;
+-			opp-microvolt = <8>;
++			opp-microvolt = <6>;
+ 			opp-supported-hw = <0x1>;
+ 			clock-latency-ns = <200000>;
+ 		};
+@@ -962,7 +962,7 @@
+ 					  "host2rxdma-monitor-ring3",
+ 					  "host2rxdma-monitor-ring2",
+ 					  "host2rxdma-monitor-ring1",
+-					  "reo2ost-exception", "wbm2host-rx-release",
++					  "reo2host-exception", "wbm2host-rx-release",
+ 					  "reo2host-status",
+ 					  "reo2host-destination-ring4",
+ 					  "reo2host-destination-ring3",
+
+From 19be13369d8e32f1ade15cf75dd7d534661b0098 Mon Sep 17 00:00:00 2001
+From: Robert Marko <robimarko@gmail.com>
+Date: Mon, 29 Jul 2024 13:39:17 +0200
+Subject: [PATCH] regulator: cpr: Convert to platform remove callback returning
+ void
+
+The .remove() callback for a platform driver returns an int which makes
+many driver authors wrongly assume it's possible to do error handling by
+returning an error code. However the value returned is ignored (apart
+from emitting a warning) and this typically results in resource leaks.
+
+To improve here there is a quest to make the remove callback return
+void. In the first step of this quest all drivers are converted to
+.remove_new(), which already returns void. Eventually after all drivers
+are converted, .remove_new() will be renamed to .remove().
+
+Trivially convert this driver from always returning zero in the remove
+callback to the void returning variant.
+
+Signed-off-by: Robert Marko <robimarko@gmail.com>
+---
+ drivers/regulator/cpr3-npu-regulator.c  | 6 +++---
+ drivers/regulator/cpr4-apss-regulator.c | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/regulator/cpr3-npu-regulator.c b/drivers/regulator/cpr3-npu-regulator.c
+index 6f4abb83c9287f..eab0904a395580 100644
+--- a/drivers/regulator/cpr3-npu-regulator.c
++++ b/drivers/regulator/cpr3-npu-regulator.c
+@@ -668,11 +668,11 @@ static int cpr3_npu_regulator_probe(struct platform_device *pdev)
+ 	return cpr3_open_loop_regulator_register(pdev, ctrl);
+ }
+ 
+-static int cpr3_npu_regulator_remove(struct platform_device *pdev)
++static void cpr3_npu_regulator_remove(struct platform_device *pdev)
+ {
+ 	struct cpr3_controller *ctrl = platform_get_drvdata(pdev);
+ 
+-	return cpr3_open_loop_regulator_unregister(ctrl);
++	cpr3_open_loop_regulator_unregister(ctrl);
+ }
+ 
+ static struct platform_driver cpr3_npu_regulator_driver = {
+@@ -682,7 +682,7 @@ static struct platform_driver cpr3_npu_regulator_driver = {
+ 		.owner		= THIS_MODULE,
+ 	},
+ 	.probe		= cpr3_npu_regulator_probe,
+-	.remove		= cpr3_npu_regulator_remove,
++	.remove_new	= cpr3_npu_regulator_remove,
+ };
+ 
+ static int cpr3_regulator_init(void)
+diff --git a/drivers/regulator/cpr4-apss-regulator.c b/drivers/regulator/cpr4-apss-regulator.c
+index 98f1cd9cfc148c..4d4982bf8ddb2f 100644
+--- a/drivers/regulator/cpr4-apss-regulator.c
++++ b/drivers/regulator/cpr4-apss-regulator.c
+@@ -1783,11 +1783,11 @@ static int cpr4_apss_regulator_probe(struct platform_device *pdev)
+ 	return cpr3_regulator_register(pdev, ctrl);
+ }
+ 
+-static int cpr4_apss_regulator_remove(struct platform_device *pdev)
++static void cpr4_apss_regulator_remove(struct platform_device *pdev)
+ {
+ 	struct cpr3_controller *ctrl = platform_get_drvdata(pdev);
+ 
+-	return cpr3_regulator_unregister(ctrl);
++	cpr3_regulator_unregister(ctrl);
+ }
+ 
+ static struct platform_driver cpr4_apss_regulator_driver = {
+@@ -1797,7 +1797,7 @@ static struct platform_driver cpr4_apss_regulator_driver = {
+ 		.owner		= THIS_MODULE,
+ 	},
+ 	.probe		= cpr4_apss_regulator_probe,
+-	.remove		= cpr4_apss_regulator_remove,
++	.remove_new	= cpr4_apss_regulator_remove,
+ 	.suspend	= cpr4_apss_regulator_suspend,
+ 	.resume		= cpr4_apss_regulator_resume,
+ };
+
+From 2ae0ed9e1172a6b3a1b26482e754ebaa44032998 Mon Sep 17 00:00:00 2001
+From: Robert Marko <robimarko@gmail.com>
+Date: Mon, 29 Jul 2024 13:40:02 +0200
+Subject: [PATCH] power: apm: Convert to platform remove callback returning
+ void
+
+The .remove() callback for a platform driver returns an int which makes
+many driver authors wrongly assume it's possible to do error handling by
+returning an error code. However the value returned is ignored (apart
+from emitting a warning) and this typically results in resource leaks.
+
+To improve here there is a quest to make the remove callback return
+void. In the first step of this quest all drivers are converted to
+.remove_new(), which already returns void. Eventually after all drivers
+are converted, .remove_new() will be renamed to .remove().
+
+Trivially convert this driver from always returning zero in the remove
+callback to the void returning variant.
+
+Signed-off-by: Robert Marko <robimarko@gmail.com>
+---
+ drivers/power/qcom/apm.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/power/qcom/apm.c b/drivers/power/qcom/apm.c
+index bd93358e3d34cb..7846e1b539f406 100644
+--- a/drivers/power/qcom/apm.c
++++ b/drivers/power/qcom/apm.c
+@@ -900,7 +900,7 @@ static int msm_apm_probe(struct platform_device *pdev)
+ 	return ret;
+ }
+ 
+-static int msm_apm_remove(struct platform_device *pdev)
++static void msm_apm_remove(struct platform_device *pdev)
+ {
+ 	struct msm_apm_ctrl_dev *ctrl_dev;
+ 
+@@ -911,8 +911,6 @@ static int msm_apm_remove(struct platform_device *pdev)
+ 		mutex_unlock(&apm_ctrl_list_mutex);
+ 		apm_debugfs_deinit(ctrl_dev);
+ 	}
+-
+-	return 0;
+ }
+ 
+ static struct platform_driver msm_apm_driver = {
+@@ -922,7 +920,7 @@ static struct platform_driver msm_apm_driver = {
+ 		.owner		= THIS_MODULE,
+ 	},
+ 	.probe		= msm_apm_probe,
+-	.remove		= msm_apm_remove,
++	.remove_new	= msm_apm_remove,
+ };
+ 
+ static int __init msm_apm_init(void)
+
+From 4a41820fceb462e43c1a2b0cd3c49731139cc716 Mon Sep 17 00:00:00 2001
+From: Robert Marko <robimarko@gmail.com>
+Date: Mon, 29 Jul 2024 13:40:24 +0200
+Subject: [PATCH] remoteproc: q6: mpd: Convert to platform remove callback
+ returning void
+
+The .remove() callback for a platform driver returns an int which makes
+many driver authors wrongly assume it's possible to do error handling by
+returning an error code. However the value returned is ignored (apart
+from emitting a warning) and this typically results in resource leaks.
+
+To improve here there is a quest to make the remove callback return
+void. In the first step of this quest all drivers are converted to
+.remove_new(), which already returns void. Eventually after all drivers
+are converted, .remove_new() will be renamed to .remove().
+
+Trivially convert this driver from always returning zero in the remove
+callback to the void returning variant.
+
+Signed-off-by: Robert Marko <robimarko@gmail.com>
+---
+ drivers/remoteproc/qcom_q6v5_mpd.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/drivers/remoteproc/qcom_q6v5_mpd.c b/drivers/remoteproc/qcom_q6v5_mpd.c
+index 1535a5f704da8d..8a4c46d8a63b52 100644
+--- a/drivers/remoteproc/qcom_q6v5_mpd.c
++++ b/drivers/remoteproc/qcom_q6v5_mpd.c
+@@ -611,7 +611,7 @@ static int q6_wcss_probe(struct platform_device *pdev)
+ 	return ret;
+ }
+ 
+-static int q6_wcss_remove(struct platform_device *pdev)
++static void q6_wcss_remove(struct platform_device *pdev)
+ {
+ 	struct rproc *rproc = platform_get_drvdata(pdev);
+ 	struct q6_wcss *wcss = rproc->priv;
+@@ -620,8 +620,6 @@ static int q6_wcss_remove(struct platform_device *pdev)
+ 
+ 	rproc_del(rproc);
+ 	rproc_free(rproc);
+-
+-	return 0;
+ }
+ 
+ static const struct wcss_data q6_ipq5018_res_init = {
+@@ -700,7 +698,7 @@ MODULE_DEVICE_TABLE(of, q6_wcss_of_match);
+ 
+ static struct platform_driver q6_wcss_driver = {
+ 	.probe = q6_wcss_probe,
+-	.remove = q6_wcss_remove,
++	.remove_new = q6_wcss_remove,
+ 	.driver = {
+ 		.name = "qcom-q6-mpd",
+ 		.of_match_table = q6_wcss_of_match,
+
+From 86f1cabb0a32afb0ebd88aef8f8d765d2dede6ea Mon Sep 17 00:00:00 2001
+From: BrainSlayer <s.gottschall@dd-wrt.com>
+Date: Tue, 30 Jul 2024 20:53:19 +0000
+Subject: [PATCH] backport vmalloc performance patch from 6.10
+
+git-svn-id: svn://svn.dd-wrt.com/DD-WRT@57694 52c4871e-980c-0410-b1e0-e73912ce01f8
+---
+ .../mm/vmalloc.c      | 48 +++++++++----------
+ 1 file changed, 22 insertions(+), 26 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index f673e32d78f..327ac7240f8 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1575,15 +1575,26 @@ preload_this_cpu_lock(spinlock_t *lock, gfp_t gfp_mask, int node)
+ 		kmem_cache_free(vmap_area_cachep, va);
+ }
+ 
++static inline void setup_vmalloc_vm(struct vm_struct *vm,
++	struct vmap_area *va, unsigned long flags, const void *caller)
++{
++	vm->flags = flags;
++	vm->addr = (void *)va->va_start;
++	vm->size = va->va_end - va->va_start;
++	vm->caller = caller;
++	va->vm = vm;
++}
++
+ /*
+  * Allocate a region of KVA of the specified size and alignment, within the
+- * vstart and vend.
++ * vstart and vend. If vm is passed in, the two will also be bound.
+  */
+ static struct vmap_area *alloc_vmap_area(unsigned long size,
+ 				unsigned long align,
+ 				unsigned long vstart, unsigned long vend,
+ 				int node, gfp_t gfp_mask,
+-				unsigned long va_flags)
++				unsigned long va_flags, struct vm_struct *vm,
++				unsigned long flags, const void *caller)
+ {
+ 	struct vmap_area *va;
+ 	unsigned long freed;
+@@ -1630,6 +1641,9 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+ 	va->vm = NULL;
+ 	va->flags = va_flags;
+ 
++	if (vm)
++		setup_vmalloc_vm(vm, va, flags, caller);
++
+ 	spin_lock(&vmap_area_lock);
+ 	insert_vmap_area(va, &vmap_area_root, &vmap_area_list);
+ 	spin_unlock(&vmap_area_lock);
+@@ -2048,7 +2062,8 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
+ 	va = alloc_vmap_area(VMAP_BLOCK_SIZE, VMAP_BLOCK_SIZE,
+ 					VMALLOC_START, VMALLOC_END,
+ 					node, gfp_mask,
+-					VMAP_RAM|VMAP_BLOCK);
++					VMAP_RAM|VMAP_BLOCK, NULL,
++					0, NULL);
+ 	if (IS_ERR(va)) {
+ 		kfree(vb);
+ 		return ERR_CAST(va);
+@@ -2411,7 +2426,8 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node)
+ 		struct vmap_area *va;
+ 		va = alloc_vmap_area(size, PAGE_SIZE,
+ 				VMALLOC_START, VMALLOC_END,
+-				node, GFP_KERNEL, VMAP_RAM);
++				node, GFP_KERNEL, VMAP_RAM,
++				NULL, 0, NULL);
+ 		if (IS_ERR(va))
+ 			return NULL;
+ 
+@@ -2555,24 +2571,6 @@ static void vmap_init_free_space(void)
+ 	}
+ }
+ 
+-static inline void setup_vmalloc_vm_locked(struct vm_struct *vm,
+-	struct vmap_area *va, unsigned long flags, const void *caller)
+-{
+-	vm->flags = flags;
+-	vm->addr = (void *)va->va_start;
+-	vm->size = va->va_end - va->va_start;
+-	vm->caller = caller;
+-	va->vm = vm;
+-}
+-
+-static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
+-			      unsigned long flags, const void *caller)
+-{
+-	spin_lock(&vmap_area_lock);
+-	setup_vmalloc_vm_locked(vm, va, flags, caller);
+-	spin_unlock(&vmap_area_lock);
+-}
+-
+ static void clear_vm_uninitialized_flag(struct vm_struct *vm)
+ {
+ 	/*
+@@ -2609,14 +2607,12 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
+ 	if (!(flags & VM_NO_GUARD))
+ 		size += PAGE_SIZE;
+ 
+-	va = alloc_vmap_area(size, align, start, end, node, gfp_mask, 0);
++	va = alloc_vmap_area(size, align, start, end, node, gfp_mask, 0, area, flags, caller);
+ 	if (IS_ERR(va)) {
+ 		kfree(area);
+ 		return NULL;
+ 	}
+ 
+-	setup_vmalloc_vm(area, va, flags, caller);
+-
+ 	/*
+ 	 * Mark pages for non-VM_ALLOC mappings as accessible. Do it now as a
+ 	 * best-effort approach, as they can be mapped outside of vmalloc code.
+@@ -4182,7 +4178,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
+ 	for (area = 0; area < nr_vms; area++) {
+ 		insert_vmap_area(vas[area], &vmap_area_root, &vmap_area_list);
+ 
+-		setup_vmalloc_vm_locked(vms[area], vas[area], VM_ALLOC,
++		setup_vmalloc_vm(vms[area], vas[area], VM_ALLOC,
+ 				 pcpu_get_vm_areas);
+ 	}
+ 	spin_unlock(&vmap_area_lock);
+
+From 7d3dc2ca85fcf0e858bfdfe0d7632450c348051b Mon Sep 17 00:00:00 2001
+From: BrainSlayer <s.gottschall@dd-wrt.com>
+Date: Mon, 24 Jun 2024 05:47:27 +0000
+Subject: [PATCH] revert some dma api changes
+
+git-svn-id: svn://svn.dd-wrt.com/DD-WRT@56986 52c4871e-980c-0410-b1e0-e73912ce01f8
+---
+ .../arch/arm/include/asm/cacheflush.h         | 21 +++++++++++++++++++
+ .../arch/arm/include/asm/glue-cache.h         |  2 ++
+ .../linux-6.6-nss/arch/arm/mm/cache-v7.S      |  6 ++++--
+ .../linux-6.6-nss/arch/arm/mm/proc-macros.S   |  4 +++-
+ .../linux-6.6-nss/arch/arm/mm/proc-syms.c     |  3 +++
+ 5 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/arch/arm/include/asm/cacheflush.h b/arch/arm/include/asm/cacheflush.h
+index 1075534b0a2e..34c020563133 100644
+--- a/arch/arm/include/asm/cacheflush.h
++++ b/arch/arm/include/asm/cacheflush.h
+@@ -91,6 +91,21 @@
+  *	DMA Cache Coherency
+  *	===================
+  *
++ *	dma_inv_range(start, end)
++ *
++ *		Invalidate (discard) the specified virtual address range.
++ *		May not write back any entries.  If 'start' or 'end'
++ *		are not cache line aligned, those lines must be written
++ *		back.
++ *		- start  - virtual start address
++ *		- end    - virtual end address
++ *
++ *	dma_clean_range(start, end)
++ *
++ *		Clean (write back) the specified virtual address range.
++ *		- start  - virtual start address
++ *		- end    - virtual end address
++ *
+  *	dma_flush_range(start, end)
+  *
+  *		Clean and invalidate the specified virtual address range.
+@@ -112,6 +127,8 @@ struct cpu_cache_fns {
+ 	void (*dma_map_area)(const void *, size_t, int);
+ 	void (*dma_unmap_area)(const void *, size_t, int);
+ 
++	void (*dma_inv_range)(const void *, const void *);
++	void (*dma_clean_range)(const void *, const void *);
+ 	void (*dma_flush_range)(const void *, const void *);
+ } __no_randomize_layout;
+ 
+@@ -137,6 +154,8 @@ extern struct cpu_cache_fns cpu_cache;
+  * is visible to DMA, or data written by DMA to system memory is
+  * visible to the CPU.
+  */
++#define dmac_inv_range			cpu_cache.dma_inv_range
++#define dmac_clean_range		cpu_cache.dma_clean_range
+ #define dmac_flush_range		cpu_cache.dma_flush_range
+ 
+ #else
+@@ -156,6 +175,8 @@ extern void __cpuc_flush_dcache_area(void *, size_t);
+  * is visible to DMA, or data written by DMA to system memory is
+  * visible to the CPU.
+  */
++extern void dmac_inv_range(const void *, const void *);
++extern void dmac_clean_range(const void *, const void *);
+ extern void dmac_flush_range(const void *, const void *);
+ 
+ #endif
+diff --git a/arch/arm/include/asm/glue-cache.h b/arch/arm/include/asm/glue-cache.h
+index 724f8dac1e5b..89a7ee6822d9 100644
+--- a/arch/arm/include/asm/glue-cache.h
++++ b/arch/arm/include/asm/glue-cache.h
+@@ -156,6 +156,8 @@ static inline void nop_dma_unmap_area(const void *s, size_t l, int f) { }
+ #define __cpuc_flush_dcache_area	__glue(_CACHE,_flush_kern_dcache_area)
+ 
+ #define dmac_flush_range		__glue(_CACHE,_dma_flush_range)
++#define dmac_inv_range			__glue(_CACHE, _dma_inv_range)
++#define dmac_clean_range		__glue(_CACHE, _dma_clean_range)
+ #endif
+ 
+ #endif
+diff --git a/arch/arm/mm/cache-v7.S b/arch/arm/mm/cache-v7.S
+index 127afe2096ba..849b03946f09 100644
+--- a/arch/arm/mm/cache-v7.S
++++ b/arch/arm/mm/cache-v7.S
+@@ -361,7 +361,7 @@ ENDPROC(v7_flush_kern_dcache_area)
+  *	- start   - virtual start address of region
+  *	- end     - virtual end address of region
+  */
+-v7_dma_inv_range:
++ENTRY(v7_dma_inv_range)
+ 	dcache_line_size r2, r3
+ 	sub	r3, r2, #1
+ 	tst	r0, r3
+@@ -391,7 +391,7 @@ ENDPROC(v7_dma_inv_range)
+  *	- start   - virtual start address of region
+  *	- end     - virtual end address of region
+  */
+-v7_dma_clean_range:
++ENTRY(v7_dma_clean_range)
+ 	dcache_line_size r2, r3
+ 	sub	r3, r2, #1
+ 	bic	r0, r0, r3
+@@ -477,6 +477,8 @@ ENDPROC(v7_dma_unmap_area)
+ 
+ 	globl_equ	b15_dma_map_area,		v7_dma_map_area
+ 	globl_equ	b15_dma_unmap_area,		v7_dma_unmap_area
++	globl_equ	b15_dma_inv_range,		v7_dma_inv_range
++	globl_equ	b15_dma_clean_range,		v7_dma_clean_range
+ 	globl_equ	b15_dma_flush_range,		v7_dma_flush_range
+ 
+ 	define_cache_functions b15
+diff --git a/arch/arm/mm/proc-macros.S b/arch/arm/mm/proc-macros.S
+index e43f6d716b4b..ec4deefb5203 100644
+--- a/arch/arm/mm/proc-macros.S
++++ b/arch/arm/mm/proc-macros.S
+@@ -326,7 +326,7 @@ ENTRY(\name\()_processor_functions)
+ ENTRY(\name\()_cache_fns)
+ 	.long	\name\()_flush_icache_all
+ 	.long	\name\()_flush_kern_cache_all
+-	.long   \name\()_flush_kern_cache_louis
++	.long	\name\()_flush_kern_cache_louis
+ 	.long	\name\()_flush_user_cache_all
+ 	.long	\name\()_flush_user_cache_range
+ 	.long	\name\()_coherent_kern_range
+@@ -334,6 +334,8 @@ ENTRY(\name\()_cache_fns)
+ 	.long	\name\()_flush_kern_dcache_area
+ 	.long	\name\()_dma_map_area
+ 	.long	\name\()_dma_unmap_area
++	.long	\name\()_dma_inv_range
++	.long	\name\()_dma_clean_range
+ 	.long	\name\()_dma_flush_range
+ 	.size	\name\()_cache_fns, . - \name\()_cache_fns
+ .endm
+diff --git a/arch/arm/mm/proc-syms.c b/arch/arm/mm/proc-syms.c
+index e21249548e9f..33e4a9b8f1ba 100644
+--- a/arch/arm/mm/proc-syms.c
++++ b/arch/arm/mm/proc-syms.c
+@@ -27,6 +27,9 @@ EXPORT_SYMBOL(__cpuc_flush_user_all);
+ EXPORT_SYMBOL(__cpuc_flush_user_range);
+ EXPORT_SYMBOL(__cpuc_coherent_kern_range);
+ EXPORT_SYMBOL(__cpuc_flush_dcache_area);
++EXPORT_SYMBOL(dmac_inv_range);
++EXPORT_SYMBOL(dmac_clean_range);
++EXPORT_SYMBOL(dmac_flush_range);
+ #else
+ EXPORT_SYMBOL(cpu_cache);
+ #endif
+
+From f9e7b3bea6d498c30e51fdcc3f55099e21391e11 Mon Sep 17 00:00:00 2001
+From: BrainSlayer <s.gottschall@dd-wrt.com>
+Date: Tue, 2 Jul 2024 07:10:17 +0000
+Subject: [PATCH] bypass pre divider
+
+git-svn-id: svn://svn.dd-wrt.com/DD-WRT@57092 52c4871e-980c-0410-b1e0-e73912ce01f8
+---
+ drivers/clk/qcom/clk-rcg.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/clk/qcom/clk-rcg.c b/drivers/clk/qcom/clk-rcg.c
+index ff3f636965a1..db6a4a2478b0 100644
+--- a/drivers/clk/qcom/clk-rcg.c
++++ b/drivers/clk/qcom/clk-rcg.c
+@@ -643,7 +643,6 @@ static int clk_rcg_pixel_set_rate(struct clk_hw *hw, unsigned long rate,
+ 		return ret;
+ 
+ 	src = ns_to_src(&rcg->s, ns);
+-	f.pre_div = ns_to_pre_div(&rcg->p, ns) + 1;
+ 
+ 	for (i = 0; i < num_parents; i++) {
+ 		if (src == rcg->s.parent_map[i].cfg) {
+@@ -652,6 +651,9 @@ static int clk_rcg_pixel_set_rate(struct clk_hw *hw, unsigned long rate,
+ 		}
+ 	}
+ 
++	/* bypass the pre divider */
++	f.pre_div = 1;
++
+ 	/* let us find appropriate m/n values for this */
+ 	for (; frac->num; frac++) {
+ 		request = (rate * frac->den) / frac->num;
+
+From 7e8a5d99274c7f749c86727d95f8e67e43ed40d3 Mon Sep 17 00:00:00 2001
+From: BrainSlayer <s.gottschall@dd-wrt.com>
+Date: Tue, 2 Jul 2024 11:45:23 +0000
+Subject: [PATCH] fix inaccurate clocks by rounding them up on closest even
+ number
+
+git-svn-id: svn://svn.dd-wrt.com/DD-WRT@57097 52c4871e-980c-0410-b1e0-e73912ce01f8
+---
+ .../universal/linux-6.6-nss/drivers/clk/qcom/clk-alpha-pll.c    | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/clk/qcom/clk-alpha-pll.c b/drivers/clk/qcom/clk-alpha-pll.c
+index 05654a416c30..00c83d2cecba 100644
+--- a/drivers/clk/qcom/clk-alpha-pll.c
++++ b/drivers/clk/qcom/clk-alpha-pll.c
+@@ -633,7 +633,7 @@ clk_alpha_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
+ 			a >>= alpha_width - ALPHA_BITWIDTH;
+ 	}
+ 
+-	return alpha_pll_calc_rate(prate, l, a, alpha_width);
++	return ((alpha_pll_calc_rate(prate, l, a, alpha_width) + 1) >> 1) << 1;
+ }
+ 
+ 
+diff --git a/crypto/tcrypt.c b/crypto/tcrypt.c
+index 51318cad4ae..58602570e52 100644
+--- a/crypto/tcrypt.c
++++ b/crypto/tcrypt.c
+@@ -41,7 +41,7 @@
+ /*
+  * Need slab memory for testing (size in number of pages).
+  */
+-#define TVMEMSIZE	4
++#define TVMEMSIZE	6
+ 
+ /*
+ * Used by test_cipher_speed()
+--- a/drivers/clk/qcom/clk-alpha-pll.c
++++ b/drivers/clk/qcom/clk-alpha-pll.c
+@@ -421,6 +421,8 @@ void clk_alpha_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
+ 	mask |= config->pre_div_mask;
+ 	mask |= config->post_div_mask;
+ 	mask |= config->vco_mask;
++	mask |= config->alpha_en_mask;
++	mask |= config->alpha_mode_mask;
+ 
+ 	regmap_update_bits(regmap, PLL_USER_CTL(pll), mask, val);
+ 
+--- a/drivers/clk/qcom/gcc-ipq6018.c
++++ b/drivers/clk/qcom/gcc-ipq6018.c
+@@ -4194,10 +4194,9 @@ static const struct alpha_pll_config ubi32_pll_config = {
+ 	.test_ctl_hi_val = 0x4000,
+ };
+ 
++/* 1200 MHz configuration */
+ static const struct alpha_pll_config nss_crypto_pll_config = {
+ 	.l = 0x32,
+-	.alpha = 0x0,
+-	.alpha_hi = 0x0,
+ 	.config_ctl_val = 0x4001055b,
+ 	.main_output_mask = BIT(0),
+ 	.pre_div_val = 0x0,
+@@ -4206,7 +4205,6 @@ static const struct alpha_pll_config nss_crypto_pll_config = {
+ 	.post_div_mask = GENMASK(11, 8),
+ 	.vco_mask = GENMASK(21, 20),
+ 	.vco_val = 0x0,
+-	.alpha_en_mask = BIT(24),
+ };
+ 
+ static struct clk_hw *gcc_ipq6018_hws[] = {
+

@@ -1,0 +1,1122 @@
+diff --color -bur a/apps/openssl.cnf b/apps/openssl.cnf
+--- a/apps/openssl.cnf
++++ b/apps/openssl.cnf
+@@ -76,7 +76,7 @@
+ 
+ [engines_sect]
+ .include /var/etc/ssl/engines.cnf
+-.include /etc/ssl/engines.cnf.d
++
+ .include /etc/ssl/modules.cnf.d
+ 
+ 
+diff --color -bur a/apps/speed.c b/apps/speed.c
+--- a/apps/speed.c
++++ b/apps/speed.c
+@@ -7,7 +7,7 @@
+  * in the file LICENSE in the source distribution or at
+  * https://www.openssl.org/source/license.html
+  */
+-
++#define NEED_PRINTF
+ #undef SECONDS
+ #define SECONDS          3
+ #define PKEY_SECONDS    10
+diff --color -bur a/crypto/aes/aes_cbc.c b/crypto/aes/aes_cbc.c
+--- a/crypto/aes/aes_cbc.c
++++ b/crypto/aes/aes_cbc.c
+@@ -14,6 +14,9 @@
+  */
+ #include "internal/deprecated.h"
+ 
++#ifdef OCTEON_OPENSSL
++#include "aes_cbc_octeon.c"
++#else
+ #include <openssl/aes.h>
+ #include <openssl/modes.h>
+ 
+@@ -29,3 +32,4 @@
+         CRYPTO_cbc128_decrypt(in, out, len, key, ivec,
+                               (block128_f) AES_decrypt);
+ }
++#endif
+diff --color -bur a/crypto/aes/aes_core.c b/crypto/aes/aes_core.c
+--- a/crypto/aes/aes_core.c
++++ b/crypto/aes/aes_core.c
+@@ -1,7 +1,7 @@
+ /*
+- * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
++ * Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
+  *
+- * Licensed under the Apache License 2.0 (the "License").  You may not use
++ * Licensed under the OpenSSL license (the "License").  You may not use
+  * this file except in compliance with the License.  You can obtain a copy
+  * in the file LICENSE in the source distribution or at
+  * https://www.openssl.org/source/license.html
+@@ -36,30 +36,20 @@
+ /* Note: rewritten a little bit to provide error control and an OpenSSL-
+    compatible API */
+ 
+-/*
+- * AES low level APIs are deprecated for public use, but still ok for internal
+- * use where we're using them to implement the higher level EVP interface, as is
+- * the case here.
+- */
+-#include "internal/deprecated.h"
+-
+ #include <assert.h>
+ 
+ #include <stdlib.h>
+ #include <openssl/crypto.h>
+ #include <openssl/aes.h>
+ #include "aes_local.h"
++#ifdef OCTEON_OPENSSL
++#include <cvmx-address.h>
++#include <cvmx-asm.h>
++#include <cvmx-key.h>
++#include <cvmx-swap.h>
++#endif
+ 
+-#if defined(OPENSSL_AES_CONST_TIME) && !defined(AES_ASM)
+-
+-# if (defined(_WIN32) || defined(_WIN64)) && !defined(__MINGW32__)
+-#  define U64(C) C##UI64
+-# elif defined(__arch64__)
+-#  define U64(C) C##UL
+-# else
+-#  define U64(C) C##ULL
+-# endif
+-
++#if defined(OPENSSL_AES_CONST_TIME) && !defined(AES_ASM) && !defined(OCTEON_OPENSSL)
+ typedef union {
+     unsigned char b[8];
+     u32 w[2];
+@@ -88,10 +78,10 @@
+     u64 a, b;
+ 
+     a = *w;
+-    b = a & U64(0x8080808080808080);
++    b = a & 0x8080808080808080uLL;
+     a ^= b;
+     b -= b >> 7;
+-    b &= U64(0x1B1B1B1B1B1B1B1B);
++    b &= 0x1B1B1B1B1B1B1B1BuLL;
+     b ^= a << 1;
+     *w = b;
+ }
+@@ -238,89 +228,89 @@
+     u64 x, y, a1, a2, a3, a4, a5, a6;
+ 
+     x = *w;
+-    y = ((x & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((x & U64(0x0101010101010101)) << 7);
+-    x &= U64(0xDDDDDDDDDDDDDDDD);
+-    x ^= y & U64(0x5757575757575757);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0x1C1C1C1C1C1C1C1C);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0x4A4A4A4A4A4A4A4A);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0x4242424242424242);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0x6464646464646464);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0xE0E0E0E0E0E0E0E0);
++    y = ((x & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((x & 0x0101010101010101uLL) << 7);
++    x &= 0xDDDDDDDDDDDDDDDDuLL;
++    x ^= y & 0x5757575757575757uLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0x1C1C1C1C1C1C1C1CuLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0x4A4A4A4A4A4A4A4AuLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0x4242424242424242uLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0x6464646464646464uLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0xE0E0E0E0E0E0E0E0uLL;
+     a1 = x;
+-    a1 ^= (x & U64(0xF0F0F0F0F0F0F0F0)) >> 4;
+-    a2 = ((x & U64(0xCCCCCCCCCCCCCCCC)) >> 2) | ((x & U64(0x3333333333333333)) << 2);
++    a1 ^= (x & 0xF0F0F0F0F0F0F0F0uLL) >> 4;
++    a2 = ((x & 0xCCCCCCCCCCCCCCCCuLL) >> 2) | ((x & 0x3333333333333333uLL) << 2);
+     a3 = x & a1;
+-    a3 ^= (a3 & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+-    a3 ^= (((x << 1) & a1) ^ ((a1 << 1) & x)) & U64(0xAAAAAAAAAAAAAAAA);
++    a3 ^= (a3 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
++    a3 ^= (((x << 1) & a1) ^ ((a1 << 1) & x)) & 0xAAAAAAAAAAAAAAAAuLL;
+     a4 = a2 & a1;
+-    a4 ^= (a4 & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+-    a4 ^= (((a2 << 1) & a1) ^ ((a1 << 1) & a2)) & U64(0xAAAAAAAAAAAAAAAA);
+-    a5 = (a3 & U64(0xCCCCCCCCCCCCCCCC)) >> 2;
+-    a3 ^= ((a4 << 2) ^ a4) & U64(0xCCCCCCCCCCCCCCCC);
+-    a4 = a5 & U64(0x2222222222222222);
++    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
++    a4 ^= (((a2 << 1) & a1) ^ ((a1 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAuLL;
++    a5 = (a3 & 0xCCCCCCCCCCCCCCCCuLL) >> 2;
++    a3 ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCuLL;
++    a4 = a5 & 0x2222222222222222uLL;
+     a4 |= a4 >> 1;
+-    a4 ^= (a5 << 1) & U64(0x2222222222222222);
++    a4 ^= (a5 << 1) & 0x2222222222222222uLL;
+     a3 ^= a4;
+-    a5 = a3 & U64(0xA0A0A0A0A0A0A0A0);
++    a5 = a3 & 0xA0A0A0A0A0A0A0A0uLL;
+     a5 |= a5 >> 1;
+-    a5 ^= (a3 << 1) & U64(0xA0A0A0A0A0A0A0A0);
+-    a4 = a5 & U64(0xC0C0C0C0C0C0C0C0);
++    a5 ^= (a3 << 1) & 0xA0A0A0A0A0A0A0A0uLL;
++    a4 = a5 & 0xC0C0C0C0C0C0C0C0uLL;
+     a6 = a4 >> 2;
+-    a4 ^= (a5 << 2) & U64(0xC0C0C0C0C0C0C0C0);
+-    a5 = a6 & U64(0x2020202020202020);
++    a4 ^= (a5 << 2) & 0xC0C0C0C0C0C0C0C0uLL;
++    a5 = a6 & 0x2020202020202020uLL;
+     a5 |= a5 >> 1;
+-    a5 ^= (a6 << 1) & U64(0x2020202020202020);
++    a5 ^= (a6 << 1) & 0x2020202020202020uLL;
+     a4 |= a5;
+     a3 ^= a4 >> 4;
+-    a3 &= U64(0x0F0F0F0F0F0F0F0F);
++    a3 &= 0x0F0F0F0F0F0F0F0FuLL;
+     a2 = a3;
+-    a2 ^= (a3 & U64(0x0C0C0C0C0C0C0C0C)) >> 2;
++    a2 ^= (a3 & 0x0C0C0C0C0C0C0C0CuLL) >> 2;
+     a4 = a3 & a2;
+-    a4 ^= (a4 & U64(0x0A0A0A0A0A0A0A0A)) >> 1;
+-    a4 ^= (((a3 << 1) & a2) ^ ((a2 << 1) & a3)) & U64(0x0A0A0A0A0A0A0A0A);
+-    a5 = a4 & U64(0x0808080808080808);
++    a4 ^= (a4 & 0x0A0A0A0A0A0A0A0AuLL) >> 1;
++    a4 ^= (((a3 << 1) & a2) ^ ((a2 << 1) & a3)) & 0x0A0A0A0A0A0A0A0AuLL;
++    a5 = a4 & 0x0808080808080808uLL;
+     a5 |= a5 >> 1;
+-    a5 ^= (a4 << 1) & U64(0x0808080808080808);
++    a5 ^= (a4 << 1) & 0x0808080808080808uLL;
+     a4 ^= a5 >> 2;
+-    a4 &= U64(0x0303030303030303);
+-    a4 ^= (a4 & U64(0x0202020202020202)) >> 1;
++    a4 &= 0x0303030303030303uLL;
++    a4 ^= (a4 & 0x0202020202020202uLL) >> 1;
+     a4 |= a4 << 2;
+     a3 = a2 & a4;
+-    a3 ^= (a3 & U64(0x0A0A0A0A0A0A0A0A)) >> 1;
+-    a3 ^= (((a2 << 1) & a4) ^ ((a4 << 1) & a2)) & U64(0x0A0A0A0A0A0A0A0A);
++    a3 ^= (a3 & 0x0A0A0A0A0A0A0A0AuLL) >> 1;
++    a3 ^= (((a2 << 1) & a4) ^ ((a4 << 1) & a2)) & 0x0A0A0A0A0A0A0A0AuLL;
+     a3 |= a3 << 4;
+-    a2 = ((a1 & U64(0xCCCCCCCCCCCCCCCC)) >> 2) | ((a1 & U64(0x3333333333333333)) << 2);
++    a2 = ((a1 & 0xCCCCCCCCCCCCCCCCuLL) >> 2) | ((a1 & 0x3333333333333333uLL) << 2);
+     x = a1 & a3;
+-    x ^= (x & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+-    x ^= (((a1 << 1) & a3) ^ ((a3 << 1) & a1)) & U64(0xAAAAAAAAAAAAAAAA);
++    x ^= (x & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
++    x ^= (((a1 << 1) & a3) ^ ((a3 << 1) & a1)) & 0xAAAAAAAAAAAAAAAAuLL;
+     a4 = a2 & a3;
+-    a4 ^= (a4 & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+-    a4 ^= (((a2 << 1) & a3) ^ ((a3 << 1) & a2)) & U64(0xAAAAAAAAAAAAAAAA);
+-    a5 = (x & U64(0xCCCCCCCCCCCCCCCC)) >> 2;
+-    x ^= ((a4 << 2) ^ a4) & U64(0xCCCCCCCCCCCCCCCC);
+-    a4 = a5 & U64(0x2222222222222222);
++    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
++    a4 ^= (((a2 << 1) & a3) ^ ((a3 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAuLL;
++    a5 = (x & 0xCCCCCCCCCCCCCCCCuLL) >> 2;
++    x ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCuLL;
++    a4 = a5 & 0x2222222222222222uLL;
+     a4 |= a4 >> 1;
+-    a4 ^= (a5 << 1) & U64(0x2222222222222222);
++    a4 ^= (a5 << 1) & 0x2222222222222222uLL;
+     x ^= a4;
+-    y = ((x & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((x & U64(0x0101010101010101)) << 7);
+-    x &= U64(0x3939393939393939);
+-    x ^= y & U64(0x3F3F3F3F3F3F3F3F);
+-    y = ((y & U64(0xFCFCFCFCFCFCFCFC)) >> 2) | ((y & U64(0x0303030303030303)) << 6);
+-    x ^= y & U64(0x9797979797979797);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0x9B9B9B9B9B9B9B9B);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0x3C3C3C3C3C3C3C3C);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0xDDDDDDDDDDDDDDDD);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0x7272727272727272);
+-    x ^= U64(0x6363636363636363);
++    y = ((x & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((x & 0x0101010101010101uLL) << 7);
++    x &= 0x3939393939393939uLL;
++    x ^= y & 0x3F3F3F3F3F3F3F3FuLL;
++    y = ((y & 0xFCFCFCFCFCFCFCFCuLL) >> 2) | ((y & 0x0303030303030303uLL) << 6);
++    x ^= y & 0x9797979797979797uLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0x9B9B9B9B9B9B9B9BuLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0x3C3C3C3C3C3C3C3CuLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0xDDDDDDDDDDDDDDDDuLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0x7272727272727272uLL;
++    x ^= 0x6363636363636363uLL;
+     *w = x;
+ }
+ 
+@@ -332,93 +322,93 @@
+     u64 x, y, a1, a2, a3, a4, a5, a6;
+ 
+     x = *w;
+-    x ^= U64(0x6363636363636363);
+-    y = ((x & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((x & U64(0x0101010101010101)) << 7);
+-    x &= U64(0xFDFDFDFDFDFDFDFD);
+-    x ^= y & U64(0x5E5E5E5E5E5E5E5E);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0xF3F3F3F3F3F3F3F3);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0xF5F5F5F5F5F5F5F5);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0x7878787878787878);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0x7777777777777777);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0x1515151515151515);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0xA5A5A5A5A5A5A5A5);
++    x ^= 0x6363636363636363uLL;
++    y = ((x & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((x & 0x0101010101010101uLL) << 7);
++    x &= 0xFDFDFDFDFDFDFDFDuLL;
++    x ^= y & 0x5E5E5E5E5E5E5E5EuLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0xF3F3F3F3F3F3F3F3uLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0xF5F5F5F5F5F5F5F5uLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0x7878787878787878uLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0x7777777777777777uLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0x1515151515151515uLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0xA5A5A5A5A5A5A5A5uLL;
+     a1 = x;
+-    a1 ^= (x & U64(0xF0F0F0F0F0F0F0F0)) >> 4;
+-    a2 = ((x & U64(0xCCCCCCCCCCCCCCCC)) >> 2) | ((x & U64(0x3333333333333333)) << 2);
++    a1 ^= (x & 0xF0F0F0F0F0F0F0F0uLL) >> 4;
++    a2 = ((x & 0xCCCCCCCCCCCCCCCCuLL) >> 2) | ((x & 0x3333333333333333uLL) << 2);
+     a3 = x & a1;
+-    a3 ^= (a3 & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+-    a3 ^= (((x << 1) & a1) ^ ((a1 << 1) & x)) & U64(0xAAAAAAAAAAAAAAAA);
++    a3 ^= (a3 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
++    a3 ^= (((x << 1) & a1) ^ ((a1 << 1) & x)) & 0xAAAAAAAAAAAAAAAAuLL;
+     a4 = a2 & a1;
+-    a4 ^= (a4 & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+-    a4 ^= (((a2 << 1) & a1) ^ ((a1 << 1) & a2)) & U64(0xAAAAAAAAAAAAAAAA);
+-    a5 = (a3 & U64(0xCCCCCCCCCCCCCCCC)) >> 2;
+-    a3 ^= ((a4 << 2) ^ a4) & U64(0xCCCCCCCCCCCCCCCC);
+-    a4 = a5 & U64(0x2222222222222222);
++    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
++    a4 ^= (((a2 << 1) & a1) ^ ((a1 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAuLL;
++    a5 = (a3 & 0xCCCCCCCCCCCCCCCCuLL) >> 2;
++    a3 ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCuLL;
++    a4 = a5 & 0x2222222222222222uLL;
+     a4 |= a4 >> 1;
+-    a4 ^= (a5 << 1) & U64(0x2222222222222222);
++    a4 ^= (a5 << 1) & 0x2222222222222222uLL;
+     a3 ^= a4;
+-    a5 = a3 & U64(0xA0A0A0A0A0A0A0A0);
++    a5 = a3 & 0xA0A0A0A0A0A0A0A0uLL;
+     a5 |= a5 >> 1;
+-    a5 ^= (a3 << 1) & U64(0xA0A0A0A0A0A0A0A0);
+-    a4 = a5 & U64(0xC0C0C0C0C0C0C0C0);
++    a5 ^= (a3 << 1) & 0xA0A0A0A0A0A0A0A0uLL;
++    a4 = a5 & 0xC0C0C0C0C0C0C0C0uLL;
+     a6 = a4 >> 2;
+-    a4 ^= (a5 << 2) & U64(0xC0C0C0C0C0C0C0C0);
+-    a5 = a6 & U64(0x2020202020202020);
++    a4 ^= (a5 << 2) & 0xC0C0C0C0C0C0C0C0uLL;
++    a5 = a6 & 0x2020202020202020uLL;
+     a5 |= a5 >> 1;
+-    a5 ^= (a6 << 1) & U64(0x2020202020202020);
++    a5 ^= (a6 << 1) & 0x2020202020202020uLL;
+     a4 |= a5;
+     a3 ^= a4 >> 4;
+-    a3 &= U64(0x0F0F0F0F0F0F0F0F);
++    a3 &= 0x0F0F0F0F0F0F0F0FuLL;
+     a2 = a3;
+-    a2 ^= (a3 & U64(0x0C0C0C0C0C0C0C0C)) >> 2;
++    a2 ^= (a3 & 0x0C0C0C0C0C0C0C0CuLL) >> 2;
+     a4 = a3 & a2;
+-    a4 ^= (a4 & U64(0x0A0A0A0A0A0A0A0A)) >> 1;
+-    a4 ^= (((a3 << 1) & a2) ^ ((a2 << 1) & a3)) & U64(0x0A0A0A0A0A0A0A0A);
+-    a5 = a4 & U64(0x0808080808080808);
++    a4 ^= (a4 & 0x0A0A0A0A0A0A0A0AuLL) >> 1;
++    a4 ^= (((a3 << 1) & a2) ^ ((a2 << 1) & a3)) & 0x0A0A0A0A0A0A0A0AuLL;
++    a5 = a4 & 0x0808080808080808uLL;
+     a5 |= a5 >> 1;
+-    a5 ^= (a4 << 1) & U64(0x0808080808080808);
++    a5 ^= (a4 << 1) & 0x0808080808080808uLL;
+     a4 ^= a5 >> 2;
+-    a4 &= U64(0x0303030303030303);
+-    a4 ^= (a4 & U64(0x0202020202020202)) >> 1;
++    a4 &= 0x0303030303030303uLL;
++    a4 ^= (a4 & 0x0202020202020202uLL) >> 1;
+     a4 |= a4 << 2;
+     a3 = a2 & a4;
+-    a3 ^= (a3 & U64(0x0A0A0A0A0A0A0A0A)) >> 1;
+-    a3 ^= (((a2 << 1) & a4) ^ ((a4 << 1) & a2)) & U64(0x0A0A0A0A0A0A0A0A);
++    a3 ^= (a3 & 0x0A0A0A0A0A0A0A0AuLL) >> 1;
++    a3 ^= (((a2 << 1) & a4) ^ ((a4 << 1) & a2)) & 0x0A0A0A0A0A0A0A0AuLL;
+     a3 |= a3 << 4;
+-    a2 = ((a1 & U64(0xCCCCCCCCCCCCCCCC)) >> 2) | ((a1 & U64(0x3333333333333333)) << 2);
++    a2 = ((a1 & 0xCCCCCCCCCCCCCCCCuLL) >> 2) | ((a1 & 0x3333333333333333uLL) << 2);
+     x = a1 & a3;
+-    x ^= (x & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+-    x ^= (((a1 << 1) & a3) ^ ((a3 << 1) & a1)) & U64(0xAAAAAAAAAAAAAAAA);
++    x ^= (x & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
++    x ^= (((a1 << 1) & a3) ^ ((a3 << 1) & a1)) & 0xAAAAAAAAAAAAAAAAuLL;
+     a4 = a2 & a3;
+-    a4 ^= (a4 & U64(0xAAAAAAAAAAAAAAAA)) >> 1;
+-    a4 ^= (((a2 << 1) & a3) ^ ((a3 << 1) & a2)) & U64(0xAAAAAAAAAAAAAAAA);
+-    a5 = (x & U64(0xCCCCCCCCCCCCCCCC)) >> 2;
+-    x ^= ((a4 << 2) ^ a4) & U64(0xCCCCCCCCCCCCCCCC);
+-    a4 = a5 & U64(0x2222222222222222);
++    a4 ^= (a4 & 0xAAAAAAAAAAAAAAAAuLL) >> 1;
++    a4 ^= (((a2 << 1) & a3) ^ ((a3 << 1) & a2)) & 0xAAAAAAAAAAAAAAAAuLL;
++    a5 = (x & 0xCCCCCCCCCCCCCCCCuLL) >> 2;
++    x ^= ((a4 << 2) ^ a4) & 0xCCCCCCCCCCCCCCCCuLL;
++    a4 = a5 & 0x2222222222222222uLL;
+     a4 |= a4 >> 1;
+-    a4 ^= (a5 << 1) & U64(0x2222222222222222);
++    a4 ^= (a5 << 1) & 0x2222222222222222uLL;
+     x ^= a4;
+-    y = ((x & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((x & U64(0x0101010101010101)) << 7);
+-    x &= U64(0xB5B5B5B5B5B5B5B5);
+-    x ^= y & U64(0x4040404040404040);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0x8080808080808080);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0x1616161616161616);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0xEBEBEBEBEBEBEBEB);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0x9797979797979797);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0xFBFBFBFBFBFBFBFB);
+-    y = ((y & U64(0xFEFEFEFEFEFEFEFE)) >> 1) | ((y & U64(0x0101010101010101)) << 7);
+-    x ^= y & U64(0x7D7D7D7D7D7D7D7D);
++    y = ((x & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((x & 0x0101010101010101uLL) << 7);
++    x &= 0xB5B5B5B5B5B5B5B5uLL;
++    x ^= y & 0x4040404040404040uLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0x8080808080808080uLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0x1616161616161616uLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0xEBEBEBEBEBEBEBEBuLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0x9797979797979797uLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0xFBFBFBFBFBFBFBFBuLL;
++    y = ((y & 0xFEFEFEFEFEFEFEFEuLL) >> 1) | ((y & 0x0101010101010101uLL) << 7);
++    x ^= y & 0x7D7D7D7D7D7D7D7DuLL;
+     *w = x;
+ }
+ 
+@@ -469,10 +459,10 @@
+     for (c = 0; c < 2; c++) {
+         s1.d = state[c];
+         s.d = s1.d;
+-        s.d ^= ((s.d & U64(0xFFFF0000FFFF0000)) >> 16)
+-               | ((s.d & U64(0x0000FFFF0000FFFF)) << 16);
+-        s.d ^= ((s.d & U64(0xFF00FF00FF00FF00)) >> 8)
+-               | ((s.d & U64(0x00FF00FF00FF00FF)) << 8);
++        s.d ^= ((s.d & 0xFFFF0000FFFF0000uLL) >> 16)
++               | ((s.d & 0x0000FFFF0000FFFFuLL) << 16);
++        s.d ^= ((s.d & 0xFF00FF00FF00FF00uLL) >> 8)
++               | ((s.d & 0x00FF00FF00FF00FFuLL) << 8);
+         s.d ^= s1.d;
+         XtimeLong(&s1.d);
+         s.d ^= s1.d;
+@@ -497,10 +487,10 @@
+     for (c = 0; c < 2; c++) {
+         s1.d = state[c];
+         s.d = s1.d;
+-        s.d ^= ((s.d & U64(0xFFFF0000FFFF0000)) >> 16)
+-               | ((s.d & U64(0x0000FFFF0000FFFF)) << 16);
+-        s.d ^= ((s.d & U64(0xFF00FF00FF00FF00)) >> 8)
+-               | ((s.d & U64(0x00FF00FF00FF00FF)) << 8);
++        s.d ^= ((s.d & 0xFFFF0000FFFF0000uLL) >> 16)
++               | ((s.d & 0x0000FFFF0000FFFFuLL) << 16);
++        s.d ^= ((s.d & 0xFF00FF00FF00FF00uLL) >> 8)
++               | ((s.d & 0x00FF00FF00FF00FFuLL) << 8);
+         s.d ^= s1.d;
+         XtimeLong(&s1.d);
+         s.d ^= s1.d;
+@@ -513,12 +503,12 @@
+         s.b[6] ^= s1.b[7];
+         s.b[7] ^= s1.b[4];
+         XtimeLong(&s1.d);
+-        s1.d ^= ((s1.d & U64(0xFFFF0000FFFF0000)) >> 16)
+-                | ((s1.d & U64(0x0000FFFF0000FFFF)) << 16);
++        s1.d ^= ((s1.d & 0xFFFF0000FFFF0000uLL) >> 16)
++                | ((s1.d & 0x0000FFFF0000FFFFuLL) << 16);
+         s.d ^= s1.d;
+         XtimeLong(&s1.d);
+-        s1.d ^= ((s1.d & U64(0xFF00FF00FF00FF00)) >> 8)
+-                | ((s1.d & U64(0x00FF00FF00FF00FF)) << 8);
++        s1.d ^= ((s1.d & 0xFF00FF00FF00FF00uLL) >> 8)
++                | ((s1.d & 0x00FF00FF00FF00FFuLL) << 8);
+         s.d ^= s1.d;
+         state[c] = s.d;
+     }
+@@ -1288,6 +1278,15 @@
+     if (bits != 128 && bits != 192 && bits != 256)
+         return -2;
+ 
++#ifdef OCTEON_OPENSSL
++  int keylen;
++  keylen = bits / 64;
++  memset (&(key->rd_key[0]), 0, sizeof (uint64_t) * 4);
++  memcpy (&(key->rd_key[0]), userKey, sizeof (uint64_t) * keylen);
++  key->rounds = 6 + bits / 32;
++  return 0;
++#endif
++
+     rk = key->rd_key;
+ 
+     if (bits == 128)
+@@ -1387,6 +1386,9 @@
+ 
+     /* first, start with an encryption schedule */
+     status = AES_set_encrypt_key(userKey, bits, key);
++#ifdef OCTEON_OPENSSL
++    return 0;
++#endif
+     if (status < 0)
+         return status;
+ 
+@@ -1432,6 +1434,23 @@
+  */
+ void AES_encrypt(const unsigned char *in, unsigned char *out,
+                  const AES_KEY *key) {
++#ifdef OCTEON_OPENSSL
++  uint64_t *in64,*out64, *rdkey;
++  rdkey = &key->rd_key[0];
++  CVMX_MT_AES_KEY (rdkey[0], 0);
++  CVMX_MT_AES_KEY (rdkey[1], 1);
++  CVMX_MT_AES_KEY (rdkey[2], 2);
++  CVMX_MT_AES_KEY (rdkey[3], 3);
++  CVMX_MT_AES_KEYLENGTH ((key->rounds - 6) / 2 - 1);
++  in64 = (uint64_t*)in;
++  out64 = (uint64_t*)out;	
++  CVMX_MT_AES_ENC0(in64[0]);
++  CVMX_MT_AES_ENC1(in64[1]);
++  CVMX_MF_AES_RESULT(out64[0],0);
++  CVMX_MF_AES_RESULT(out64[1],1);
++  out64[0] = cvmx_be64_to_cpu(out64[0]);
++  out64[1] = cvmx_be64_to_cpu(out64[1]);
++#else
+ 
+     const u32 *rk;
+     u32 s0, s1, s2, s3, t0, t1, t2, t3;
+@@ -1615,6 +1634,7 @@
+         (Te1[(t2      ) & 0xff] & 0x000000ff) ^
+         rk[3];
+     PUTU32(out + 12, s3);
++#endif
+ }
+ 
+ /*
+@@ -1624,6 +1644,23 @@
+ void AES_decrypt(const unsigned char *in, unsigned char *out,
+                  const AES_KEY *key)
+ {
++#ifdef OCTEON_OPENSSL
++  uint64_t *in64,*out64, *rdkey;
++  rdkey = &key->rd_key[0];
++  CVMX_MT_AES_KEY (rdkey[0], 0);
++  CVMX_MT_AES_KEY (rdkey[1], 1);
++  CVMX_MT_AES_KEY (rdkey[2], 2);
++  CVMX_MT_AES_KEY (rdkey[3], 3);
++  CVMX_MT_AES_KEYLENGTH ((key->rounds - 6) / 2 - 1);
++  in64 = (uint64_t*)in;
++  out64 = (uint64_t*)out;
++  CVMX_MT_AES_DEC0(in64[0]);
++  CVMX_MT_AES_DEC1(in64[1]);
++  CVMX_MF_AES_RESULT(out64[0],0);
++  CVMX_MF_AES_RESULT(out64[1],1);
++  out64[0] = cvmx_be64_to_cpu(out64[0]);
++  out64[1] = cvmx_be64_to_cpu(out64[1]);
++#else
+ 
+     const u32 *rk;
+     u32 s0, s1, s2, s3, t0, t1, t2, t3;
+@@ -1807,6 +1844,7 @@
+         ((u32)Td4[(t0      ) & 0xff])       ^
+         rk[3];
+     PUTU32(out + 12, s3);
++#endif
+ }
+ 
+ #else /* AES_ASM */
+diff --color -bur a/crypto/aes/build.info b/crypto/aes/build.info
+--- a/crypto/aes/build.info
++++ b/crypto/aes/build.info
+@@ -21,8 +21,9 @@
+ 
+   $AESASM_mips32=aes_cbc.c aes-mips.S
+   $AESDEF_mips32=AES_ASM
+-  $AESASM_mips64=$AESASM_mips32
+-  $AESDEF_mips64=$AESDEF_mips32
++
++#  $AESASM_mips64=$AESASM_mips32
++#  $AESDEF_mips64=$AESDEF_mips32
+ 
+   $AESASM_s390x=aes-s390x.S
+   # aes-390x.S implements AES_ctr32_encrypt and AES_xts_[en|de]crypt
+diff --color -bur a/crypto/des/des_enc.c b/crypto/des/des_enc.c
+--- a/crypto/des/des_enc.c
++++ b/crypto/des/des_enc.c
+@@ -1,22 +1,77 @@
+ /*
+- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
++ * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+  *
+- * Licensed under the Apache License 2.0 (the "License").  You may not use
++ * Licensed under the OpenSSL license (the "License").  You may not use
+  * this file except in compliance with the License.  You can obtain a copy
+  * in the file LICENSE in the source distribution or at
+  * https://www.openssl.org/source/license.html
+  */
+ 
+-/*
+- * DES low level APIs are deprecated for public use, but still ok for internal
+- * use.
+- */
+-#include "internal/deprecated.h"
+-
+ #include <openssl/crypto.h>
+ #include "des_local.h"
+ #include "spr.h"
+ 
++#ifdef OCTEON_OPENSSL
++#include "cvmx-address.h"
++#include "cvmx-asm.h"
++#include "cvmx-key.h"
++#include "cvmx-swap.h"
++
++#endif
++
++
++#ifdef OCTEON_OPENSSL
++/* 3des enc/dec without CBC */
++void
++DES_ede3_encrypt (const unsigned char *input, unsigned char *output,
++  long length, DES_key_schedule * ks1,
++  DES_key_schedule * ks2, DES_key_schedule * ks3, int enc)
++{
++  uint64_t in64 = 0;
++  uint64_t *rdkey1 = &ks1->ks->cblock[0];
++  uint64_t *rdkey2 = &ks2->ks->cblock[0];
++  uint64_t *rdkey3 = &ks3->ks->cblock[0];
++
++  CVMX_MT_3DES_KEY (*rdkey1, 0);
++  CVMX_MT_3DES_KEY (*rdkey2, 1);
++  CVMX_MT_3DES_KEY (*rdkey3, 2);
++
++  if (enc) {
++    while (length >= 8) {
++      CVMX_MT_3DES_ENC (*(uint64_t *) input);
++      CVMX_MF_3DES_RESULT (*(uint64_t *) output);
++      *(uint64_t *) output = cvmx_be64_to_cpu(*(uint64_t *) output);
++      input += 8;
++      output += 8;
++      length -= 8;
++    }
++    if (length) {
++      in64 = 0;
++      memcpy ((void *) &in64, (void *) input, 8);
++      CVMX_MT_3DES_DEC (in64);
++      CVMX_MF_3DES_RESULT (*(uint64_t *) output);
++      *(uint64_t *) output = cvmx_be64_to_cpu(*(uint64_t *) output);
++    }
++  } else {
++    while (length >= 8) {
++      CVMX_MT_3DES_DEC (*(uint64_t *) (input));
++      CVMX_MF_3DES_RESULT (*(uint64_t *) output);
++      *(uint64_t *) output = cvmx_be64_to_cpu(*(uint64_t *) output);
++      input += 8;
++      output += 8;
++      length -= 8;
++    }
++    if (length) {
++      in64 = 0;
++      memcpy ((void *) &in64, (void *) input, 8);
++      CVMX_MT_3DES_DEC (in64);
++      CVMX_MF_3DES_RESULT (*(uint64_t *) output);
++      *(uint64_t *) output = cvmx_be64_to_cpu(*(uint64_t *) output);
++    }
++  }
++}
++#endif
++
+ void DES_encrypt1(DES_LONG *data, DES_key_schedule *ks, int enc)
+ {
+     register DES_LONG l, r, t, u;
+@@ -202,6 +257,7 @@
+                           DES_key_schedule *ks2, DES_key_schedule *ks3,
+                           DES_cblock *ivec, int enc)
+ {
++#ifndef OCTEON_OPENSSL
+     register DES_LONG tin0, tin1;
+     register DES_LONG tout0, tout1, xor0, xor1;
+     register const unsigned char *in;
+@@ -300,6 +356,114 @@
+     }
+     tin0 = tin1 = tout0 = tout1 = xor0 = xor1 = 0;
+     tin[0] = tin[1] = 0;
++#else
++  uint64_t *iv;
++  uint64_t *inp, *outp;
++  uint64_t in64 = 0, i0, r0;
++  iv = (uint64_t *) & (*ivec)[0];
++  inp = (uint64_t *) input;
++  outp = (uint64_t *) output;
++  i0 = inp[0];
++  /* Initialise the keys */
++  uint64_t *rdkey1 = &ks1->ks->cblock[0];
++  uint64_t *rdkey2 = &ks2->ks->cblock[0];
++  uint64_t *rdkey3 = &ks3->ks->cblock[0];
++
++  CVMX_MT_3DES_KEY (*rdkey1, 0);
++  CVMX_MT_3DES_KEY (*rdkey2, 1);
++  CVMX_MT_3DES_KEY (*rdkey3, 2);
++
++  if (enc) {
++    /* Encrypt */
++    /* Initialise IV */
++    CVMX_MT_3DES_IV (*iv);
++    if (length >= 16) {
++      CVMX_MT_3DES_ENC_CBC (i0);
++      length -= 8;
++      inp++;
++      outp++;
++      if (length >= 8) {
++        i0 = inp[0];
++        CVMX_MF_3DES_RESULT (r0);
++	r0 = cvmx_be64_to_cpu(r0);
++        CVMX_MT_3DES_ENC_CBC (i0);
++        while (1) {
++          outp[-1] = r0;
++          length -= 8;
++          inp++;
++          outp++;
++          if (length < 8)
++            break;
++          i0 = inp[0];
++          CVMX_MF_3DES_RESULT (r0);
++	  r0 = cvmx_be64_to_cpu(r0);
++          CVMX_MT_3DES_ENC_CBC (i0);
++        }
++      }
++      CVMX_MF_3DES_RESULT (r0);
++      outp[-1] = r0;
++    }
++    if (length) {
++      in64 = 0;
++      if(length > 8) {
++        CVMX_MT_3DES_ENC_CBC (i0);
++        CVMX_MF_3DES_RESULT (*(uint64_t *) outp);
++	*(uint64_t *) outp = cvmx_be64_to_cpu(*(uint64_t *) outp);
++        outp++;
++        inp++;
++        length-=8;
++        memcpy ((void *) &in64, (void *) inp, length);
++      } else {
++        memcpy ((void *) &in64, (void *) inp, length);
++      }
++      CVMX_MT_3DES_ENC_CBC (in64);
++      CVMX_MF_3DES_RESULT (*(uint64_t *) outp);
++	*(uint64_t *) outp = cvmx_be64_to_cpu(*(uint64_t *) outp);
++      *iv = *(uint64_t *) outp;
++    } else {
++      *iv = *(uint64_t *) (outp - 1);
++    }
++  } else {
++    /* Decrypt */
++    /* Initialise IV */
++    CVMX_MT_3DES_IV (*iv);
++    if (length >= 16) {
++      CVMX_MT_3DES_DEC_CBC (i0);
++      length -= 8;
++      inp++;
++      outp++;
++      if (length >= 8) {
++        i0 = inp[0];
++        CVMX_MF_3DES_RESULT (r0);
++	r0 = cvmx_be64_to_cpu(r0);
++        CVMX_MT_3DES_DEC_CBC (i0);
++        while (1) {
++          outp[-1] = r0;
++          length -= 8;
++          inp++;
++          outp++;
++          if (length < 8)
++            break;
++          i0 = inp[0];
++          CVMX_MF_3DES_RESULT (r0);
++	r0 = cvmx_be64_to_cpu(r0);
++          CVMX_MT_3DES_DEC_CBC (i0);
++        }
++        CVMX_MF_3DES_RESULT (r0);
++        *iv = *(uint64_t *) (inp - 1);
++        outp[-1] = r0;
++      }
++    }
++    if (length) {
++      in64 = 0;
++      *iv = *(uint64_t *) inp;
++      memcpy ((void *) &in64, (void *) inp, 8);
++      CVMX_MT_3DES_DEC_CBC (in64);
++      CVMX_MF_3DES_RESULT (*(uint64_t *) outp);
++	*(uint64_t *) outp = cvmx_be64_to_cpu(*(uint64_t *) outp);
++    }
++  }
++#endif
+ }
+ 
+ #endif                          /* DES_DEFAULT_OPTIONS */
+diff --color -bur a/crypto/des/ecb3_enc.c b/crypto/des/ecb3_enc.c
+--- a/crypto/des/ecb3_enc.c
++++ b/crypto/des/ecb3_enc.c
+@@ -1,24 +1,41 @@
+ /*
+- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
++ * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+  *
+- * Licensed under the Apache License 2.0 (the "License").  You may not use
++ * Licensed under the OpenSSL license (the "License").  You may not use
+  * this file except in compliance with the License.  You can obtain a copy
+  * in the file LICENSE in the source distribution or at
+  * https://www.openssl.org/source/license.html
+  */
+ 
+-/*
+- * DES low level APIs are deprecated for public use, but still ok for internal
+- * use.
+- */
+-#include "internal/deprecated.h"
+-
+ #include "des_local.h"
+ 
+ void DES_ecb3_encrypt(const_DES_cblock *input, DES_cblock *output,
+                       DES_key_schedule *ks1, DES_key_schedule *ks2,
+                       DES_key_schedule *ks3, int enc)
+ {
++#ifdef OCTEON_OPENSSL
++  uint64_t *rdkey1 = &ks1->ks->cblock[0];
++  uint64_t *rdkey2 = &ks2->ks->cblock[0];
++  uint64_t *rdkey3 = &ks3->ks->cblock[0];
++
++  CVMX_MT_3DES_KEY (*rdkey1, 0);
++  CVMX_MT_3DES_KEY (*rdkey2, 1);
++  CVMX_MT_3DES_KEY (*rdkey3, 2);
++
++  if (enc) {
++      register uint64_t inp = *(uint64_t *)input;
++      CVMX_MT_3DES_ENC (inp);
++      CVMX_MF_3DES_RESULT (inp);
++      inp = cvmx_be64_to_cpu(inp);
++      *(uint64_t *)output = inp;
++  } else {
++      register uint64_t inp = *(uint64_t *)input;
++      CVMX_MT_3DES_DEC (inp);
++      CVMX_MF_3DES_RESULT (inp);
++      inp = cvmx_be64_to_cpu(inp);
++      *(uint64_t *)output = inp;
++  }
++#else
+     register DES_LONG l0, l1;
+     DES_LONG ll[2];
+     const unsigned char *in = &(*input)[0];
+@@ -36,4 +53,5 @@
+     l1 = ll[1];
+     l2c(l0, out);
+     l2c(l1, out);
++#endif
+ }
+diff --color -bur a/crypto/des/ecb_enc.c b/crypto/des/ecb_enc.c
+--- a/crypto/des/ecb_enc.c
++++ b/crypto/des/ecb_enc.c
+@@ -1,18 +1,12 @@
+ /*
+- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
++ * Copyright 1995-2017 The OpenSSL Project Authors. All Rights Reserved.
+  *
+- * Licensed under the Apache License 2.0 (the "License").  You may not use
++ * Licensed under the OpenSSL license (the "License").  You may not use
+  * this file except in compliance with the License.  You can obtain a copy
+  * in the file LICENSE in the source distribution or at
+  * https://www.openssl.org/source/license.html
+  */
+ 
+-/*
+- * DES low level APIs are deprecated for public use, but still ok for internal
+- * use.
+- */
+-#include "internal/deprecated.h"
+-
+ #include "des_local.h"
+ #include <openssl/opensslv.h>
+ #include <openssl/bio.h>
+@@ -36,6 +30,27 @@
+ void DES_ecb_encrypt(const_DES_cblock *input, DES_cblock *output,
+                      DES_key_schedule *ks, int enc)
+ {
++#ifdef OCTEON_OPENSSL
++  uint64_t *rdkey = &ks->ks->cblock[0];
++
++  CVMX_MT_3DES_KEY (*rdkey, 0);
++  CVMX_MT_3DES_KEY (*rdkey, 1);
++  CVMX_MT_3DES_KEY (*rdkey, 2);
++
++  if (enc) {
++      register uint64_t inp = *(uint64_t *)input;
++      CVMX_MT_3DES_ENC (inp);
++      CVMX_MF_3DES_RESULT (inp);
++      inp = cvmx_be64_to_cpu(inp);
++      *(uint64_t *)output = inp;
++  } else {
++      register uint64_t inp = *(uint64_t *)input;
++      CVMX_MT_3DES_DEC (inp);
++      CVMX_MF_3DES_RESULT (inp);
++      inp = cvmx_be64_to_cpu(inp);
++      *(uint64_t *)output = inp;
++  }
++#else
+     register DES_LONG l;
+     DES_LONG ll[2];
+     const unsigned char *in = &(*input)[0];
+@@ -51,4 +66,5 @@
+     l = ll[1];
+     l2c(l, out);
+     l = ll[0] = ll[1] = 0;
++#endif
+ }
+diff --color -bur a/crypto/des/ncbc_enc.c b/crypto/des/ncbc_enc.c
+--- a/crypto/des/ncbc_enc.c
++++ b/crypto/des/ncbc_enc.c
+@@ -24,6 +24,7 @@
+                       DES_cblock *ivec, int enc)
+ #endif
+ {
++#ifndef OCTEON_OPENSSL
+     register DES_LONG tin0, tin1;
+     register DES_LONG tout0, tout1, xor0, xor1;
+     register long l = length;
+@@ -103,4 +104,15 @@
+     }
+     tin0 = tin1 = tout0 = tout1 = xor0 = xor1 = 0;
+     tin[0] = tin[1] = 0;
++#else
++  DES_ede3_cbc_encrypt(
++    in,
++    out,
++    length,
++    _schedule,  
++    _schedule,  
++    _schedule, 
++    ivec,
++    enc); 
++#endif
+ }
+diff --color -bur a/crypto/des/set_key.c b/crypto/des/set_key.c
+--- a/crypto/des/set_key.c
++++ b/crypto/des/set_key.c
+@@ -324,17 +324,23 @@
+ 
+ void DES_set_key_unchecked(const_DES_cblock *key, DES_key_schedule *schedule)
+ {
++#ifndef OCTEON_OPENSSL
+     static const int shifts2[16] =
+         { 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0 };
+     register DES_LONG c, d, t, s, t2;
+     register const unsigned char *in;
+     register DES_LONG *k;
+     register int i;
+-
++#endif
+ #ifdef OPENBSD_DEV_CRYPTO
+     memcpy(schedule->key, key, sizeof(schedule->key));
+     schedule->session = NULL;
+ #endif
++#ifdef OCTEON_OPENSSL
++	memcpy(&(schedule->cvmkey),key,sizeof(schedule->cvmkey));
++	/* schedule->cvmkey = *(uint64_t *)key[0]; */
++#endif
++#ifndef OCTEON_OPENSSL
+     k = &schedule->ks->deslong[0];
+     in = &(*key)[0];
+ 
+@@ -386,6 +392,7 @@
+         t2 = ((s >> 16L) | (t & 0xffff0000L));
+         *(k++) = ROTATE(t2, 26) & 0xffffffffL;
+     }
++#endif
+ }
+ 
+ int DES_key_sched(const_DES_cblock *key, DES_key_schedule *schedule)
+diff --color -bur a/crypto/md5/md5_dgst.c b/crypto/md5/md5_dgst.c
+--- a/crypto/md5/md5_dgst.c
++++ b/crypto/md5/md5_dgst.c
+@@ -13,6 +13,9 @@
+  */
+ #include "internal/deprecated.h"
+ 
++#ifdef OCTEON_OPENSSL
++#include "md5_dgst_octeon.c"
++#else
+ #include <stdio.h>
+ #include "md5_local.h"
+ #include <openssl/opensslv.h>
+@@ -168,3 +171,4 @@
+     }
+ }
+ #endif
++#endif
+diff --color -bur a/crypto/md5/md5_local.h b/crypto/md5/md5_local.h
+--- a/crypto/md5/md5_local.h
++++ b/crypto/md5/md5_local.h
+@@ -30,6 +30,7 @@
+ #define HASH_LONG               MD5_LONG
+ #define HASH_CTX                MD5_CTX
+ #define HASH_CBLOCK             MD5_CBLOCK
++#define HASH_LBLOCK		MD5_LBLOCK
+ #define HASH_UPDATE             MD5_Update
+ #define HASH_TRANSFORM          MD5_Transform
+ #define HASH_FINAL              MD5_Final
+diff --color -bur a/crypto/md5/md5_one.c b/crypto/md5/md5_one.c
+--- a/crypto/md5/md5_one.c
++++ b/crypto/md5/md5_one.c
+@@ -13,6 +13,9 @@
+  */
+ #include "internal/deprecated.h"
+ 
++#ifdef OCTEON_OPENSSL
++#include "md5_one_octeon.c"
++#else
+ #include <stdio.h>
+ #include <string.h>
+ #include <openssl/md5.h>
+@@ -51,3 +54,4 @@
+     OPENSSL_cleanse(&c, sizeof(c)); /* security consideration */
+     return md;
+ }
++#endif
+diff --color -bur a/include/crypto/md32_common.h b/include/crypto/md32_common.h
+--- a/include/crypto/md32_common.h
++++ b/include/crypto/md32_common.h
+@@ -124,7 +124,7 @@
+ /*
+  * Time for some action :-)
+  */
+-
++#ifndef OCTEON_HASH
+ int HASH_UPDATE(HASH_CTX *c, const void *data_, size_t len)
+ {
+     const unsigned char *data = data_;
+@@ -182,12 +182,13 @@
+     }
+     return 1;
+ }
++#endif
+ 
+ void HASH_TRANSFORM(HASH_CTX *c, const unsigned char *data)
+ {
+     HASH_BLOCK_DATA_ORDER(c, data, 1);
+ }
+-
++#ifndef OCTEON_HASH
+ int HASH_FINAL(unsigned char *md, HASH_CTX *c)
+ {
+     unsigned char *p = (unsigned char *)c->data;
+@@ -224,6 +225,7 @@
+ 
+     return 1;
+ }
++#endif
+ 
+ #ifndef MD32_REG_T
+ # if defined(__alpha) || defined(__sparcv9) || defined(__mips)
+diff --color -bur a/include/openssl/aes.h b/include/openssl/aes.h
+--- a/include/openssl/aes.h
++++ b/include/openssl/aes.h
+@@ -41,6 +41,10 @@
+     unsigned int rd_key[4 * (AES_MAXNR + 1)];
+ #  endif
+     int rounds;
++#ifdef OCTEON_OPENSSL
++    unsigned long long cvmkey[4];
++    int cvm_keylen;
++#endif
+ };
+ typedef struct aes_key_st AES_KEY;
+ 
+diff --color -bur a/include/openssl/core_names.h b/include/openssl/core_names.h
+--- a/include/openssl/core_names.h
++++ b/include/openssl/core_names.h
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
++ * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+  *
+  * Licensed under the Apache License 2.0 (the "License").  You may not use
+  * this file except in compliance with the License.  You can obtain a copy
+@@ -21,9 +21,9 @@
+ #define OSSL_PROV_PARAM_CORE_MODULE_FILENAME "module-filename" /* utf8_ptr */
+ 
+ /* Well known parameter names that Providers can define */
+-#define OSSL_PROV_PARAM_NAME            "name"                /* utf8_ptr */
+-#define OSSL_PROV_PARAM_VERSION         "version"             /* utf8_ptr */
+-#define OSSL_PROV_PARAM_BUILDINFO       "buildinfo"           /* utf8_ptr */
++#define OSSL_PROV_PARAM_NAME            "name"                /* utf8_string */
++#define OSSL_PROV_PARAM_VERSION         "version"             /* utf8_string */
++#define OSSL_PROV_PARAM_BUILDINFO       "buildinfo"           /* utf8_string */
+ #define OSSL_PROV_PARAM_STATUS          "status"              /* uint */
+ #define OSSL_PROV_PARAM_SECURITY_CHECKS "security-checks"     /* uint */
+ 
+diff --color -bur a/include/openssl/des.h b/include/openssl/des.h
+--- a/include/openssl/des.h
++++ b/include/openssl/des.h
+@@ -18,6 +18,13 @@
+ 
+ # include <openssl/opensslconf.h>
+ 
++#ifdef OCTEON_OPENSSL
++#include "../../include/executive/cvmx-address.h"
++#include "../../include/executive/cvmx-asm.h"
++#include "../../include/executive/cvmx-key.h"
++#include "../../include/executive/cvmx-swap.h"
++#endif
++
+ # ifndef OPENSSL_NO_DES
+ #  ifdef  __cplusplus
+ extern "C" {
+@@ -47,6 +54,9 @@
+          */
+         DES_LONG deslong[2];
+     } ks[16];
++#ifdef OCTEON_OPENSSL
++    uint64_t cvmkey;
++#endif
+ } DES_key_schedule;
+ 
+ #   define DES_KEY_SZ      (sizeof(DES_cblock))
+diff --color -bur a/include/openssl/md5.h b/include/openssl/md5.h
+--- a/include/openssl/md5.h
++++ b/include/openssl/md5.h
+@@ -43,6 +43,10 @@
+     MD5_LONG Nl, Nh;
+     MD5_LONG data[MD5_LBLOCK];
+     unsigned int num;
++#ifdef OCTEON_OPENSSL
++    uint64_t E, F;
++    uint64_t md5hash[2];
++#endif
+ } MD5_CTX;
+ #  endif
+ #  ifndef OPENSSL_NO_DEPRECATED_3_0

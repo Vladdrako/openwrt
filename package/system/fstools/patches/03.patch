@@ -1,0 +1,51 @@
+Using parent_dev will cause use_f2fs() to make wrong detection.
+
+Signed-off-by: 谢致邦 (XIE Zhibang) <Yeking at Red54.com>
+---
+Resend email due to DMARC issue.
+
+ libfstools/partname.c | 15 +--------------
+ 1 file changed, 1 insertion(+), 14 deletions(-)
+
+diff --git a/libfstools/partname.c b/libfstools/partname.c
+index 9f2347a..a950efe 100644
+--- a/libfstools/partname.c
++++ b/libfstools/partname.c
+@@ -15,11 +15,6 @@ struct partname_volume {
+ 		char devpathstr[16];
+ 		struct devpath devpath;
+ 	} dev;
+-
+-	union {
+-		char devpathstr[16];
+-		struct devpath devpath;
+-	} parent_dev;
+ };
+ 
+ static struct driver partname_driver;
+@@ -56,7 +51,7 @@ static int partname_volume_init(struct volume *v)
+ 	v->size = volsize << 9; /* size is returned in sectors of 512 bytes */
+ 	v->blk = p->dev.devpathstr;
+ 
+-	return block_volume_format(v, 0, p->parent_dev.devpathstr);
++	return block_volume_format(v, 0, p->dev.devpathstr);
+ }
+ 
+ /* adapted from procd/utils.c -> should go to libubox */
+@@ -182,14 +177,6 @@ static struct volume *partname_volume_find(char *name)
+ 	strncpy(p->dev.devpath.device, devname, sizeof(p->dev.devpath.device) - 1);
+ 	p->dev.devpath.device[sizeof(p->dev.devpath.device)-1] = '\0';
+ 
+-	memcpy(p->parent_dev.devpath.prefix, "/dev/", sizeof(p->parent_dev.devpath.prefix));
+-	if (rootdev)
+-		strncpy(p->parent_dev.devpath.device, rootdev, sizeof(p->parent_dev.devpath.device) - 1);
+-	else
+-		strncpy(p->parent_dev.devpath.device, rootdevname(devname), sizeof(p->parent_dev.devpath.device) - 1);
+-
+-	p->parent_dev.devpath.device[sizeof(p->parent_dev.devpath.device)-1] = '\0';
+-
+ 	p->v.drv = &partname_driver;
+ 	p->v.blk = p->dev.devpathstr;
+ 	p->v.name = name;
+-- 
+2.44.0

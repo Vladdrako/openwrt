@@ -64,6 +64,9 @@ zram_comp_algo()
 		zram_comp_algo="lzo"
 	fi
 
+	# zram multicomp
+	echo "algo=zstd priority=1" >"/sys/block/$( basename $dev )/recomp_algorithm"
+
 	if [ $(grep -c "$zram_comp_algo" /sys/block/$( basename $dev )/comp_algorithm) -ne 0 ]; then
 		logger -s -t zram_comp_algo -p daemon.debug "set compression algorithm '$zram_comp_algo' for zram '$dev'"
 		echo $zram_comp_algo > "/sys/block/$( basename $dev )/comp_algorithm"
@@ -156,6 +159,11 @@ start()
 	echo $(( $zram_size * 1024 )) >"/sys/block/$( basename "$zram_dev" )/disksize"
 	busybox mkswap "$zram_dev"
 	busybox swapon -d -p $zram_priority "$zram_dev"
+
+	# recompress
+	echo "type=idle" >"/sys/block/$( basename "$zram_dev" )/recompress"
+	echo "type=huge" >"/sys/block/$( basename "$zram_dev" )/recompress"
+	echo "type=huge_idle" >"/sys/block/$( basename "$zram_dev" )/recompress"
 }
 
 stop()

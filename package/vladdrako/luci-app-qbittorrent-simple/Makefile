@@ -11,7 +11,7 @@ PKG_RELEASE:=3
 
 LUCI_TITLE:=LuCI support for qBittorrent
 LUCI_PKGARCH:=all
-LUCI_DEPENDS:=+qBittorrent
+LUCI_DEPENDS:=+qbittorrent
 
 define Package/$(PKG_NAME)/config
 	choice
