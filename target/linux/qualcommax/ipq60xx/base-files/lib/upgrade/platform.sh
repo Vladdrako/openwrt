@@ -154,7 +154,8 @@ platform_do_upgrade() {
 	qihoo,360v6)
 		nand_do_upgrade "$1"
 		;;
-	linksys,mr7350)
+	linksys,mr7350|\
+ 	linksys,mr7500)
 		linksys_mx_pre_upgrade "$1"
 		remove_oem_ubi_volume ubifs
 		nand_do_upgrade "$1"
