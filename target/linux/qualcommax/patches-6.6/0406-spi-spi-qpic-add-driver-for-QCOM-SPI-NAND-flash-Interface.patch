@@ -13,16 +13,15 @@ Signed-off-by: Md Sadre Alam <quic_mdalam@quicinc.com>
 ---
 --- a/drivers/mtd/nand/Makefile
 +++ b/drivers/mtd/nand/Makefile
-@@ -7,8 +7,11 @@ obj-$(CONFIG_MTD_NAND_MTK_BMT)	+= mtk_bm
- 
- ifeq ($(CONFIG_MTD_NAND_QCOM),y)
- obj-y	+= qpic_common.o
-+else
+@@ -4,7 +4,11 @@ nandcore-objs := core.o bbt.o
+ obj-$(CONFIG_MTD_NAND_CORE) += nandcore.o
+ obj-$(CONFIG_MTD_NAND_ECC_MEDIATEK) += ecc-mtk.o
+ obj-$(CONFIG_MTD_NAND_MTK_BMT)	+= mtk_bmt.o mtk_bmt_v2.o mtk_bmt_bbt.o mtk_bmt_nmbm.o
 +ifeq ($(CONFIG_SPI_QPIC_SNAND),y)
-+obj-y   += qpic_common.o
++obj-$(CONFIG_SPI_QPIC_SNAND) += qpic_common.o
++else
+ obj-$(CONFIG_MTD_NAND_QCOM) += qpic_common.o
 +endif
- endif
--
  obj-y	+= onenand/
  obj-y	+= raw/
  obj-y	+= spi/

@@ -16,7 +16,7 @@ Signed-off-by: George Moussalem <george.moussalem@outlook.com>
 ---
 --- a/drivers/mtd/nand/qpic_common.c
 +++ b/drivers/mtd/nand/qpic_common.c
-@@ -82,7 +82,14 @@ void qcom_clear_bam_transaction(struct q
+@@ -85,7 +85,14 @@ void qcom_clear_bam_transaction(struct q
  	if (!nandc->props->supports_bam)
  		return;
  
