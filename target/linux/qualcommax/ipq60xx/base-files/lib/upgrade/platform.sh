@@ -77,7 +77,7 @@ tplink_do_upgrade() {
 	nand_do_upgrade "$1"
 }
 
-linksys_mx_upgrade() {
+linksys_mx_pre_upgrade() {
 	local setenv_script="/tmp/fw_env_upgrade"
 
 	CI_UBIPART="rootfs"
@@ -113,7 +113,6 @@ linksys_mx_upgrade() {
 			return 1
 		}
 	fi
-	nand_do_upgrade "$1"
 }
 
 platform_check_image() {
@@ -150,7 +149,9 @@ platform_do_upgrade() {
 		nand_do_upgrade "$1"
 		;;
 	linksys,mr7350)
-		linksys_do_upgrade "$1"
+		linksys_mx_pre_upgrade "$1"
+		remove_oem_ubi_volume ubifs
+		nand_do_upgrade "$1"
 		;;
 	netgear,wax214|\
 	qihoo,360v6)
