@@ -162,7 +162,8 @@ platform_do_upgrade() {
 		remove_oem_ubi_volume ubifs
 		nand_do_upgrade "$1"
 		;;
-	tplink,eap610-outdoor)
+	tplink,eap610-outdoor|\
+	tplink,eap623od-hd-v1)
 		tplink_do_upgrade "$1"
 		;;
 	yuncore,fap650)
