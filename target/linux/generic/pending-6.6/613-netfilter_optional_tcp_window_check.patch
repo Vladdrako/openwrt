@@ -1,12 +1,3 @@
-From: Felix Fietkau <nbd@nbd.name>
-Subject: netfilter: optional tcp window check
-
-Signed-off-by: Felix Fietkau <nbd@nbd.name>
-Signed-off-by: Christian 'Ansuel' Marangi <ansuelsmth@gmail.com>
----
- net/netfilter/nf_conntrack_proto_tcp.c | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
-
 --- a/include/net/netns/conntrack.h
 +++ b/include/net/netns/conntrack.h
 @@ -26,6 +26,7 @@ struct nf_tcp_net {
@@ -87,4 +78,3 @@ Signed-off-by: Christian 'Ansuel' Marangi <ansuelsmth@gmail.com>
  	XASSIGN(MAX_RETRANS, &tn->tcp_max_retrans);
  	XASSIGN(IGNORE_INVALID_RST, &tn->tcp_ignore_invalid_rst);
  #undef XASSIGN
-
