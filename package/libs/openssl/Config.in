@@ -44,7 +44,7 @@ config OPENSSL_WITH_ASM
 	bool
 	default y
 	prompt "Compile with optimized assembly code"
-	depends on !arc && OPENSSL_OPTIMIZE_SPEED
+	depends on OPENSSL_OPTIMIZE_SPEED
 	help
 		Disabling this option will reduce code size and performance.
 		The increase in performance and size depends on the target
