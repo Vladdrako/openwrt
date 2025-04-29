@@ -1700,7 +1700,7 @@ Signed-off-by: Mark Brown <broonie@kernel.org>
 +
 --- a/include/linux/mtd/nand-qpic-common.h
 +++ b/include/linux/mtd/nand-qpic-common.h
-@@ -322,6 +322,10 @@ struct nandc_regs {
+@@ -325,6 +325,10 @@ struct nandc_regs {
  	__le32 read_location_last1;
  	__le32 read_location_last2;
  	__le32 read_location_last3;
@@ -1711,7 +1711,7 @@ Signed-off-by: Mark Brown <broonie@kernel.org>
  
  	__le32 erased_cw_detect_cfg_clr;
  	__le32 erased_cw_detect_cfg_set;
-@@ -336,6 +340,7 @@ struct nandc_regs {
+@@ -339,6 +343,7 @@ struct nandc_regs {
   *
   * @core_clk:			controller clock
   * @aon_clk:			another controller clock
@@ -1719,7 +1719,7 @@ Signed-off-by: Mark Brown <broonie@kernel.org>
   *
   * @regs:			a contiguous chunk of memory for DMA register
   *				writes. contains the register values to be
-@@ -345,6 +350,7 @@ struct nandc_regs {
+@@ -348,6 +353,7 @@ struct nandc_regs {
   *				initialized via DT match data
   *
   * @controller:			base controller structure
@@ -1727,7 +1727,7 @@ Signed-off-by: Mark Brown <broonie@kernel.org>
   * @host_list:			list containing all the chips attached to the
   *				controller
   *
-@@ -389,6 +395,7 @@ struct qcom_nand_controller {
+@@ -392,6 +398,7 @@ struct qcom_nand_controller {
  	const struct qcom_nandc_props *props;
  
  	struct nand_controller *controller;
