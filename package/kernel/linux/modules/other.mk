@@ -757,31 +757,32 @@ define KernelPackage/zram/config
                 bool "zstd compression support"
 
     endif
-  choice
-    prompt "ZRAM Default compressor"
-    default KERNEL_ZRAM_DEF_COMP_LZORLE
+    choice
+      prompt "ZRAM Default compressor"
+      default KERNEL_ZRAM_DEF_COMP_LZORLE
 
-  config KERNEL_ZRAM_DEF_COMP_LZORLE
+    config KERNEL_ZRAM_DEF_COMP_LZORLE
             bool "lzo-rle"
             depends on KERNEL_ZRAM_BACKEND_LZO || LINUX_6_6
 
-  config KERNEL_ZRAM_DEF_COMP_LZO
+    config KERNEL_ZRAM_DEF_COMP_LZO
             bool "lzo"
-             depends on KERNEL_ZRAM_BACKEND_LZO || LINUX_6_6
+            depends on KERNEL_ZRAM_BACKEND_LZO || LINUX_6_6
 
-  config KERNEL_ZRAM_DEF_COMP_LZ4
+    config KERNEL_ZRAM_DEF_COMP_LZ4
             bool "lz4"
             depends on KERNEL_ZRAM_BACKEND_LZ4 || LINUX_6_6
 
-  config KERNEL_ZRAM_DEF_COMP_LZ4HC
+    config KERNEL_ZRAM_DEF_COMP_LZ4HC
             bool "lz4-hc"
             depends on KERNEL_ZRAM_BACKEND_LZ4HC || LINUX_6_6
 
-  config KERNEL_ZRAM_DEF_COMP_ZSTD
+    config KERNEL_ZRAM_DEF_COMP_ZSTD
             bool "zstd"
             depends on KERNEL_ZRAM_BACKEND_ZSTD || LINUX_6_6
 
-  endchoice
+    endchoice
+  endif
 endef
 
 $(eval $(call KernelPackage,zram))
