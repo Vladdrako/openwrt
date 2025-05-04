@@ -68,6 +68,7 @@
 		qcom,portid-enabled;
 		qcom,wlan-dataplane-offload-enabled;
 		qcom,pvxlan-enabled;
+		qcom,rmnet_rx-enabled;
 		qcom,udp-st-enabled;
 	};
 
@@ -112,4 +113,19 @@
 			};
 		};
 	};
+};
+
+&wifi0 {
+	// IPQ5018
+	nss-radio-priority = <0>;
+};
+
+&wifi1 {
+	// QCN6102 5G
+	nss-radio-priority = <1>;
+};
+
+&wifi2 {
+	// QCN6122 5G/6G
+	nss-radio-priority = <1>;
 };
