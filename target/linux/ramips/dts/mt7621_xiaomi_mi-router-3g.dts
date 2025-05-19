@@ -73,19 +73,6 @@
 			gpios = <&switch0 6 GPIO_ACTIVE_LOW>;
 		};
 	};
-
-	reg_usb_vbus: regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "usb_vbus";
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-		gpios = <&gpio 12 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-	};
-};
-
-&xhci {
-	vbus-supply = <&reg_usb_vbus>;
 };
 
 &pcie {
@@ -128,6 +115,12 @@
 		full-duplex;
 		pause;
 	};
+};
+
+&reg_vbus {
+	/delete-property/ regulator-always-on;
+	gpios = <&gpio 12 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
 };
 
 &switch0 {
