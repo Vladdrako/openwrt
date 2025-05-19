@@ -7,8 +7,7 @@ FEATURES:=squashfs ramdisk fpu nand rtc emmc
 KERNELNAME:=Image
 SUBTARGETS:=ipq807x ipq60xx ipq50xx
 
-KERNEL_PATCHVER:=6.6
-KERNEL_TESTING_PATCHVER:=6.12
+KERNEL_PATCHVER:=6.12
 
 include $(INCLUDE_DIR)/target.mk
 DEFAULT_PACKAGES += \
