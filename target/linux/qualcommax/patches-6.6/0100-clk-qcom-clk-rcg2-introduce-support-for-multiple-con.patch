@@ -34,7 +34,7 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 
 --- a/drivers/clk/qcom/clk-rcg.h
 +++ b/drivers/clk/qcom/clk-rcg.h
-@@ -7,7 +7,11 @@
+@@ -7,7 +7,10 @@
  #include <linux/clk-provider.h>
  #include "clk-regmap.h"
  
