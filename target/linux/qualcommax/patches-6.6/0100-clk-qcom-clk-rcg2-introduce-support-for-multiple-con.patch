@@ -34,7 +34,7 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 
 --- a/drivers/clk/qcom/clk-rcg.h
 +++ b/drivers/clk/qcom/clk-rcg.h
-@@ -7,7 +7,17 @@
+@@ -7,7 +7,11 @@
  #include <linux/clk-provider.h>
  #include "clk-regmap.h"
  
@@ -43,13 +43,6 @@ Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
 +
 +#define FM(_f, _confs) { .freq = (_f), .confs_num = ARRAY_SIZE(_confs), .confs = (_confs) }
 +#define C(s, h, m, n) { (s), (2 * (h) - 1), (m), (n) }
-+
-+struct freq_conf {
-+	u8 src;
-+	u8 pre_div;
-+	u16 m;
-+	u16 n;
-+};
  
  struct freq_tbl {
  	unsigned long freq;
