@@ -15,14 +15,14 @@ Subject: [PATCH] clk: qcom: gcc-ipq6018: rework nss_port5 clock to multiple
  };
  
 +
-+static const struct freq_conf ftbl_nss_port5_rx_clk_src_25[2];
-+	ftbl_nss_port5_rx_clk_src_25[0] = { C(P_UNIPHY1_RX, 12.5, 0, 0) };
-+	ftbl_nss_port5_rx_clk_src_25[1] = { C(P_UNIPHY0_RX, 5, 0, 0) };
++static const struct freq_conf ftbl_nss_port5_rx_clk_src_25[] = {
++	C(P_UNIPHY1_RX, 12.5, 0, 0),
++	C(P_UNIPHY0_RX, 5, 0, 0),
 +};
 +
-+static const struct freq_conf ftbl_nss_port5_rx_clk_src_125[2];
-+	ftbl_nss_port5_rx_clk_src_125[0] = { C(P_UNIPHY1_RX, 2.5, 0, 0) };
-+	ftbl_nss_port5_rx_clk_src_125[1] = { C(P_UNIPHY0_RX, 1, 0, 0) };
++static const struct freq_conf ftbl_nss_port5_rx_clk_src_125[] = {
++	C(P_UNIPHY1_RX, 2.5, 0, 0),
++	C(P_UNIPHY0_RX, 1, 0, 0),
 +};
 +
  static const struct freq_tbl ftbl_nss_port5_rx_clk_src[] = {
@@ -42,14 +42,14 @@ Subject: [PATCH] clk: qcom: gcc-ipq6018: rework nss_port5 clock to multiple
  };
  
 +
-+static struct freq_conf ftbl_nss_port5_tx_clk_src_25[2];
-+	ftbl_nss_port5_tx_clk_src_25[0] = { C(P_UNIPHY1_TX, 12.5, 0, 0) };
-+	ftbl_nss_port5_tx_clk_src_25[1] = { C(P_UNIPHY0_TX, 5, 0, 0) };
++static struct freq_conf ftbl_nss_port5_tx_clk_src_25[] = {
++	C(P_UNIPHY1_TX, 12.5, 0, 0),
++	C(P_UNIPHY0_TX, 5, 0, 0),
 +};
 +
-+static struct freq_conf ftbl_nss_port5_tx_clk_src_125[2];
-+	ftbl_nss_port5_tx_clk_src_125[0] = { C(P_UNIPHY1_TX, 2.5, 0, 0) };
-+	ftbl_nss_port5_tx_clk_src_125[1] = { C(P_UNIPHY0_TX, 1, 0, 0) };
++static struct freq_conf ftbl_nss_port5_tx_clk_src_125[] = {
++	C(P_UNIPHY1_TX, 2.5, 0, 0),
++	C(P_UNIPHY0_TX, 1, 0, 0),
 +};
 +
  static const struct freq_tbl ftbl_nss_port5_tx_clk_src[] = {
