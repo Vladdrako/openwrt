@@ -21,7 +21,7 @@ Signed-off-by: Alexandru Gagniuc <mr.nuke.me@gmail.com>
 +			#clock-cells = <0>;
 +		};
  	};
- 
+
  	cpus: cpus {
 @@ -433,8 +439,12 @@
  		gcc: gcc@1800000 {

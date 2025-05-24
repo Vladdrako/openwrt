@@ -12,7 +12,7 @@ Subject: [PATCH] arm64: dts: qcom: ipq6018: assign some clock to wifi remoteproc
 @@ -983,8 +983,26 @@
  				      "wcss_reset",
  				      "wcss_q6_reset";
- 
+
 -			clocks = <&gcc GCC_PRNG_AHB_CLK>, <&gcc GCC_QDSS_AT_CLK>;
 -			clock-names = "prng", "qdss" ;
 +			clocks = <&gcc GCC_PRNG_AHB_CLK>,
@@ -35,6 +35,6 @@ Subject: [PATCH] arm64: dts: qcom: ipq6018: assign some clock to wifi remoteproc
 +						<600000000>,
 +						<600000000>,
 +						<240000000>;
- 
+
  			qcom,halt-regs = <&tcsr 0x18000 0x1b000 0xe000>;
- 
+

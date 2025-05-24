@@ -438,6 +438,18 @@
 	nvmem-cell-names = "mac-address";
 };
 
+&prng {
+	status = "okay";
+};
+
+&cryptobam {
+	status = "okay";
+};
+
+&crypto {
+	status = "okay";
+};
+
 &wifi {
 	status = "okay";
 

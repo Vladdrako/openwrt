@@ -1,0 +1,306 @@
+From 052c9a1f1400f1b3fe9555bd029ee9a8a0db3cd0 Mon Sep 17 00:00:00 2001
+From: Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+Date: Wed, 6 Dec 2023 19:25:39 +0530
+Subject: [PATCH] arm64: dts: qcom: Use "pcie" as the node name instead of
+ "pci"
+
+Qcom SoCs doesn't support the legacy PCI, but only PCIe. So use the correct
+node name for the controller instances.
+
+Signed-off-by: Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+Link: https://lore.kernel.org/r/20231206135540.17068-3-manivannan.sadhasivam@linaro.org
+Signed-off-by: Bjorn Andersson <andersson@kernel.org>
+---
+ arch/arm64/boot/dts/qcom/ipq6018.dtsi | 2 +-
+ arch/arm64/boot/dts/qcom/ipq8074.dtsi | 4 ++--
+ arch/arm64/boot/dts/qcom/msm8998.dtsi | 2 +-
+ arch/arm64/boot/dts/qcom/qcs404.dtsi  | 2 +-
+ arch/arm64/boot/dts/qcom/sa8775p.dtsi | 4 ++--
+ arch/arm64/boot/dts/qcom/sc7280.dtsi  | 2 +-
+ arch/arm64/boot/dts/qcom/sc8180x.dtsi | 8 ++++----
+ arch/arm64/boot/dts/qcom/sdm845.dtsi  | 4 ++--
+ arch/arm64/boot/dts/qcom/sm8150.dtsi  | 4 ++--
+ arch/arm64/boot/dts/qcom/sm8250.dtsi  | 6 +++---
+ arch/arm64/boot/dts/qcom/sm8350.dtsi  | 4 ++--
+ arch/arm64/boot/dts/qcom/sm8450.dtsi  | 4 ++--
+ arch/arm64/boot/dts/qcom/sm8550.dtsi  | 4 ++--
+ 13 files changed, 25 insertions(+), 25 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/ipq6018.dtsi b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
+index 4fa1b4b649d589..ff25bcb38bc96d 100644
+--- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
++++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
+@@ -802,7 +802,7 @@
+ 			};
+ 		};
+ 
+-		pcie0: pci@20000000 {
++		pcie0: pcie@20000000 {
+ 			compatible = "qcom,pcie-ipq6018";
+ 			reg = <0x0 0x20000000 0x0 0xf1d>,
+ 			      <0x0 0x20000f20 0x0 0xa8>,
+diff --git a/arch/arm64/boot/dts/qcom/ipq8074.dtsi b/arch/arm64/boot/dts/qcom/ipq8074.dtsi
+index dca7005c0a9da5..2303a839e246f2 100644
+--- a/arch/arm64/boot/dts/qcom/ipq8074.dtsi
++++ b/arch/arm64/boot/dts/qcom/ipq8074.dtsi
+@@ -789,7 +789,7 @@
+ 			};
+ 		};
+ 
+-		pcie1: pci@10000000 {
++		pcie1: pcie@10000000 {
+ 			compatible = "qcom,pcie-ipq8074";
+ 			reg = <0x10000000 0xf1d>,
+ 			      <0x10000f20 0xa8>,
+@@ -850,7 +850,7 @@
+ 			status = "disabled";
+ 		};
+ 
+-		pcie0: pci@20000000 {
++		pcie0: pcie@20000000 {
+ 			compatible = "qcom,pcie-ipq8074-gen3";
+ 			reg = <0x20000000 0xf1d>,
+ 			      <0x20000f20 0xa8>,
+diff --git a/arch/arm64/boot/dts/qcom/msm8998.dtsi b/arch/arm64/boot/dts/qcom/msm8998.dtsi
+index 5893e52037f3e8..00ae022e7c27f5 100644
+--- a/arch/arm64/boot/dts/qcom/msm8998.dtsi
++++ b/arch/arm64/boot/dts/qcom/msm8998.dtsi
+@@ -933,7 +933,7 @@
+ 				<GIC_SPI 465 IRQ_TYPE_EDGE_RISING>;
+ 		};
+ 
+-		pcie0: pci@1c00000 {
++		pcie0: pcie@1c00000 {
+ 			compatible = "qcom,pcie-msm8998", "qcom,pcie-msm8996";
+ 			reg = <0x01c00000 0x2000>,
+ 			      <0x1b000000 0xf1d>,
+diff --git a/arch/arm64/boot/dts/qcom/qcs404.dtsi b/arch/arm64/boot/dts/qcom/qcs404.dtsi
+index 2721f32dfb7104..6ac64ce9bb68ce 100644
+--- a/arch/arm64/boot/dts/qcom/qcs404.dtsi
++++ b/arch/arm64/boot/dts/qcom/qcs404.dtsi
+@@ -1461,7 +1461,7 @@
+ 			};
+ 		};
+ 
+-		pcie: pci@10000000 {
++		pcie: pcie@10000000 {
+ 			compatible = "qcom,pcie-qcs404";
+ 			reg = <0x10000000 0xf1d>,
+ 			      <0x10000f20 0xa8>,
+diff --git a/arch/arm64/boot/dts/qcom/sa8775p.dtsi b/arch/arm64/boot/dts/qcom/sa8775p.dtsi
+index 2da567a6f64eac..eac127821c3e48 100644
+--- a/arch/arm64/boot/dts/qcom/sa8775p.dtsi
++++ b/arch/arm64/boot/dts/qcom/sa8775p.dtsi
+@@ -3515,7 +3515,7 @@
+ 			     <GIC_PPI 12 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
+ 	};
+ 
+-	pcie0: pci@1c00000{
++	pcie0: pcie@1c00000{
+ 		compatible = "qcom,pcie-sa8775p";
+ 		reg = <0x0 0x01c00000 0x0 0x3000>,
+ 		      <0x0 0x40000000 0x0 0xf20>,
+@@ -3615,7 +3615,7 @@
+ 		status = "disabled";
+ 	};
+ 
+-	pcie1: pci@1c10000{
++	pcie1: pcie@1c10000{
+ 		compatible = "qcom,pcie-sa8775p";
+ 		reg = <0x0 0x01c10000 0x0 0x3000>,
+ 		      <0x0 0x60000000 0x0 0xf20>,
+diff --git a/arch/arm64/boot/dts/qcom/sc7280.dtsi b/arch/arm64/boot/dts/qcom/sc7280.dtsi
+index 89d081aeed1a3a..0b7d43eae48079 100644
+--- a/arch/arm64/boot/dts/qcom/sc7280.dtsi
++++ b/arch/arm64/boot/dts/qcom/sc7280.dtsi
+@@ -2147,7 +2147,7 @@
+ 			qcom,smem-state-names = "wlan-smp2p-out";
+ 		};
+ 
+-		pcie1: pci@1c08000 {
++		pcie1: pcie@1c08000 {
+ 			compatible = "qcom,pcie-sc7280";
+ 			reg = <0 0x01c08000 0 0x3000>,
+ 			      <0 0x40000000 0 0xf1d>,
+diff --git a/arch/arm64/boot/dts/qcom/sc8180x.dtsi b/arch/arm64/boot/dts/qcom/sc8180x.dtsi
+index b857959a896baf..335e561b6054fa 100644
+--- a/arch/arm64/boot/dts/qcom/sc8180x.dtsi
++++ b/arch/arm64/boot/dts/qcom/sc8180x.dtsi
+@@ -1684,7 +1684,7 @@
+ 			qcom,bcm-voters = <&apps_bcm_voter>;
+ 		};
+ 
+-		pcie0: pci@1c00000 {
++		pcie0: pcie@1c00000 {
+ 			compatible = "qcom,pcie-sc8180x";
+ 			reg = <0 0x01c00000 0 0x3000>,
+ 			      <0 0x60000000 0 0xf1d>,
+@@ -1780,7 +1780,7 @@
+ 			status = "disabled";
+ 		};
+ 
+-		pcie3: pci@1c08000 {
++		pcie3: pcie@1c08000 {
+ 			compatible = "qcom,pcie-sc8180x";
+ 			reg = <0 0x01c08000 0 0x3000>,
+ 			      <0 0x40000000 0 0xf1d>,
+@@ -1877,7 +1877,7 @@
+ 			status = "disabled";
+ 		};
+ 
+-		pcie1: pci@1c10000 {
++		pcie1: pcie@1c10000 {
+ 			compatible = "qcom,pcie-sc8180x";
+ 			reg = <0 0x01c10000 0 0x3000>,
+ 			      <0 0x68000000 0 0xf1d>,
+@@ -1974,7 +1974,7 @@
+ 			status = "disabled";
+ 		};
+ 
+-		pcie2: pci@1c18000 {
++		pcie2: pcie@1c18000 {
+ 			compatible = "qcom,pcie-sc8180x";
+ 			reg = <0 0x01c18000 0 0x3000>,
+ 			      <0 0x70000000 0 0xf1d>,
+diff --git a/arch/arm64/boot/dts/qcom/sdm845.dtsi b/arch/arm64/boot/dts/qcom/sdm845.dtsi
+index 3ed21e6c5f7ff2..8b1af2392ea85f 100644
+--- a/arch/arm64/boot/dts/qcom/sdm845.dtsi
++++ b/arch/arm64/boot/dts/qcom/sdm845.dtsi
+@@ -2306,7 +2306,7 @@
+ 			};
+ 		};
+ 
+-		pcie0: pci@1c00000 {
++		pcie0: pcie@1c00000 {
+ 			compatible = "qcom,pcie-sdm845";
+ 			reg = <0 0x01c00000 0 0x2000>,
+ 			      <0 0x60000000 0 0xf1d>,
+@@ -2405,7 +2405,7 @@
+ 			status = "disabled";
+ 		};
+ 
+-		pcie1: pci@1c08000 {
++		pcie1: pcie@1c08000 {
+ 			compatible = "qcom,pcie-sdm845";
+ 			reg = <0 0x01c08000 0 0x2000>,
+ 			      <0 0x40000000 0 0xf1d>,
+diff --git a/arch/arm64/boot/dts/qcom/sm8150.dtsi b/arch/arm64/boot/dts/qcom/sm8150.dtsi
+index 43f0579f044068..fc11329a72dec0 100644
+--- a/arch/arm64/boot/dts/qcom/sm8150.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8150.dtsi
+@@ -1824,7 +1824,7 @@
+ 			      <0x0 0x010ad000 0x0 0x3000>;
+ 		};
+ 
+-		pcie0: pci@1c00000 {
++		pcie0: pcie@1c00000 {
+ 			compatible = "qcom,pcie-sm8150";
+ 			reg = <0 0x01c00000 0 0x3000>,
+ 			      <0 0x60000000 0 0xf1d>,
+@@ -1915,7 +1915,7 @@
+ 			status = "disabled";
+ 		};
+ 
+-		pcie1: pci@1c08000 {
++		pcie1: pcie@1c08000 {
+ 			compatible = "qcom,pcie-sm8150";
+ 			reg = <0 0x01c08000 0 0x3000>,
+ 			      <0 0x40000000 0 0xf1d>,
+diff --git a/arch/arm64/boot/dts/qcom/sm8250.dtsi b/arch/arm64/boot/dts/qcom/sm8250.dtsi
+index e440e7ee4507e7..ba436b7b8ffa04 100644
+--- a/arch/arm64/boot/dts/qcom/sm8250.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8250.dtsi
+@@ -2124,7 +2124,7 @@
+ 			qcom,bcm-voters = <&apps_bcm_voter>;
+ 		};
+ 
+-		pcie0: pci@1c00000 {
++		pcie0: pcie@1c00000 {
+ 			compatible = "qcom,pcie-sm8250";
+ 			reg = <0 0x01c00000 0 0x3000>,
+ 			      <0 0x60000000 0 0xf1d>,
+@@ -2228,7 +2228,7 @@
+ 			status = "disabled";
+ 		};
+ 
+-		pcie1: pci@1c08000 {
++		pcie1: pcie@1c08000 {
+ 			compatible = "qcom,pcie-sm8250";
+ 			reg = <0 0x01c08000 0 0x3000>,
+ 			      <0 0x40000000 0 0xf1d>,
+@@ -2329,7 +2329,7 @@
+ 			status = "disabled";
+ 		};
+ 
+-		pcie2: pci@1c10000 {
++		pcie2: pcie@1c10000 {
+ 			compatible = "qcom,pcie-sm8250";
+ 			reg = <0 0x01c10000 0 0x3000>,
+ 			      <0 0x64000000 0 0xf1d>,
+diff --git a/arch/arm64/boot/dts/qcom/sm8350.dtsi b/arch/arm64/boot/dts/qcom/sm8350.dtsi
+index 3dcffd89c6f793..e78c83a897c283 100644
+--- a/arch/arm64/boot/dts/qcom/sm8350.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8350.dtsi
+@@ -1499,7 +1499,7 @@
+ 			qcom,bcm-voters = <&apps_bcm_voter>;
+ 		};
+ 
+-		pcie0: pci@1c00000 {
++		pcie0: pcie@1c00000 {
+ 			compatible = "qcom,pcie-sm8350";
+ 			reg = <0 0x01c00000 0 0x3000>,
+ 			      <0 0x60000000 0 0xf1d>,
+@@ -1592,7 +1592,7 @@
+ 			status = "disabled";
+ 		};
+ 
+-		pcie1: pci@1c08000 {
++		pcie1: pcie@1c08000 {
+ 			compatible = "qcom,pcie-sm8350";
+ 			reg = <0 0x01c08000 0 0x3000>,
+ 			      <0 0x40000000 0 0xf1d>,
+diff --git a/arch/arm64/boot/dts/qcom/sm8450.dtsi b/arch/arm64/boot/dts/qcom/sm8450.dtsi
+index f8498e9243dc55..9223834021e180 100644
+--- a/arch/arm64/boot/dts/qcom/sm8450.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8450.dtsi
+@@ -1746,7 +1746,7 @@
+ 			reg = <0 0x010c3000 0 0x1000>;
+ 		};
+ 
+-		pcie0: pci@1c00000 {
++		pcie0: pcie@1c00000 {
+ 			compatible = "qcom,pcie-sm8450-pcie0";
+ 			reg = <0 0x01c00000 0 0x3000>,
+ 			      <0 0x60000000 0 0xf1d>,
+@@ -1855,7 +1855,7 @@
+ 			status = "disabled";
+ 		};
+ 
+-		pcie1: pci@1c08000 {
++		pcie1: pcie@1c08000 {
+ 			compatible = "qcom,pcie-sm8450-pcie1";
+ 			reg = <0 0x01c08000 0 0x3000>,
+ 			      <0 0x40000000 0 0xf1d>,
+diff --git a/arch/arm64/boot/dts/qcom/sm8550.dtsi b/arch/arm64/boot/dts/qcom/sm8550.dtsi
+index 68627db507cfe8..1c4db4a8eddae4 100644
+--- a/arch/arm64/boot/dts/qcom/sm8550.dtsi
++++ b/arch/arm64/boot/dts/qcom/sm8550.dtsi
+@@ -1683,7 +1683,7 @@
+ 			reg = <0 0x010c3000 0 0x1000>;
+ 		};
+ 
+-		pcie0: pci@1c00000 {
++		pcie0: pcie@1c00000 {
+ 			device_type = "pci";
+ 			compatible = "qcom,pcie-sm8550";
+ 			reg = <0 0x01c00000 0 0x3000>,
+@@ -1774,7 +1774,7 @@
+ 			status = "disabled";
+ 		};
+ 
+-		pcie1: pci@1c08000 {
++		pcie1: pcie@1c08000 {
+ 			device_type = "pci";
+ 			compatible = "qcom,pcie-sm8550";
+ 			reg = <0x0 0x01c08000 0x0 0x3000>,
+
