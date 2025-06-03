@@ -84,10 +84,12 @@ CONFIGURE_VARS += \
 	ac_cv_search__obstack_free=yes
 
 TARGET_CFLAGS += \
+	$(FPIC) \
 	-D_GNU_SOURCE \
 	-Wno-unused-result \
 	-Wno-format-nonliteral \
 	-Wno-error=use-after-free
+TARGET_LDFLAGS += $(FPIC)
 
 define Build/InstallDev
 	$(INSTALL_DIR) $(1)/usr/include
