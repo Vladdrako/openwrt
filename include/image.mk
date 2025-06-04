@@ -108,6 +108,8 @@ SQUASHFSOPTS += -p '/dev d 755 0 0' -p '/dev/console c 600 0 0 5 1'
 ifeq ($(CONFIG_KERNEL_SQUASHFS_XATTR),y)
   SQUASHFSOPTS += $(if $(CONFIG_SELINUX),-xattrs,-no-xattrs)
 endif
+SQUASHFSOPTS += -block-readers $(CONFIG_TARGET_SQUASHFS_BLOCK_READERS)
+SQUASHFSOPTS += -small-readers $(CONFIG_TARGET_SQUASHFS_SMALL_READERS)
 
 fs-types-$(CONFIG_TARGET_ROOTFS_SQUASHFS) += squashfs
 fs-types-$(CONFIG_TARGET_ROOTFS_JFFS2) += $(addprefix jffs2-,$(JFFS2_BLOCKSIZE))
