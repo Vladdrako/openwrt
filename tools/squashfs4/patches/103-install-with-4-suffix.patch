@@ -29,4 +29,4 @@ Signed-off-by: Tony Butler <spudz76@gmail.com>
 +	cp unsquashfs $(INSTALL_DIR)/unsquashfs4
 +	ln -fs unsquashfs4 $(INSTALL_DIR)/sqfscat4
 +	ln -fs mksquashfs4 $(INSTALL_DIR)/sqfstar4
- 	../generate-manpages/install-manpages.sh $(shell pwd)/.. "$(INSTALL_MANPAGES_DIR)" "$(USE_PREBUILT_MANPAGES)"
+ 	generate-manpages/install-manpages.sh $(shell pwd)/.. "$(INSTALL_MANPAGES_DIR)" "$(USE_PREBUILT_MANPAGES)"

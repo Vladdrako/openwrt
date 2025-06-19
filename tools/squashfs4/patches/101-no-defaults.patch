@@ -36,11 +36,11 @@ Signed-off-by: Tony Butler <spudz76@gmail.com>
  
  ###############################################
 @@ -104,7 +104,7 @@
- # If your C library or build/target environment doesn't support XATTRs then
- # comment out the next line to build Mksquashfs and Unsquashfs without XATTR
- # support
+ # contains support to add XATTRs to the Squashfs filesystem
+ # on the command line, via actions and input and output them via
+ # pseudo-files etc. which is independent of library/OS support.
 -XATTR_SUPPORT = 1
 +#XATTR_SUPPORT = 1
  
- # Select whether you wish xattrs to be stored by Mksquashfs and extracted
- # by Unsquashfs by default.  If selected users can disable xattr support by
+ # If your C library or operating system doesn't support XATTRs then
+ # this definition is the one you should comment out.  Commenting
