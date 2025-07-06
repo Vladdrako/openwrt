@@ -84,6 +84,7 @@ proto_dhcpv6_setup() {
 
 	[ "$noacceptreconfig" = "1" ] && append opts "-a"
 
+	[ -z "$ip6ifaceid" ] && json_get_var ip6ifaceid ifaceid
 	[ -n "$ip6ifaceid" ] && append opts "-i$ip6ifaceid"
 
 	[ -n "$vendorclass" ] && append opts "-V$vendorclass"
