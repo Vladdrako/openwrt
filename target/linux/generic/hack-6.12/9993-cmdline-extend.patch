@@ -15,18 +15,16 @@ https://github.com/gregkh/linux/commit/cae118b6acc309539b33339e846cbb19187c164c
  config CMDLINE_FORCE
  	bool "Always use the default kernel command string"
  	help
---- a/arch/arm64/kernel/idreg-override.c
-+++ b/arch/arm64/kernel/idreg-override.c
-@@ -304,8 +304,11 @@ static __init void parse_cmdline(void)
- {
- 	const u8 *prop = get_bootargs_cmdline();
+--- a/arch/arm64/kernel/pi/idreg-override.c
++++ b/arch/arm64/kernel/pi/idreg-override.c
+@@ -370,7 +370,9 @@
+ 	static char const cmdline[] __initconst = CONFIG_CMDLINE;
+ 	const u8 *prop = get_bootargs_cmdline(fdt, chosen);
  
 -	if (IS_ENABLED(CONFIG_CMDLINE_FORCE) || !prop)
 +	if (IS_ENABLED(CONFIG_CMDLINE_EXTEND) ||
 +	    IS_ENABLED(CONFIG_CMDLINE_FORCE) ||
 +	    !prop) {
- 		__parse_cmdline(CONFIG_CMDLINE, true);
-+	}
+ 		__parse_cmdline(cmdline, true);
  
  	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE) && prop)
- 		__parse_cmdline(prop, true);

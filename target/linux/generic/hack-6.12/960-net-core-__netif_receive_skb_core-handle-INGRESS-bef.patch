@@ -10,14 +10,14 @@ Signed-off-by: Chen Minqiang <ptpt52@gmail.com>
 
 --- a/net/core/dev.c
 +++ b/net/core/dev.c
-@@ -5396,22 +5396,6 @@ another_round:
+@@ -5594,22 +5594,6 @@
  	if (skb_skip_tc_classify(skb))
  		goto skip_classify;
  
 -	if (pfmemalloc)
 -		goto skip_taps;
 -
--	list_for_each_entry_rcu(ptype, &ptype_all, list) {
+-	list_for_each_entry_rcu(ptype, &net_hotdata.ptype_all, list) {
 -		if (pt_prev)
 -			ret = deliver_skb(skb, pt_prev, orig_dev);
 -		pt_prev = ptype;
