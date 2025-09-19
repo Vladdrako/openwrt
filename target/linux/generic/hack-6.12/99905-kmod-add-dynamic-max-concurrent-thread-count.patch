@@ -1,10 +1,9 @@
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -2027,3 +2027,22 @@
- # <asm/syscall_wrapper.h>.
- config ARCH_HAS_SYSCALL_WRAPPER
- 	def_bool n
-+
+--- a/kernel/module/Kconfig
++++ b/kernel/module/Kconfig
+@@ -286,6 +286,25 @@
+ 	  one per line. The path can be absolute, or relative to the kernel
+ 	  source tree.
+ 
 +config MAX_KMOD_CONCURRENT_P2
 +       int "Max allowed concurrent request_module() calls (6=>64, 10=>1024)"
 +       range 6 14
@@ -23,9 +22,13 @@
 +         We set this to default to 64 (2^6) concurrent modprobe threads for
 +         small systems, for larger systems this defaults to 128 (2^7)
 +         concurrent modprobe threads.
++
+ config MODULES_TREE_LOOKUP
+ 	def_bool y
+ 	depends on PERF_EVENTS || TRACING || CFI_CLANG
 --- a/kernel/module/kmod.c
 +++ b/kernel/module/kmod.c
-@@ -43,7 +43,7 @@
+@@ -46,7 +46,7 @@
   * and this would only be an upper limit, after which the OOM killer would take
   * effect. Systems like these are very unlikely if modules are enabled.
   */

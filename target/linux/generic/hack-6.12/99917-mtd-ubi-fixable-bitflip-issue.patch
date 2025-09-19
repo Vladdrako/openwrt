@@ -24,7 +24,7 @@ index f66b3b22f328..a1cfadd3b395 100644
 +	int w = min, b = min, t = max, d;
 +
 +	while (b < t && w <= max && w >= min) {
-+		e = find_wl_entry(ubi, &ubi->free, w);
++		e = find_wl_entry(ubi, &ubi->free, w, 0);
 +		if (e == e0)
 +			e = NULL;
 +		d = (t - b) / 2;
@@ -57,17 +57,18 @@ diff --git a/drivers/mtd/ubi/wl.h b/drivers/mtd/ubi/wl.h
 index a9e2d669acd8..579f7c729b5d 100644
 --- a/drivers/mtd/ubi/wl.h
 +++ b/drivers/mtd/ubi/wl.h
-@@ -7,6 +7,9 @@
+@@ -6,6 +6,10 @@
  static struct ubi_wl_entry *get_peb_for_wl(struct ubi_device *ubi);
  static struct ubi_wl_entry *next_peb_for_wl(struct ubi_device *ubi,
  					    bool need_fill);
 +static inline struct ubi_wl_entry *get_peb_for_wl_scrubbing(struct ubi_device *ubi, struct ubi_wl_entry *e0)
 +{
 +	return get_peb_for_wl(ubi);
++}
  static bool need_wear_leveling(struct ubi_device *ubi);
  static void ubi_fastmap_close(struct ubi_device *ubi);
  static inline void ubi_fastmap_init(struct ubi_device *ubi, int *count)
-@@ -23,6 +20,7 @@
+@@ -17,6 +21,7 @@
  					       struct rb_root *root);
  #else /* !CONFIG_MTD_UBI_FASTMAP */
  static struct ubi_wl_entry *get_peb_for_wl(struct ubi_device *ubi);
@@ -75,4 +76,3 @@ index a9e2d669acd8..579f7c729b5d 100644
  static inline void ubi_fastmap_close(struct ubi_device *ubi) { }
  static inline void ubi_fastmap_init(struct ubi_device *ubi, int *count) { }
  static struct ubi_wl_entry *may_reserve_for_fm(struct ubi_device *ubi,
-

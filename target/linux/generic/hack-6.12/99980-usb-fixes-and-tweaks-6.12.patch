@@ -4,8 +4,8 @@
  /* use a short timeout for hub/port status fetches */
 -#define	USB_STS_TIMEOUT		1000
 -#define	USB_STS_RETRIES		5
-+#define	USB_STS_INITIAL_TIMEOUT	20
-+#define	USB_STS_RETRIES		225
++#define	USB_STS_INITIAL_TIMEOUT	10
++#define	USB_STS_RETRIES		266
  
  /*
 @@ -550,8 +550,10 @@
@@ -18,7 +18,7 @@
 -			data, sizeof(*data), USB_STS_TIMEOUT);
 +			data, sizeof(*data), USB_STS_INITIAL_TIMEOUT + i);
 +		if (status != -ETIMEDOUT)
-+			usleep_range(10000 + i*20, 20000);
++			usleep_range(7000 + i*20, 16000);
  	}
  	return status;
 @@ -568,8 +570,10 @@
@@ -31,7 +31,7 @@
 -			port1, data, length, USB_STS_TIMEOUT);
 +			port1, data, length, USB_STS_INITIAL_TIMEOUT + i);
 +		if (status != -ETIMEDOUT)
-+			usleep_range(10000 + i*20, 20000);
++			usleep_range(7000 + i*20, 16000);
  	}
  	return status;
 @@ -2852,11 +2856,17 @@
@@ -42,8 +42,8 @@
  		status = set_port_feature(hub->hdev, port1, (warm ?
  					USB_PORT_FEAT_BH_PORT_RESET :
  					USB_PORT_FEAT_RESET));
-+		if (status < 0 && ++tr < 225) {
-+			usleep_range(3000 + tr*20, 10000);
++		if (status < 0 && ++tr < 266) {
++			usleep_range(2000 + tr*20, 8000);
 +			goto sbretry;
 +		}
  		if (status == -ENODEV) {
@@ -56,21 +56,21 @@
  {
  	struct usb_port *port_dev = hub->ports[port1 - 1];
 -	int retries = 3;
-+	int retries = 225;
++	int retries = 266;
  
   retry:
 @@ -3542,5 +3552,5 @@
  
  		/* TRSMRCY = 10 msec */
 -		msleep(10);
-+		usleep_range(17000, 20000);
++		usleep_range(7000, 16000);
  	}
  
 @@ -3629,5 +3639,5 @@
  	if (udev) {
  		/* TRSMRCY = 10 msec */
 -		msleep(10);
-+		usleep_range(17000, 20000);
++		usleep_range(7000, 16000);
  
  		usb_unlock_port(port_dev);
  
@@ -79,7 +79,7 @@
  			 */
 -			for (operations = 0; operations < 3; ++operations) {
 -				buf->bMaxPacketSize0 = 0;
-+			for (operations = 0; operations < 225; ++operations) {
++			for (operations = 0; operations < 266; ++operations) {
 +				buf->bMaxPacketSize0 = 0;
 +				buf->bDescriptorType = 0;
  				r = usb_control_msg(udev, usb_rcvaddr0pipe(),
@@ -106,7 +106,7 @@
  			if (udev->state != USB_STATE_NOTATTACHED &&
  					!udev->port_is_suspended) {
 -				usleep_range(10000, 11000);	/* TRSMRCY */
-+				usleep_range(17000, 20000);	/* TRSMRCY */
++				usleep_range(7000, 16000);	/* TRSMRCY */
  				break;
  			}
  		}
@@ -117,7 +117,7 @@
  	memset(buf, 0, size);	/* Make sure we parse really received data */
  
 -	for (i = 0; i < 3; ++i) {
-+	for (i = 0; i < 225; ++i) {
++	for (i = 0; i < 266; ++i) {
  		/* retry on length 0 or error; some devices are flakey */
  		result = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
  				USB_REQ_GET_DESCRIPTOR, USB_DIR_IN,
@@ -126,7 +126,7 @@
  		return -EINVAL;
  
 -	for (i = 0; i < 3; ++i) {
-+	for (i = 0; i < 225; ++i) {
++	for (i = 0; i < 266; ++i) {
  		/* retry on length 0 or stall; some devices are flakey */
  		result = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
  			USB_REQ_GET_DESCRIPTOR, USB_DIR_IN,
@@ -152,8 +152,8 @@
 		ret = -EINVAL;
 		break;
 	case COMP_USB_TRANSACTION_ERROR:
-+		if (retries++ < 225) {
-+			usleep_range(3000 + retries*20, 10000);
++		if (retries++ < 266) {
++			usleep_range(2000 + retries*20, 8000);
 +			goto retry;
 +		}
 		dev_warn(&udev->dev, "Device not responding to setup %s.\n", act);
@@ -161,55 +161,63 @@
 		mutex_unlock(&xhci->mutex);
 --- a/drivers/usb/host/ehci.h
 +++ b/drivers/usb/host/ehci.h
-@@ -423,5 +423,5 @@
- 
- 	u8			xacterrs;	/* XactErr retry counter */
--#define	QH_XACTERR_MAX		32		/* XactErr retry limit */
-+#define	QH_XACTERR_MAX		225		/* XactErr retry limit */
- 
- 	u8			unlink_reason;
---- a/drivers/usb/fotg210/fotg210-hcd.h
-+++ b/drivers/usb/fotg210/fotg210-hcd.h
 @@ -453,7 +453,7 @@
  #define	QH_STATE_COMPLETING	5		/* don't touch token.HALT */
  
  	u8			xacterrs;	/* XactErr retry counter */
 -#define	QH_XACTERR_MAX		32		/* XactErr retry limit */
-+#define	QH_XACTERR_MAX		225		/* XactErr retry limit */
++#define	QH_XACTERR_MAX		266		/* XactErr retry limit */
  
  	/* periodic schedule info */
  	u8			usecs;		/* intr bandwidth */
+--- a/drivers/usb/fotg210/fotg210-hcd.h
++++ b/drivers/usb/fotg210/fotg210-hdc.h
+@@ -453,5 +453,5 @@
+ 
+ 	u8			xacterrs;	/* XactErr retry counter */
+-#define	QH_XACTERR_MAX		32		/* XactErr retry limit */
++#define	QH_XACTERR_MAX		266		/* XactErr retry limit */
+ 
+ 	u8			unlink_reason;
 --- a/drivers/usb/host/xhci-hub.c
 +++ b/drivers/usb/host/xhci-hub.c
-@@ -1269,7 +1269,7 @@
+@@ -1462,7 +1462,7 @@
  			}
  
  			if (link_state == USB_SS_PORT_LS_U3) {
 -				int retries = 16;
 +				int retries = 0;
- 				slot_id = xhci_find_slot_id_by_port(hcd, xhci,
- 						wIndex + 1);
- 				if (slot_id) {
-@@ -1475,8 +1475,8 @@
+ 				if (port->slot_id) {
+ 					/* unlock to execute stop endpoint
+ 					 * commands */
+@@ -1455,8 +1455,8 @@
  				}
  				xhci_set_link_state(xhci, port, USB_SS_PORT_LS_U3);
  				spin_unlock_irqrestore(&xhci->lock, flags);
 -				while (retries--) {
 -					usleep_range(4000, 8000);
-+				while (retries++ < 225) {
-+					usleep_range(3000 + retries*20, 10000);
++				while (retries++ < 266) {
++					usleep_range(2000 + retries*20, 8000);
  					temp = readl(port->addr);
  					if ((temp & PORT_PLS_MASK) == XDEV_U3)
  						break;
-@@ -1531,7 +1531,7 @@
+@@ -1748,7 +1748,7 @@
  	port_index = max_ports;
  	while (port_index--) {
  		u32 t1, t2;
 -		int retries = 10;
-+		int retries = 225;
++		int retries = 266;
  retry:
  		t1 = readl(ports[port_index]->addr);
  		t2 = xhci_port_state_to_neutral(t1);
+--- a/drivers/usb/host/xhci-port.h
++++ b/drivers/usb/host/xhci-port.h
+@@ -173,4 +173,4 @@
+  * so check status 10 times with 36ms sleep in places we need to wait for
+  * polling to complete.
+  */
+-#define XHCI_PORT_POLLING_LFPS_TIME  36
++#define XHCI_PORT_POLLING_LFPS_TIME  1
 --- a/drivers/usb/core/quirks.c
 +++ b/drivers/usb/core/quirks.c
 @@ -334,4 +334,7 @@
