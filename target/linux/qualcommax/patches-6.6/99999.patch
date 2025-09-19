@@ -294,10 +294,10 @@ diff --git a/include/linux/firmware/qcom/qcom_scm.h b/include/linux/firmware/qco
 index 250ea4efb7cb6a..488d6eccb5a4a5 100644
 --- a/include/linux/firmware/qcom/qcom_scm.h
 +++ b/include/linux/firmware/qcom/qcom_scm.h
-@@ -81,6 +81,9 @@ extern int qcom_scm_pas_mem_setup(u32 peripheral, phys_addr_t addr,
- extern int qcom_scm_pas_auth_and_reset(u32 peripheral);
- extern int qcom_scm_pas_shutdown(u32 peripheral);
- extern bool qcom_scm_pas_supported(u32 peripheral);
+@@ -86,6 +86,9 @@
+ extern int qcom_scm_pas_load_segment(u32 peripheral, int segment, dma_addr_t dma, int seg_cnt);
+ extern int qcom_scm_msa_lock(u32 peripheral);
+ extern int qcom_scm_msa_unlock(u32 peripheral);
 +int qti_scm_int_radio_powerup(u32 peripheral);
 +int qti_scm_int_radio_powerdown(u32 peripheral);
 +int qti_scm_pdseg_memcpy_v2(u32 peripheral, int phno, dma_addr_t dma, int seg_cnt);
@@ -323,46 +323,6 @@ Signed-off-by: Manikanta Mylavarapu <quic_mmanikan@quicinc.com>
  drivers/remoteproc/qcom_q6v5.h | 11 ++++++++++
  2 files changed, 45 insertions(+), 3 deletions(-)
 
-diff --git a/drivers/remoteproc/qcom_q6v5.c b/drivers/remoteproc/qcom_q6v5.c
-index 192c7aa0e39e61..d535f336586598 100644
---- a/drivers/remoteproc/qcom_q6v5.c
-+++ b/drivers/remoteproc/qcom_q6v5.c
-@@ -118,7 +118,7 @@ static irqreturn_t q6v5_wdog_interrupt(int irq, void *data)
- 	return IRQ_HANDLED;
- }
- 
--static irqreturn_t q6v5_fatal_interrupt(int irq, void *data)
-+irqreturn_t q6v5_fatal_interrupt(int irq, void *data)
- {
- 	struct qcom_q6v5 *q6v5 = data;
- 	size_t len;
-@@ -139,7 +139,7 @@ static irqreturn_t q6v5_fatal_interrupt(int irq, void *data)
- 	return IRQ_HANDLED;
- }
- 
--static irqreturn_t q6v5_ready_interrupt(int irq, void *data)
-+irqreturn_t q6v5_ready_interrupt(int irq, void *data)
- {
- 	struct qcom_q6v5 *q6v5 = data;
- 
-@@ -183,7 +183,16 @@ static irqreturn_t q6v5_handover_interrupt(int irq, void *data)
- 	return IRQ_HANDLED;
- }
- 
--static irqreturn_t q6v5_stop_interrupt(int irq, void *data)
-+irqreturn_t q6v5_spawn_interrupt(int irq, void *data)
-+{
-+	struct qcom_q6v5 *q6v5 = data;
-+
-+	complete(&q6v5->spawn_done);
-+
-+	return IRQ_HANDLED;
-+}
-+
-+irqreturn_t q6v5_stop_interrupt(int irq, void *data)
- {
- 	struct qcom_q6v5 *q6v5 = data;
- 
 @@ -220,6 +229,28 @@ int qcom_q6v5_request_stop(struct qcom_q6v5 *q6v5, struct qcom_sysmon *sysmon)
  }
  EXPORT_SYMBOL_GPL(qcom_q6v5_request_stop);
@@ -392,1231 +352,6 @@ index 192c7aa0e39e61..d535f336586598 100644
  /**
   * qcom_q6v5_panic() - panic handler to invoke a stop on the remote
   * @q6v5:	reference to qcom_q6v5 context
-diff --git a/drivers/remoteproc/qcom_q6v5.h b/drivers/remoteproc/qcom_q6v5.h
-index 5a859c41896e99..4e1bb1a68284cf 100644
---- a/drivers/remoteproc/qcom_q6v5.h
-+++ b/drivers/remoteproc/qcom_q6v5.h
-@@ -18,21 +18,27 @@ struct qcom_q6v5 {
- 
- 	struct qcom_smem_state *state;
- 	struct qmp *qmp;
-+	struct qcom_smem_state *shutdown_state;
-+	struct qcom_smem_state *spawn_state;
- 
- 	struct icc_path *path;
- 
- 	unsigned stop_bit;
-+	unsigned shutdown_bit;
-+	unsigned spawn_bit;
- 
- 	int wdog_irq;
- 	int fatal_irq;
- 	int ready_irq;
- 	int handover_irq;
- 	int stop_irq;
-+	int spawn_irq;
- 
- 	bool handover_issued;
- 
- 	struct completion start_done;
- 	struct completion stop_done;
-+	struct completion spawn_done;
- 
- 	int crash_reason;
- 
-@@ -50,7 +56,12 @@ void qcom_q6v5_deinit(struct qcom_q6v5 *q6v5);
- int qcom_q6v5_prepare(struct qcom_q6v5 *q6v5);
- int qcom_q6v5_unprepare(struct qcom_q6v5 *q6v5);
- int qcom_q6v5_request_stop(struct qcom_q6v5 *q6v5, struct qcom_sysmon *sysmon);
-+int qcom_q6v5_request_spawn(struct qcom_q6v5 *q6v5);
- int qcom_q6v5_wait_for_start(struct qcom_q6v5 *q6v5, int timeout);
- unsigned long qcom_q6v5_panic(struct qcom_q6v5 *q6v5);
-+irqreturn_t q6v5_fatal_interrupt(int irq, void *data);
-+irqreturn_t q6v5_ready_interrupt(int irq, void *data);
-+irqreturn_t q6v5_spawn_interrupt(int irq, void *data);
-+irqreturn_t q6v5_stop_interrupt(int irq, void *data);
- 
- #endif
-From 7b3fa0c05e6864f347391ec6ce3efdd57ff8b5e1 Mon Sep 17 00:00:00 2001
-From: Manikanta Mylavarapu <quic_mmanikan@quicinc.com>
-Date: Mon, 22 May 2023 03:58:49 +0530
-Subject: [PATCH] remoteproc: qcom: Add Hexagon based multipd rproc driver
-
-It adds support to bring up remoteproc's on multipd model.
-Pd means protection domain. It's similar to process in Linux.
-Here QDSP6 processor runs each wifi radio functionality on a
-separate process. One process can't access other process
-resources, so this is termed as PD i.e protection domain.
-
-Here we have two pd's called root and user pd. We can correlate
-Root pd as root and user pd as user in linux. Root pd has more
-privileges than user pd. Root will provide services to user pd.
-
-From remoteproc driver perspective, root pd corresponds to QDSP6
-processor bring up and user pd corresponds to Wifi radio (WCSS)
-bring up.
-
-Here WCSS(user) PD is dependent on Q6(root) PD, so first
-q6 pd should be up before wcss pd. After wcss pd goes down,
-q6 pd should be turned off.
-
-IPQ5018, IPQ9574 supports multipd remoteproc driver.
-
-Signed-off-by: Manikanta Mylavarapu <quic_mmanikan@quicinc.com>
----
- drivers/remoteproc/Kconfig          |  20 +
- drivers/remoteproc/Makefile         |   1 +
- drivers/remoteproc/qcom_common.h    |   9 +
- drivers/remoteproc/qcom_q6v5_mpd.c  | 677 ++++++++++++++++++++++++++++
- drivers/soc/qcom/mdt_loader.c       | 332 ++++++++++++++
- include/linux/soc/qcom/mdt_loader.h |  19 +
- 6 files changed, 1058 insertions(+)
- create mode 100644 drivers/remoteproc/qcom_q6v5_mpd.c
-
-diff --git a/drivers/remoteproc/Kconfig b/drivers/remoteproc/Kconfig
-index a850e9f486dd63..44af5c36f67e99 100644
---- a/drivers/remoteproc/Kconfig
-+++ b/drivers/remoteproc/Kconfig
-@@ -234,6 +234,26 @@ config QCOM_Q6V5_PAS
- 	  CDSP (Compute DSP), MPSS (Modem Peripheral SubSystem), and
- 	  SLPI (Sensor Low Power Island).
- 
-+config QCOM_Q6V5_MPD
-+	tristate "Qualcomm Hexagon based MPD model Peripheral Image Loader"
-+	depends on OF && ARCH_QCOM
-+	depends on QCOM_SMEM
-+	depends on RPMSG_QCOM_SMD || RPMSG_QCOM_SMD=n
-+	depends on RPMSG_QCOM_GLINK_SMEM || RPMSG_QCOM_GLINK_SMEM=n
-+	depends on QCOM_SYSMON || QCOM_SYSMON=n
-+	depends on RPMSG_QCOM_GLINK || RPMSG_QCOM_GLINK=n
-+	depends on QCOM_AOSS_QMP || QCOM_AOSS_QMP=n
-+	select MFD_SYSCON
-+	select QCOM_MDT_LOADER
-+	select QCOM_PIL_INFO
-+	select QCOM_Q6V5_COMMON
-+	select QCOM_RPROC_COMMON
-+	select QCOM_SCM
-+	help
-+	  Say y here to support the Qualcomm Secure Peripheral Image Loader
-+	  for the Hexagon based MultiPD model remote processors on e.g. IPQ5018.
-+	  This is trustZone wireless subsystem.
-+
- config QCOM_Q6V5_WCSS
- 	tristate "Qualcomm Hexagon based WCSS Peripheral Image Loader"
- 	depends on OF && ARCH_QCOM
-diff --git a/drivers/remoteproc/Makefile b/drivers/remoteproc/Makefile
-index 91314a9b43cefc..b64051080ec19f 100644
---- a/drivers/remoteproc/Makefile
-+++ b/drivers/remoteproc/Makefile
-@@ -25,6 +25,7 @@ obj-$(CONFIG_QCOM_PIL_INFO)		+= qcom_pil_info.o
- obj-$(CONFIG_QCOM_RPROC_COMMON)		+= qcom_common.o
- obj-$(CONFIG_QCOM_Q6V5_COMMON)		+= qcom_q6v5.o
- obj-$(CONFIG_QCOM_Q6V5_ADSP)		+= qcom_q6v5_adsp.o
-+obj-$(CONFIG_QCOM_Q6V5_MPD)		+= qcom_q6v5_mpd.o
- obj-$(CONFIG_QCOM_Q6V5_MSS)		+= qcom_q6v5_mss.o
- obj-$(CONFIG_QCOM_Q6V5_PAS)		+= qcom_q6v5_pas.o
- obj-$(CONFIG_QCOM_Q6V5_WCSS)		+= qcom_q6v5_wcss.o
-diff --git a/drivers/remoteproc/qcom_common.h b/drivers/remoteproc/qcom_common.h
-index 9ef4449052a95a..9d9e08aac6efe3 100644
---- a/drivers/remoteproc/qcom_common.h
-+++ b/drivers/remoteproc/qcom_common.h
-@@ -76,4 +76,13 @@ static inline bool qcom_sysmon_shutdown_acked(struct qcom_sysmon *sysmon)
- }
- #endif
- 
-+#if IS_ENABLED(CONFIG_QCOM_Q6V5_MPD)
-+s8 qcom_get_pd_asid(struct device_node *node);
-+#else
-+static inline s8 qcom_get_pd_asid(struct device_node *node)
-+{
-+	return 0;
-+}
-+#endif
-+
- #endif
-diff --git a/drivers/remoteproc/qcom_q6v5_mpd.c b/drivers/remoteproc/qcom_q6v5_mpd.c
-new file mode 100644
-index 00000000000000..959143960350d2
---- /dev/null
-+++ b/drivers/remoteproc/qcom_q6v5_mpd.c
-@@ -0,0 +1,677 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * Copyright (C) 2016-2018 Linaro Ltd.
-+ * Copyright (C) 2014 Sony Mobile Communications AB
-+ * Copyright (c) 2012-2018, 2021 The Linux Foundation. All rights reserved.
-+ */
-+#include <linux/clk.h>
-+#include <linux/delay.h>
-+#include <linux/firmware/qcom/qcom_scm.h>
-+#include <linux/interrupt.h>
-+#include <linux/io.h>
-+#include <linux/iopoll.h>
-+#include <linux/kernel.h>
-+#include <linux/module.h>
-+#include <linux/of_address.h>
-+#include <linux/of_device.h>
-+#include <linux/of_reserved_mem.h>
-+#include <linux/platform_device.h>
-+#include <linux/reset.h>
-+#include <linux/soc/qcom/mdt_loader.h>
-+#include <linux/soc/qcom/smem.h>
-+#include <linux/soc/qcom/smem_state.h>
-+#include "qcom_common.h"
-+#include "qcom_q6v5.h"
-+
-+#include "remoteproc_internal.h"
-+
-+#define WCSS_CRASH_REASON		421
-+#define WCSS_SMEM_HOST			1
-+
-+#define WCNSS_PAS_ID			6
-+#define MPD_WCNSS_PAS_ID        0xD
-+
-+#define BUF_SIZE			35
-+
-+#define MAX_FIRMWARE			3
-+/**
-+ * enum state - state of a wcss (private)
-+ * @WCSS_NORMAL: subsystem is operating normally
-+ * @WCSS_SHUTDOWN: subsystem has been shutdown
-+ *
-+ */
-+enum q6_wcss_state {
-+	WCSS_NORMAL,
-+	WCSS_SHUTDOWN,
-+};
-+
-+enum {
-+	Q6_IPQ,
-+	WCSS_AHB_IPQ,
-+	WCSS_PCIE_IPQ,
-+};
-+
-+struct q6_wcss {
-+	struct device *dev;
-+	struct qcom_rproc_glink glink_subdev;
-+	struct qcom_rproc_ssr ssr_subdev;
-+	struct qcom_q6v5 q6;
-+	phys_addr_t mem_phys;
-+	phys_addr_t mem_reloc;
-+	void *mem_region;
-+	size_t mem_size;
-+	int crash_reason_smem;
-+	s8 pd_asid;
-+	enum q6_wcss_state state;
-+	const struct wcss_data *desc;
-+	const char **firmware;
-+};
-+
-+struct wcss_data {
-+	int (*init_irq)(struct qcom_q6v5 *q6, struct platform_device *pdev,
-+			struct rproc *rproc, int crash_reason,
-+			const char *load_state,
-+			void (*handover)(struct qcom_q6v5 *q6));
-+	int crash_reason_smem;
-+	u32 version;
-+	const char *ssr_name;
-+	const struct rproc_ops *ops;
-+	bool glink_subdev_required;
-+	bool reset_seq;
-+	u32 pasid;
-+	int (*mdt_load_sec)(struct device *dev, const struct firmware *fw,
-+			    const char *fw_name, int pas_id, void *mem_region,
-+			    phys_addr_t mem_phys, size_t mem_size,
-+			    phys_addr_t *reloc_base);
-+	int (*powerup_scm)(u32 peripheral);
-+	int (*powerdown_scm)(u32 peripheral);
-+};
-+
-+/**
-+ * qcom_get_pd_asid() - get the pd asid number from DT node
-+ * @node:	device tree node
-+ *
-+ * Returns asid if node name has 'pd' string
-+ */
-+s8 qcom_get_pd_asid(struct device_node *node)
-+{
-+	char *str;
-+	s8 pd_asid;
-+
-+	if (!node)
-+		return -EINVAL;
-+
-+	str = strstr(node->name, "pd");
-+	if (!str)
-+		return 0;
-+
-+	str += strlen("pd") + 1;
-+	return kstrtos8(str, 10, &pd_asid) ? -EINVAL : pd_asid;
-+}
-+EXPORT_SYMBOL(qcom_get_pd_asid);
-+
-+static int q6_wcss_start(struct rproc *rproc)
-+{
-+	struct q6_wcss *wcss = rproc->priv;
-+	int ret;
-+	struct device_node *upd_np;
-+	struct platform_device *upd_pdev;
-+	struct rproc *upd_rproc;
-+	struct q6_wcss *upd_wcss;
-+	const struct wcss_data *desc = wcss->desc;
-+
-+	qcom_q6v5_prepare(&wcss->q6);
-+
-+	ret = qcom_scm_pas_auth_and_reset(desc->pasid);
-+	if (ret) {
-+		dev_err(wcss->dev, "wcss_reset failed\n");
-+		return ret;
-+	}
-+
-+	ret = qcom_q6v5_wait_for_start(&wcss->q6, 5 * HZ);
-+	if (ret == -ETIMEDOUT)
-+		dev_err(wcss->dev, "start timed out\n");
-+
-+	/* On rootpd restart still user pd wcss state's
-+	 * initialized to WCSS_SHUTDOWN and it leads to
-+	 * user pd FW load (user pd fw load should happen
-+	 * only on user pd restart, not on root pd restart).
-+	 * So bring userpd wcss state to default value.
-+	 */
-+	for_each_available_child_of_node(wcss->dev->of_node, upd_np) {
-+		upd_pdev = of_find_device_by_node(upd_np);
-+		if (!upd_pdev)
-+			continue;
-+		upd_rproc = platform_get_drvdata(upd_pdev);
-+		upd_wcss = upd_rproc->priv;
-+		upd_wcss->state = WCSS_NORMAL;
-+	}
-+	return ret;
-+}
-+
-+static int q6_wcss_spawn_pd(struct rproc *rproc)
-+{
-+	int ret;
-+	struct q6_wcss *wcss = rproc->priv;
-+
-+	ret = qcom_q6v5_request_spawn(&wcss->q6);
-+	if (ret == -ETIMEDOUT) {
-+		pr_err("%s spawn timedout\n", rproc->name);
-+		return ret;
-+	}
-+
-+	ret = qcom_q6v5_wait_for_start(&wcss->q6, msecs_to_jiffies(10000));
-+	if (ret == -ETIMEDOUT) {
-+		pr_err("%s start timedout\n", rproc->name);
-+		wcss->q6.running = false;
-+		return ret;
-+	}
-+	wcss->q6.running = true;
-+	return ret;
-+}
-+
-+static int wcss_ahb_pcie_pd_start(struct rproc *rproc)
-+{
-+	struct q6_wcss *wcss = rproc->priv;
-+	const struct wcss_data *desc = wcss->desc;
-+	int ret;
-+
-+	if (!desc->reset_seq)
-+		return 0;
-+
-+	if (desc->powerup_scm) {
-+		ret = desc->powerup_scm(desc->pasid);
-+		if (ret) {
-+			dev_err(wcss->dev, "failed to power up pd\n");
-+			return ret;
-+		}
-+	}
-+
-+	ret = q6_wcss_spawn_pd(rproc);
-+	if (ret)
-+		return ret;
-+
-+	wcss->state = WCSS_NORMAL;
-+	return ret;
-+}
-+
-+static int q6_wcss_stop(struct rproc *rproc)
-+{
-+	struct q6_wcss *wcss = rproc->priv;
-+	const struct wcss_data *desc = wcss->desc;
-+	int ret;
-+
-+	ret = qcom_scm_pas_shutdown(desc->pasid);
-+	if (ret) {
-+		dev_err(wcss->dev, "not able to shutdown\n");
-+		return ret;
-+	}
-+	qcom_q6v5_unprepare(&wcss->q6);
-+
-+	return 0;
-+}
-+
-+static int wcss_ahb_pcie_pd_stop(struct rproc *rproc)
-+{
-+	struct q6_wcss *wcss = rproc->priv;
-+	struct rproc *rpd_rproc = dev_get_drvdata(wcss->dev->parent);
-+	const struct wcss_data *desc = wcss->desc;
-+	int ret;
-+
-+	if (!desc->reset_seq)
-+		goto shut_down_rpd;
-+
-+	if (rproc->state != RPROC_CRASHED && wcss->q6.stop_bit) {
-+		ret = qcom_q6v5_request_stop(&wcss->q6, NULL);
-+		if (ret) {
-+			dev_err(&rproc->dev, "pd not stopped\n");
-+			return ret;
-+		}
-+	}
-+
-+	if (desc->powerdown_scm) {
-+		ret = desc->powerdown_scm(desc->pasid);
-+		if (ret) {
-+			dev_err(wcss->dev, "failed to power down pd\n");
-+			return ret;
-+		}
-+	}
-+
-+shut_down_rpd:
-+	rproc_shutdown(rpd_rproc);
-+
-+	wcss->state = WCSS_SHUTDOWN;
-+	return 0;
-+}
-+
-+static void *q6_wcss_da_to_va(struct rproc *rproc, u64 da, size_t len,
-+			      bool *is_iomem)
-+{
-+	struct q6_wcss *wcss = rproc->priv;
-+	int offset;
-+
-+	offset = da - wcss->mem_reloc;
-+	if (offset < 0 || offset + len > wcss->mem_size)
-+		return NULL;
-+
-+	return wcss->mem_region + offset;
-+}
-+
-+static int q6_wcss_load(struct rproc *rproc, const struct firmware *fw)
-+{
-+	struct q6_wcss *wcss = rproc->priv;
-+	const struct firmware *fw_hdl;
-+	int ret;
-+	const struct wcss_data *desc = wcss->desc;
-+	int loop;
-+
-+	ret = qcom_mdt_load(wcss->dev, fw, rproc->firmware,
-+			    desc->pasid, wcss->mem_region,
-+			    wcss->mem_phys, wcss->mem_size,
-+			    &wcss->mem_reloc);
-+	if (ret)
-+		return ret;
-+
-+	for (loop = 1; loop < MAX_FIRMWARE; loop++) {
-+		if (!wcss->firmware[loop])
-+			continue;
-+
-+		ret = request_firmware(&fw_hdl, wcss->firmware[loop],
-+				       wcss->dev);
-+		if (ret)
-+			continue;
-+
-+		ret = qcom_mdt_load_no_init(wcss->dev, fw_hdl,
-+					    wcss->firmware[loop], 0,
-+					    wcss->mem_region,
-+					    wcss->mem_phys,
-+					    wcss->mem_size,
-+					    &wcss->mem_reloc);
-+
-+		release_firmware(fw_hdl);
-+
-+		if (ret) {
-+			dev_err(wcss->dev,
-+				"can't load %s ret:%d\n", wcss->firmware[loop], ret);
-+			return ret;
-+		}
-+	}
-+	return 0;
-+}
-+
-+/* This function load's userpd firmware. Since Userpd depends on rootpd
-+ * first bring up root pd and then load. User pd firmware load is required
-+ * only during user pd restart because root pd loads user pd FW pil segments
-+ * during it's bringup.
-+ */
-+static int wcss_ahb_pcie_pd_load(struct rproc *rproc, const struct firmware *fw)
-+{
-+	struct q6_wcss *wcss = rproc->priv, *wcss_rpd;
-+	struct rproc *rpd_rproc = dev_get_drvdata(wcss->dev->parent);
-+	const struct wcss_data *desc = wcss->desc;
-+	int ret;
-+
-+	wcss_rpd = rpd_rproc->priv;
-+
-+	/* Boot rootpd rproc */
-+	ret = rproc_boot(rpd_rproc);
-+	if (ret || wcss->state == WCSS_NORMAL)
-+		return ret;
-+
-+	return desc->mdt_load_sec(wcss->dev, fw, rproc->firmware,
-+				  desc->pasid, wcss->mem_region,
-+				  wcss->mem_phys, wcss->mem_size,
-+				  &wcss->mem_reloc);
-+}
-+
-+static unsigned long q6_wcss_panic(struct rproc *rproc)
-+{
-+	struct q6_wcss *wcss = rproc->priv;
-+
-+	return qcom_q6v5_panic(&wcss->q6);
-+}
-+
-+static const struct rproc_ops wcss_ahb_pcie_ipq5018_ops = {
-+	.start = wcss_ahb_pcie_pd_start,
-+	.stop = wcss_ahb_pcie_pd_stop,
-+	.load = wcss_ahb_pcie_pd_load,
-+};
-+
-+static const struct rproc_ops q6_wcss_ipq5018_ops = {
-+	.start = q6_wcss_start,
-+	.stop = q6_wcss_stop,
-+	.da_to_va = q6_wcss_da_to_va,
-+	.load = q6_wcss_load,
-+	.get_boot_addr = rproc_elf_get_boot_addr,
-+	.panic = q6_wcss_panic,
-+};
-+
-+static int q6_alloc_memory_region(struct q6_wcss *wcss)
-+{
-+	struct reserved_mem *rmem = NULL;
-+	struct device_node *node;
-+	struct device *dev = wcss->dev;
-+	const struct wcss_data *desc = wcss->desc;
-+
-+	if (desc->version == Q6_IPQ) {
-+		node = of_parse_phandle(dev->of_node, "memory-region", 0);
-+		if (node)
-+			rmem = of_reserved_mem_lookup(node);
-+
-+		of_node_put(node);
-+
-+		if (!rmem) {
-+			dev_err(dev, "unable to acquire memory-region\n");
-+			return -EINVAL;
-+		}
-+	} else {
-+		struct rproc *rpd_rproc = dev_get_drvdata(dev->parent);
-+		struct q6_wcss *rpd_wcss = rpd_rproc->priv;
-+
-+		wcss->mem_phys = rpd_wcss->mem_phys;
-+		wcss->mem_reloc = rpd_wcss->mem_reloc;
-+		wcss->mem_size = rpd_wcss->mem_size;
-+		wcss->mem_region = rpd_wcss->mem_region;
-+		return 0;
-+	}
-+
-+	wcss->mem_phys = rmem->base;
-+	wcss->mem_reloc = rmem->base;
-+	wcss->mem_size = rmem->size;
-+	wcss->mem_region = devm_ioremap_wc(dev, wcss->mem_phys, wcss->mem_size);
-+	if (!wcss->mem_region) {
-+		dev_err(dev, "unable to map memory region: %pa+%pa\n",
-+			&rmem->base, &rmem->size);
-+		return -EBUSY;
-+	}
-+
-+	return 0;
-+}
-+
-+static int q6_get_inbound_irq(struct qcom_q6v5 *q6,
-+			      struct platform_device *pdev,
-+			      const char *int_name,
-+			      irqreturn_t (*handler)(int irq, void *data))
-+{
-+	int ret, irq;
-+	char *interrupt, *tmp = (char *)int_name;
-+	struct q6_wcss *wcss = q6->rproc->priv;
-+
-+	irq = platform_get_irq_byname(pdev, int_name);
-+	if (irq < 0) {
-+		if (irq != -EPROBE_DEFER)
-+			dev_err(&pdev->dev,
-+				"failed to retrieve %s IRQ: %d\n",
-+					int_name, irq);
-+		return irq;
-+	}
-+
-+	if (!strcmp(int_name, "fatal")) {
-+		q6->fatal_irq = irq;
-+	} else if (!strcmp(int_name, "stop-ack")) {
-+		q6->stop_irq = irq;
-+		tmp = "stop_ack";
-+	} else if (!strcmp(int_name, "ready")) {
-+		q6->ready_irq = irq;
-+	} else if (!strcmp(int_name, "handover")) {
-+		q6->handover_irq  = irq;
-+	} else if (!strcmp(int_name, "spawn-ack")) {
-+		q6->spawn_irq = irq;
-+		tmp = "spawn_ack";
-+	} else {
-+		dev_err(&pdev->dev, "unknown interrupt\n");
-+		return -EINVAL;
-+	}
-+
-+	interrupt = devm_kzalloc(&pdev->dev, BUF_SIZE, GFP_KERNEL);
-+	if (!interrupt)
-+		return -ENOMEM;
-+
-+	snprintf(interrupt, BUF_SIZE, "q6v5_wcss_userpd%d_%s", wcss->pd_asid, tmp);
-+
-+	ret = devm_request_threaded_irq(&pdev->dev, irq,
-+					NULL, handler,
-+					IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-+					interrupt, q6);
-+	if (ret) {
-+		dev_err(&pdev->dev, "failed to acquire %s irq\n", interrupt);
-+		return ret;
-+	}
-+	return 0;
-+}
-+
-+static int q6_get_outbound_irq(struct qcom_q6v5 *q6,
-+			       struct platform_device *pdev,
-+			       const char *int_name)
-+{
-+	struct qcom_smem_state *tmp_state;
-+	unsigned  bit;
-+
-+	tmp_state = qcom_smem_state_get(&pdev->dev, int_name, &bit);
-+	if (IS_ERR(tmp_state)) {
-+		dev_err(&pdev->dev, "failed to acquire %s state\n", int_name);
-+		return PTR_ERR(tmp_state);
-+	}
-+
-+	if (!strcmp(int_name, "stop")) {
-+		q6->state = tmp_state;
-+		q6->stop_bit = bit;
-+	} else if (!strcmp(int_name, "spawn")) {
-+		q6->spawn_state = tmp_state;
-+		q6->spawn_bit = bit;
-+	}
-+
-+	return 0;
-+}
-+
-+static int init_irq(struct qcom_q6v5 *q6,
-+		    struct platform_device *pdev, struct rproc *rproc,
-+		    int crash_reason, const char *load_state,
-+		    void (*handover)(struct qcom_q6v5 *q6))
-+{
-+	int ret;
-+
-+	q6->rproc = rproc;
-+	q6->dev = &pdev->dev;
-+	q6->crash_reason = crash_reason;
-+	q6->handover = handover;
-+
-+	init_completion(&q6->start_done);
-+	init_completion(&q6->stop_done);
-+	init_completion(&q6->spawn_done);
-+
-+	ret = q6_get_inbound_irq(q6, pdev, "fatal",
-+				 q6v5_fatal_interrupt);
-+	if (ret)
-+		return ret;
-+
-+	ret = q6_get_inbound_irq(q6, pdev, "ready",
-+				 q6v5_ready_interrupt);
-+	if (ret)
-+		return ret;
-+
-+	ret = q6_get_inbound_irq(q6, pdev, "stop-ack",
-+				 q6v5_stop_interrupt);
-+	if (ret)
-+		return ret;
-+
-+	ret = q6_get_inbound_irq(q6, pdev, "spawn-ack",
-+				 q6v5_spawn_interrupt);
-+	if (ret)
-+		return ret;
-+
-+	ret = q6_get_outbound_irq(q6, pdev, "stop");
-+	if (ret)
-+		return ret;
-+
-+	ret = q6_get_outbound_irq(q6, pdev, "spawn");
-+	if (ret)
-+		return ret;
-+
-+	return 0;
-+}
-+
-+static int q6_wcss_probe(struct platform_device *pdev)
-+{
-+	const struct wcss_data *desc;
-+	struct q6_wcss *wcss;
-+	struct rproc *rproc;
-+	int ret;
-+	char *subdev_name;
-+	const char **firmware;
-+
-+	desc = of_device_get_match_data(&pdev->dev);
-+	if (!desc)
-+		return -EINVAL;
-+
-+	firmware = devm_kcalloc(&pdev->dev, MAX_FIRMWARE,
-+				sizeof(*firmware), GFP_KERNEL);
-+	if (!firmware)
-+		return -ENOMEM;
-+
-+	ret = of_property_read_string_array(pdev->dev.of_node, "firmware-name",
-+					    firmware, MAX_FIRMWARE);
-+	if (ret < 0)
-+		return ret;
-+
-+	rproc = rproc_alloc(&pdev->dev, pdev->name, desc->ops,
-+			    firmware[0], sizeof(*wcss));
-+	if (!rproc) {
-+		dev_err(&pdev->dev, "failed to allocate rproc\n");
-+		return -ENOMEM;
-+	}
-+	wcss = rproc->priv;
-+	wcss->dev = &pdev->dev;
-+	wcss->desc = desc;
-+	wcss->firmware = firmware;
-+
-+	ret = q6_alloc_memory_region(wcss);
-+	if (ret)
-+		goto free_rproc;
-+
-+	wcss->pd_asid = qcom_get_pd_asid(wcss->dev->of_node);
-+	if (wcss->pd_asid < 0)
-+		goto free_rproc;
-+
-+	if (desc->init_irq) {
-+		ret = desc->init_irq(&wcss->q6, pdev, rproc,
-+				     desc->crash_reason_smem, NULL, NULL);
-+		if (ret)
-+			goto free_rproc;
-+	}
-+
-+	if (desc->glink_subdev_required)
-+		qcom_add_glink_subdev(rproc, &wcss->glink_subdev, desc->ssr_name);
-+
-+	subdev_name = (char *)(desc->ssr_name ? desc->ssr_name : pdev->name);
-+	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, subdev_name);
-+
-+	rproc->auto_boot = false;
-+	ret = rproc_add(rproc);
-+	if (ret)
-+		goto free_rproc;
-+
-+	platform_set_drvdata(pdev, rproc);
-+
-+	ret = of_platform_populate(wcss->dev->of_node, NULL,
-+				   NULL, wcss->dev);
-+	if (ret) {
-+		dev_err(&pdev->dev, "failed to populate wcss pd nodes\n");
-+		goto free_rproc;
-+	}
-+	return 0;
-+
-+free_rproc:
-+	rproc_free(rproc);
-+
-+	return ret;
-+}
-+
-+static int q6_wcss_remove(struct platform_device *pdev)
-+{
-+	struct rproc *rproc = platform_get_drvdata(pdev);
-+	struct q6_wcss *wcss = rproc->priv;
-+
-+	qcom_q6v5_deinit(&wcss->q6);
-+
-+	rproc_del(rproc);
-+	rproc_free(rproc);
-+
-+	return 0;
-+}
-+
-+static const struct wcss_data q6_ipq5018_res_init = {
-+	.init_irq = qcom_q6v5_init,
-+	.crash_reason_smem = WCSS_CRASH_REASON,
-+	.ssr_name = "q6wcss",
-+	.ops = &q6_wcss_ipq5018_ops,
-+	.version = Q6_IPQ,
-+	.glink_subdev_required = true,
-+	.pasid = MPD_WCNSS_PAS_ID,
-+};
-+
-+static const struct wcss_data q6_ipq9574_res_init = {
-+	.init_irq = qcom_q6v5_init,
-+	.crash_reason_smem = WCSS_CRASH_REASON,
-+	.ssr_name = "q6wcss",
-+	.ops = &q6_wcss_ipq5018_ops,
-+	.version = Q6_IPQ,
-+	.glink_subdev_required = true,
-+	.pasid = WCNSS_PAS_ID,
-+};
-+
-+static const struct wcss_data wcss_ahb_ipq5018_res_init = {
-+	.init_irq = init_irq,
-+	.crash_reason_smem = WCSS_CRASH_REASON,
-+	.ops = &wcss_ahb_pcie_ipq5018_ops,
-+	.version = WCSS_AHB_IPQ,
-+	.pasid = MPD_WCNSS_PAS_ID,
-+	.reset_seq = true,
-+	.mdt_load_sec = qcom_mdt_load_pd_seg,
-+	.powerup_scm = qti_scm_int_radio_powerup,
-+	.powerdown_scm = qti_scm_int_radio_powerdown,
-+};
-+
-+static const struct wcss_data wcss_ahb_ipq9574_res_init = {
-+	.crash_reason_smem = WCSS_CRASH_REASON,
-+	.ops = &wcss_ahb_pcie_ipq5018_ops,
-+	.version = WCSS_AHB_IPQ,
-+	.pasid = WCNSS_PAS_ID,
-+	.mdt_load_sec = qcom_mdt_load,
-+};
-+
-+static const struct wcss_data wcss_pcie_ipq5018_res_init = {
-+	.init_irq = init_irq,
-+	.crash_reason_smem = WCSS_CRASH_REASON,
-+	.ops = &wcss_ahb_pcie_ipq5018_ops,
-+	.version = WCSS_PCIE_IPQ,
-+	.reset_seq = true,
-+	.mdt_load_sec = qcom_mdt_load_pd_seg,
-+	.pasid = MPD_WCNSS_PAS_ID,
-+};
-+
-+static const struct of_device_id q6_wcss_of_match[] = {
-+	{ .compatible = "qcom,ipq5018-q6-mpd", .data = &q6_ipq5018_res_init },
-+	{ .compatible = "qcom,ipq9574-q6-mpd", .data = &q6_ipq9574_res_init },
-+	{ .compatible = "qcom,ipq5018-wcss-ahb-mpd",
-+		.data = &wcss_ahb_ipq5018_res_init },
-+	{ .compatible = "qcom,ipq9574-wcss-ahb-mpd",
-+		.data = &wcss_ahb_ipq9574_res_init },
-+	{ .compatible = "qcom,ipq5018-wcss-pcie-mpd",
-+		.data = &wcss_pcie_ipq5018_res_init },
-+	{ },
-+};
-+MODULE_DEVICE_TABLE(of, q6_wcss_of_match);
-+
-+static struct platform_driver q6_wcss_driver = {
-+	.probe = q6_wcss_probe,
-+	.remove = q6_wcss_remove,
-+	.driver = {
-+		.name = "qcom-q6-mpd",
-+		.of_match_table = q6_wcss_of_match,
-+	},
-+};
-+module_platform_driver(q6_wcss_driver);
-+
-+MODULE_DESCRIPTION("Hexagon WCSS Multipd Peripheral Image Loader");
-+MODULE_LICENSE("GPL v2");
-diff --git a/drivers/soc/qcom/mdt_loader.c b/drivers/soc/qcom/mdt_loader.c
-index 9418993a3a9203..8403b295dc9d23 100644
---- a/drivers/soc/qcom/mdt_loader.c
-+++ b/drivers/soc/qcom/mdt_loader.c
-@@ -16,6 +16,56 @@
- #include <linux/sizes.h>
- #include <linux/slab.h>
- #include <linux/soc/qcom/mdt_loader.h>
-+#include <linux/dma-mapping.h>
-+
-+#include "../../remoteproc/qcom_common.h"
-+#define PDSEG_PAS_ID    0xD
-+
-+/**
-+ * struct region - structure passed to TrustZone
-+ * @addr:	address of dma region, where dma blocks/chunks address resides
-+ * @blk_size:	size of each block
-+ */
-+struct region {
-+	u64 addr;
-+	unsigned int blk_size;
-+};
-+
-+/**
-+ * struct pdseg_dma_mem_info
-+ * @tz_addr:			reference to structure passed to trustzone
-+ * @blocks:			no of blocks
-+ * @tz_dma:			dma handle of tz_addr
-+ * @dma_blk_arr_addr_phys:	dma handle of dma_blk_arr_addr
-+ * @dma_blk_arr_addr:		VA of dma array, where each index points to
-+ *				dma block PA
-+ * @pt:				stores VA of each block
-+ *
-+ *
-+	   ----	     ----	----
-+ DMA       |  |	     |  |	|  |
-+ blocks	   ----      ----	----
-+	    |          |   	  |
-+	    |-----|    |   |-------
-+		  |    |   |
-+ Array of 	--------------
-+ pointers	|    |	 |   | dma_blk_arr_addr_phys
-+		--------------
-+			|
-+			|
-+ Address referred   tz_addr->addr
-+ by trustzone
-+ to get dma blocks
-+ */
-+
-+struct pdseg_dma_mem_info {
-+	struct region *tz_addr;
-+	int blocks;
-+	dma_addr_t tz_dma;
-+	dma_addr_t dma_blk_arr_addr_phys;
-+	u64 *dma_blk_arr_addr;
-+	void **pt;
-+};
- 
- static bool mdt_phdr_valid(const struct elf32_phdr *phdr)
- {
-@@ -385,6 +435,261 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
- 	return ret;
- }
- 
-+static int allocate_dma_mem(struct device *dev,
-+			    struct pdseg_dma_mem_info *pd_dma,
-+			    int max_size)
-+{
-+	dma_addr_t dma_tmp = 0;
-+	int i;
-+
-+	pd_dma->blocks = DIV_ROUND_UP(max_size, PAGE_SIZE);
-+
-+	/* Allocate dma memory for structure passed to trust zone */
-+	pd_dma->tz_addr = dma_alloc_coherent(dev, sizeof(struct region),
-+					     &pd_dma->tz_dma, GFP_DMA);
-+	if (!pd_dma->tz_addr) {
-+		pr_err("Error in dma alloc\n");
-+		return -ENOMEM;
-+	}
-+
-+	/* Allocate dma memory to store array of blocks PA */
-+	pd_dma->dma_blk_arr_addr =
-+			dma_alloc_coherent(dev, (pd_dma->blocks * sizeof(u64)),
-+					   &pd_dma->dma_blk_arr_addr_phys, GFP_DMA);
-+	if (!pd_dma->dma_blk_arr_addr) {
-+		pr_err("Error in dma alloc\n");
-+		goto free_tz_dma_alloc;
-+	}
-+
-+	/* Assign dma block array PA to trustzone structure addr variable */
-+	memcpy(&pd_dma->tz_addr->addr, &pd_dma->dma_blk_arr_addr_phys,
-+	       sizeof(dma_addr_t));
-+
-+	/* Allocate memory to store array of blocks VA */
-+	pd_dma->pt = kzalloc(pd_dma->blocks * sizeof(void *), GFP_KERNEL);
-+	if (!pd_dma->pt) {
-+		pr_err("Error in memory alloc\n");
-+		goto free_dma_blk_arr_alloc;
-+	}
-+
-+	for (i = 0; i < pd_dma->blocks; i++) {
-+		/* Allocate dma memory for blocks with PAGE_SIZE each */
-+		pd_dma->pt[i] = dma_alloc_coherent(dev, PAGE_SIZE,
-+						   &dma_tmp, GFP_DMA);
-+		if (!pd_dma->pt[i]) {
-+			pr_err("Error in dma alloc i:%d - blocks:%d\n", i,
-+			       pd_dma->blocks);
-+			goto free_mem_alloc;
-+		}
-+
-+		/* Assign dma block PA to dma_blk_arr_addr */
-+		memcpy(&pd_dma->dma_blk_arr_addr[i], &dma_tmp,
-+		       sizeof(dma_addr_t));
-+	}
-+	pd_dma->tz_addr->blk_size = PAGE_SIZE;
-+	return 0;
-+
-+free_mem_alloc:
-+	i = 0;
-+	while (i < pd_dma->blocks && pd_dma->pt[i]) {
-+		memcpy(&dma_tmp, &pd_dma->dma_blk_arr_addr[i],
-+		       sizeof(dma_addr_t));
-+		dma_free_coherent(dev, PAGE_SIZE, pd_dma->pt[i], dma_tmp);
-+		i++;
-+	}
-+	kfree(pd_dma->pt);
-+free_dma_blk_arr_alloc:
-+	dma_free_coherent(dev, (pd_dma->blocks * sizeof(u64)),
-+			  pd_dma->dma_blk_arr_addr,
-+			  pd_dma->dma_blk_arr_addr_phys);
-+free_tz_dma_alloc:
-+	dma_free_coherent(dev, sizeof(struct region), pd_dma->tz_addr,
-+			  pd_dma->tz_dma);
-+
-+	return -ENOMEM;
-+}
-+
-+static void free_dma_mem(struct device *dev, struct pdseg_dma_mem_info *pd_dma)
-+{
-+	int i;
-+	dma_addr_t dma_tmp = 0;
-+
-+	for (i = 0; i < pd_dma->blocks; i++) {
-+		memcpy(&dma_tmp, &pd_dma->dma_blk_arr_addr[i],
-+		       sizeof(dma_addr_t));
-+		dma_free_coherent(dev, PAGE_SIZE, pd_dma->pt[i],
-+				  dma_tmp);
-+	}
-+
-+	dma_free_coherent(dev, (pd_dma->blocks * sizeof(u64)),
-+			  pd_dma->dma_blk_arr_addr,
-+			  pd_dma->dma_blk_arr_addr_phys);
-+
-+	dma_free_coherent(dev, sizeof(struct region), pd_dma->tz_addr,
-+			  pd_dma->tz_dma);
-+	kfree(pd_dma->pt);
-+}
-+
-+static int memcpy_pdseg_to_dma_blk(const char *fw_name, struct device *dev,
-+				   int ph_no, struct pdseg_dma_mem_info *pd_dma)
-+{
-+	const struct firmware *seg_fw;
-+	int ret, offset_tmp = 0, tmp = 0;
-+	size_t size = 0;
-+
-+	ret = request_firmware(&seg_fw, fw_name, dev);
-+	if (ret) {
-+		dev_err(dev, "failed to load %s\n", fw_name);
-+		return ret;
-+	}
-+	size = seg_fw->size < PAGE_SIZE ?
-+		seg_fw->size : PAGE_SIZE;
-+	while (tmp < pd_dma->blocks && size) {
-+		/* Clear last block and copy data */
-+		if ((tmp + 1) == pd_dma->blocks)
-+			memset_io(pd_dma->pt[tmp], 0, PAGE_SIZE);
-+		memcpy_toio(pd_dma->pt[tmp], seg_fw->data + offset_tmp, size);
-+		tmp++;
-+		offset_tmp += size;
-+		if ((seg_fw->size - offset_tmp) < PAGE_SIZE)
-+			size = seg_fw->size - offset_tmp;
-+	}
-+	release_firmware(seg_fw);
-+	ret = qti_scm_pdseg_memcpy_v2(PDSEG_PAS_ID, ph_no, pd_dma->tz_dma,
-+				      tmp);
-+	if (ret) {
-+		dev_err(dev, "pd seg memcpy scm failed\n");
-+		return ret;
-+	}
-+	return ret;
-+}
-+
-+static int __qcom_mdt_load_pd_seg(struct device *dev, const struct firmware *fw,
-+				  const char *fw_name, int pas_id, void *mem_region,
-+				  phys_addr_t mem_phys, size_t mem_size,
-+				  phys_addr_t *reloc_base, bool pas_init)
-+{
-+	const struct elf32_phdr *phdrs;
-+	const struct elf32_phdr *phdr;
-+	const struct elf32_hdr *ehdr;
-+	phys_addr_t mem_reloc;
-+	phys_addr_t min_addr = PHYS_ADDR_MAX;
-+	ssize_t offset;
-+	bool relocate = false;
-+	int ret = 0;
-+	int i;
-+	u8 pd_asid;
-+	int max_size = 0;
-+	struct pdseg_dma_mem_info pd_dma = {0};
-+	char *firmware_name;
-+	size_t fw_name_len = strlen(fw_name);
-+
-+	if (!fw || !mem_region || !mem_phys || !mem_size)
-+		return -EINVAL;
-+
-+	firmware_name = kstrdup(fw_name, GFP_KERNEL);
-+	if (!firmware_name)
-+		return -ENOMEM;
-+
-+	pd_asid = qcom_get_pd_asid(dev->of_node);
-+
-+	ehdr = (struct elf32_hdr *)fw->data;
-+	phdrs = (struct elf32_phdr *)(ehdr + 1);
-+
-+	for (i = 0; i < ehdr->e_phnum; i++) {
-+		phdr = &phdrs[i];
-+
-+		if (!mdt_phdr_valid(phdr))
-+			continue;
-+		/*
-+		 * While doing PD specific reloading, load only that PD
-+		 * specific writeable entries. Skip others
-+		 */
-+		if ((QCOM_MDT_PF_ASID(phdr->p_flags) != pd_asid) ||
-+		    ((phdr->p_flags & PF_W) == 0))
-+			continue;
-+
-+		if (phdr->p_flags & QCOM_MDT_RELOCATABLE)
-+			relocate = true;
-+
-+		if (phdr->p_paddr < min_addr)
-+			min_addr = phdr->p_paddr;
-+
-+		if (max_size < phdr->p_memsz)
-+			max_size = phdr->p_memsz;
-+	}
-+
-+	/**
-+	 * During userpd PIL segments reloading, Q6 is live. Due to
-+	 * this we can't access memory region of PIL segments. So
-+	 * create DMA chunks/blocks to store PIL segments data.
-+	 */
-+	ret = allocate_dma_mem(dev, &pd_dma, max_size);
-+	if (ret)
-+		goto out;
-+
-+	if (relocate) {
-+		/*
-+		 * The image is relocatable, so offset each segment based on
-+		 * the lowest segment address.
-+		 */
-+		mem_reloc = min_addr;
-+	} else {
-+		/*
-+		 * Image is not relocatable, so offset each segment based on
-+		 * the allocated physical chunk of memory.
-+		 */
-+		mem_reloc = mem_phys;
-+	}
-+
-+	for (i = 0; i < ehdr->e_phnum; i++) {
-+		phdr = &phdrs[i];
-+
-+		if (!mdt_phdr_valid(phdr))
-+			continue;
-+
-+		/*
-+		 * While doing PD specific reloading, load only that PD
-+		 * specific writeable entries. Skip others
-+		 */
-+		if ((QCOM_MDT_PF_ASID(phdr->p_flags) != pd_asid) ||
-+		    ((phdr->p_flags & PF_W) == 0))
-+			continue;
-+
-+		offset = phdr->p_paddr - mem_reloc;
-+		if (offset < 0 || offset + phdr->p_memsz > mem_size) {
-+			dev_err(dev, "segment outside memory range\n");
-+			ret = -EINVAL;
-+			break;
-+		}
-+
-+		if (phdr->p_filesz > phdr->p_memsz) {
-+			dev_err(dev,
-+				"refusing to load segment %d with p_filesz > p_memsz\n",
-+				i);
-+			ret = -EINVAL;
-+			break;
-+		}
-+
-+		if (phdr->p_filesz) {
-+			snprintf(firmware_name + fw_name_len - 3, 4, "b%02d", i);
-+
-+			/* copy PIL segments data to dma blocks */
-+			ret = memcpy_pdseg_to_dma_blk(firmware_name, dev, i, &pd_dma);
-+			if (ret)
-+				goto free_dma;
-+		}
-+	}
-+free_dma:
-+	free_dma_mem(dev, &pd_dma);
-+
-+out:
-+	if (reloc_base)
-+		*reloc_base = mem_reloc;
-+
-+	return ret;
-+}
-+
- /**
-  * qcom_mdt_load() - load the firmware which header is loaded as fw
-  * @dev:	device handle to associate resources with
-@@ -437,5 +742,32 @@ int qcom_mdt_load_no_init(struct device *dev, const struct firmware *fw,
- }
- EXPORT_SYMBOL_GPL(qcom_mdt_load_no_init);
- 
-+/**
-+ * qcom_mdt_load_pd_seg() - load userpd specific PIL segements
-+ * @dev:	device handle to associate resources with
-+ * @fw:		firmware object for the mdt file
-+ * @firmware:	name of the firmware, for construction of segment file names
-+ * @pas_id:	PAS identifier
-+ * @mem_region:	allocated memory region to load firmware into
-+ * @mem_phys:	physical address of allocated memory region
-+ * @mem_size:	size of the allocated memory region
-+ * @reloc_base:	adjusted physical address after relocation
-+ *
-+ * Here userpd PIL segements are stitched with rootpd firmware.
-+ * This function reloads userpd specific PIL segments during SSR
-+ * of userpd.
-+ *
-+ * Returns 0 on success, negative errno otherwise.
-+ */
-+int qcom_mdt_load_pd_seg(struct device *dev, const struct firmware *fw,
-+			 const char *firmware, int pas_id, void *mem_region,
-+			 phys_addr_t mem_phys, size_t mem_size,
-+			 phys_addr_t *reloc_base)
-+{
-+	return __qcom_mdt_load_pd_seg(dev, fw, firmware, pas_id, mem_region, mem_phys,
-+				      mem_size, reloc_base, true);
-+}
-+EXPORT_SYMBOL_GPL(qcom_mdt_load_pd_seg);
-+
- MODULE_DESCRIPTION("Firmware parser for Qualcomm MDT format");
- MODULE_LICENSE("GPL v2");
-diff --git a/include/linux/soc/qcom/mdt_loader.h b/include/linux/soc/qcom/mdt_loader.h
-index 9e8e6042119203..57021236dfc99b 100644
---- a/include/linux/soc/qcom/mdt_loader.h
-+++ b/include/linux/soc/qcom/mdt_loader.h
-@@ -7,6 +7,11 @@
- #define QCOM_MDT_TYPE_MASK	(7 << 24)
- #define QCOM_MDT_TYPE_HASH	(2 << 24)
- #define QCOM_MDT_RELOCATABLE	BIT(27)
-+#define QCOM_MDT_ASID_MASK      0xfu
-+#define QCOM_MDT_PF_ASID_SHIFT  16
-+#define QCOM_MDT_PF_ASID_MASK   (QCOM_MDT_ASID_MASK << QCOM_MDT_PF_ASID_SHIFT)
-+#define QCOM_MDT_PF_ASID(x)     \
-+			(((x) >> QCOM_MDT_PF_ASID_SHIFT) & QCOM_MDT_ASID_MASK)
- 
- struct device;
- struct firmware;
-@@ -27,6 +32,10 @@ int qcom_mdt_load_no_init(struct device *dev, const struct firmware *fw,
- 			  const char *fw_name, int pas_id, void *mem_region,
- 			  phys_addr_t mem_phys, size_t mem_size,
- 			  phys_addr_t *reloc_base);
-+int qcom_mdt_load_pd_seg(struct device *dev, const struct firmware *fw,
-+			 const char *firmware, int pas_id, void *mem_region,
-+			 phys_addr_t mem_phys, size_t mem_size,
-+			 phys_addr_t *reloc_base);
- void *qcom_mdt_read_metadata(const struct firmware *fw, size_t *data_len,
- 			     const char *fw_name, struct device *dev);
- 
-@@ -62,6 +71,16 @@ static inline int qcom_mdt_load_no_init(struct device *dev,
- 	return -ENODEV;
- }
- 
-+static inline int qcom_mdt_load_pd_seg(struct device *dev,
-+				       const struct firmware *fw,
-+				       const char *fw_name, int pas_id,
-+				       void *mem_region, phys_addr_t mem_phys,
-+				       size_t mem_size,
-+				       phys_addr_t *reloc_base)
-+{
-+	return -ENODEV;
-+}
-+
- static inline void *qcom_mdt_read_metadata(const struct firmware *fw,
- 					   size_t *data_len, const char *fw_name,
- 					   struct device *dev)
 From 5b6bf3c486d230a59fc9cdff095d9de73dfffd64 Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Fri, 2 Jun 2023 14:52:07 +0200
@@ -1636,14 +371,14 @@ diff --git a/drivers/remoteproc/qcom_q6v5_mpd.c b/drivers/remoteproc/qcom_q6v5_m
 index 959143960350d2..5c092f31fba26c 100644
 --- a/drivers/remoteproc/qcom_q6v5_mpd.c
 +++ b/drivers/remoteproc/qcom_q6v5_mpd.c
-@@ -65,6 +65,7 @@ struct q6_wcss {
- 	enum q6_wcss_state state;
+@@ -86,6 +86,7 @@
  	const struct wcss_data *desc;
  	const char **firmware;
+ 	struct userpd *upd[MAX_UPD];
 +	struct clk *prng_clk;
  };
  
- struct wcss_data {
+ struct userpd {
 @@ -120,6 +121,14 @@ static int q6_wcss_start(struct rproc *rproc)
  	struct q6_wcss *upd_wcss;
  	const struct wcss_data *desc = wcss->desc;
@@ -1687,31 +422,25 @@ index 959143960350d2..5c092f31fba26c 100644
  	ret = q6_alloc_memory_region(wcss);
  	if (ret)
  		goto free_rproc;
-@@ -610,6 +633,16 @@ static const struct wcss_data q6_ipq5018_res_init = {
+@@ -610,6 +633,10 @@ static const struct wcss_data q6_ipq5018_res_init = {
  	.pasid = MPD_WCNSS_PAS_ID,
  };
  
 +static const struct wcss_data q6_ipq8074_res_init = {
-+	.init_irq = qcom_q6v5_init,
-+	.crash_reason_smem = WCSS_CRASH_REASON,
-+	.ssr_name = "q6wcss",
-+	.ops = &q6_wcss_ipq5018_ops,
-+	.version = Q6_IPQ,
-+	.glink_subdev_required = true,
 +	.pasid = WCNSS_PAS_ID,
 +};
 +
  static const struct wcss_data q6_ipq9574_res_init = {
  	.init_irq = qcom_q6v5_init,
  	.crash_reason_smem = WCSS_CRASH_REASON,
-@@ -652,6 +685,7 @@ static const struct wcss_data wcss_pcie_ipq5018_res_init = {
+@@ -899,6 +899,7 @@
  
  static const struct of_device_id q6_wcss_of_match[] = {
  	{ .compatible = "qcom,ipq5018-q6-mpd", .data = &q6_ipq5018_res_init },
 +	{ .compatible = "qcom,ipq8074-q6-mpd", .data = &q6_ipq8074_res_init },
+ 	{ .compatible = "qcom,ipq5332-q6-mpd", .data = &q6_ipq5332_res_init },
  	{ .compatible = "qcom,ipq9574-q6-mpd", .data = &q6_ipq9574_res_init },
- 	{ .compatible = "qcom,ipq5018-wcss-ahb-mpd",
- 		.data = &wcss_ahb_ipq5018_res_init },
+ 	{ },
 From 67c24a1c903dce4694d80b93cc3a3aa386350f1e Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Sat, 3 Jun 2023 22:20:31 +0200
@@ -1729,14 +458,14 @@ diff --git a/drivers/remoteproc/qcom_q6v5_mpd.c b/drivers/remoteproc/qcom_q6v5_m
 index 5c092f31fba26c..688f1c9031d9ff 100644
 --- a/drivers/remoteproc/qcom_q6v5_mpd.c
 +++ b/drivers/remoteproc/qcom_q6v5_mpd.c
-@@ -685,6 +685,7 @@ static const struct wcss_data wcss_pcie_ipq5018_res_init = {
+@@ -899,6 +899,7 @@
  
  static const struct of_device_id q6_wcss_of_match[] = {
  	{ .compatible = "qcom,ipq5018-q6-mpd", .data = &q6_ipq5018_res_init },
 +	{ .compatible = "qcom,ipq6018-q6-mpd", .data = &q6_ipq8074_res_init },
  	{ .compatible = "qcom,ipq8074-q6-mpd", .data = &q6_ipq8074_res_init },
+ 	{ .compatible = "qcom,ipq5332-q6-mpd", .data = &q6_ipq5332_res_init },
  	{ .compatible = "qcom,ipq9574-q6-mpd", .data = &q6_ipq9574_res_init },
- 	{ .compatible = "qcom,ipq5018-wcss-ahb-mpd",
 From a65cc7d71bd496ac1cbbbb073a93f07e974cf41e Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Sat, 3 Jun 2023 22:25:06 +0200
@@ -2136,137 +865,8 @@ index 45493af714e25e..c69acde14641df 100644
  	soc: soc@0 {
  		#address-cells = <2>;
  		#size-cells = <2>;
-@@ -923,7 +923,6 @@ pcie@0 {
- 	thermal-zones {
- 		nss-top-thermal {
- 			polling-delay-passive = <250>;
--			polling-delay = <1000>;
- 			thermal-sensors = <&tsens 4>;
- 
- 			trips {
-@@ -937,7 +936,6 @@ nss-top-critical {
- 
- 		nss-thermal {
- 			polling-delay-passive = <250>;
--			polling-delay = <1000>;
- 			thermal-sensors = <&tsens 5>;
- 
- 			trips {
-@@ -951,7 +949,6 @@ nss-critical {
- 
- 		wcss-phya0-thermal {
- 			polling-delay-passive = <250>;
--			polling-delay = <1000>;
- 			thermal-sensors = <&tsens 7>;
- 
- 			trips {
-@@ -979,7 +976,6 @@ wcss-phya1-critical {
- 
- 		cpu-thermal {
- 			polling-delay-passive = <250>;
--			polling-delay = <1000>;
- 			thermal-sensors = <&tsens 13>;
- 
- 			trips {
-@@ -1009,7 +1005,6 @@ map0 {
- 
- 		lpass-thermal {
- 			polling-delay-passive = <250>;
--			polling-delay = <1000>;
- 			thermal-sensors = <&tsens 14>;
- 
- 			trips {
-@@ -1023,7 +1018,6 @@ lpass-critical {
- 
- 		ddrss-top-thermal {
- 			polling-delay-passive = <250>;
--			polling-delay = <1000>;
- 			thermal-sensors = <&tsens 15>;
- 
- 			trips {
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-@@ -49,7 +49,6 @@
- 			clocks = <&apcs_glb APCS_ALIAS0_CORE_CLK>;
- 			clock-names = "cpu";
- 			operating-points-v2 = <&cpu_opp_table>;
--			cpu-supply = <&ipq6018_s2>;
- 			#cooling-cells = <2>;
- 		};
- 
-@@ -62,7 +61,6 @@
- 			clocks = <&apcs_glb APCS_ALIAS0_CORE_CLK>;
- 			clock-names = "cpu";
- 			operating-points-v2 = <&cpu_opp_table>;
--			cpu-supply = <&ipq6018_s2>;
- 			#cooling-cells = <2>;
- 		};
- 
-@@ -75,7 +73,6 @@
- 			clocks = <&apcs_glb APCS_ALIAS0_CORE_CLK>;
- 			clock-names = "cpu";
- 			operating-points-v2 = <&cpu_opp_table>;
--			cpu-supply = <&ipq6018_s2>;
- 			#cooling-cells = <2>;
- 		};
- 
-@@ -88,7 +85,6 @@
- 			clocks = <&apcs_glb APCS_ALIAS0_CORE_CLK>;
- 			clock-names = "cpu";
- 			operating-points-v2 = <&cpu_opp_table>;
--			cpu-supply = <&ipq6018_s2>;
- 			#cooling-cells = <2>;
- 		};
- 
-@@ -125,30 +125,44 @@
- 			clock-latency-ns = <200000>;
- 		};
- 
-+		opp-1200000000 {
-+			opp-hz = /bits/ 64 <1200000000>;
-+			opp-microvolt = <3>;
-+			opp-supported-hw = <0x4>;
-+			clock-latency-ns = <200000>;
-+		};
-+
- 		opp-1320000000 {
- 			opp-hz = /bits/ 64 <1320000000>;
--			opp-microvolt = <3>;
-+			opp-microvolt = <4>;
- 			opp-supported-hw = <0x3>;
- 			clock-latency-ns = <200000>;
- 		};
- 
- 		opp-1440000000 {
- 			opp-hz = /bits/ 64 <1440000000>;
--			opp-microvolt = <4>;
-+			opp-microvolt = <5>;
- 			opp-supported-hw = <0x3>;
- 			clock-latency-ns = <200000>;
- 		};
- 
-+		opp-1512000000 {
-+			opp-hz = /bits/ 64 <1512000000>;
-+			opp-microvolt = <6>;
-+			opp-supported-hw = <0x2>;
-+			clock-latency-ns = <200000>;
-+		};
-+
- 		opp-1608000000 {
- 			opp-hz = /bits/ 64 <1608000000>;
--			opp-microvolt = <5>;
-+			opp-microvolt = <7>;
- 			opp-supported-hw = <0x1>;
- 			clock-latency-ns = <200000>;
- 		};
- 
- 		opp-1800000000 {
- 			opp-hz = /bits/ 64 <1800000000>;
--			opp-microvolt = <6>;
-+			opp-microvolt = <8>;
- 			opp-supported-hw = <0x1>;
- 			clock-latency-ns = <200000>;
- 		};
 @@ -232,7 +232,7 @@
  
  		smem@4aa00000 {
@@ -2276,15 +876,6 @@ index 45493af714e25e..c69acde14641df 100644
  			no-map;
  
  			hwlocks = <&tcsr_mutex 3>;
-@@ -396,7 +396,7 @@ qpic_pins: qpic-state {
- 			};
- 		};
- 
--		gcc: gcc@1800000 {
-+		gcc: clock-controller@1800000 {
- 			compatible = "qcom,gcc-ipq6018";
- 			reg = <0x0 0x01800000 0x0 0x80000>;
- 			clocks = <&xo>,
 @@ -704,6 +704,7 @@ dwc_0: usb@8a00000 {
  				clocks = <&xo>;
  				clock-names = "ref";
@@ -2305,6 +896,15 @@ index 45493af714e25e..c69acde14641df 100644
  			interrupts = <GIC_SPI 320 IRQ_TYPE_EDGE_RISING>,
  				     <GIC_SPI 319 IRQ_TYPE_EDGE_RISING>,
  				     <GIC_SPI 318 IRQ_TYPE_EDGE_RISING>,
+@@ -962,7 +962,7 @@
+ 					  "host2rxdma-monitor-ring3",
+ 					  "host2rxdma-monitor-ring2",
+ 					  "host2rxdma-monitor-ring1",
+-					  "reo2ost-exception", "wbm2host-rx-release",
++					  "reo2host-exception", "wbm2host-rx-release",
+ 					  "reo2host-status",
+ 					  "reo2host-destination-ring4",
+ 					  "reo2host-destination-ring3",
 --- a/drivers/crypto/qce/core.c
 +++ b/drivers/crypto/qce/core.c
 @@ -277,7 +277,7 @@ err_mem_path_disable:
@@ -2333,72 +933,8 @@ index 45493af714e25e..c69acde14641df 100644
  	.driver = {
  		.name = KBUILD_MODNAME,
  		.of_match_table = qce_crypto_of_match,
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -259,6 +259,45 @@
- 	help
- 	  ARM 64-bit (AArch64) Linux support.
- 
-+config HZ_FIXED
-+	int
-+	default 128 if SOC_AT91RM9200
-+	default 0
-+
-+choice
-+	depends on HZ_FIXED = 0
-+	prompt "Timer frequency"
-+
-+config HZ_100
-+	bool "100 Hz"
-+
-+config HZ_200
-+	bool "200 Hz"
-+
-+config HZ_250
-+	bool "250 Hz"
-+
-+config HZ_300
-+	bool "300 Hz"
-+
-+config HZ_500
-+	bool "500 Hz"
-+
-+config HZ_1000
-+	bool "1000 Hz"
-+
-+endchoice
-+
-+config HZ
-+	int
-+	default HZ_FIXED if HZ_FIXED != 0
-+	default 100 if HZ_100
-+	default 200 if HZ_200
-+	default 250 if HZ_250
-+	default 300 if HZ_300
-+	default 500 if HZ_500
-+	default 1000
-+
- config CLANG_SUPPORTS_DYNAMIC_FTRACE_WITH_ARGS
- 	def_bool CC_IS_CLANG
- 	# https://github.com/ClangBuiltLinux/linux/issues/1507
 --- a/drivers/clk/qcom/gcc-ipq6018.c
 +++ b/drivers/clk/qcom/gcc-ipq6018.c
-@@ -545,6 +544,7 @@
- 	F(78125000, P_UNIPHY1_RX, 4, 0, 0),
- 	F(125000000, P_UNIPHY1_RX, 2.5, 0, 0),
- 	F(125000000, P_UNIPHY0_RX, 1, 0, 0),
-+	F(125000000, P_UNIPHY1_RX, 1, 0, 0),
- 	F(156250000, P_UNIPHY1_RX, 2, 0, 0),
- 	F(312500000, P_UNIPHY1_RX, 1, 0, 0),
- 	{ }
-@@ -592,6 +592,7 @@
- 	F(78125000, P_UNIPHY1_TX, 4, 0, 0),
- 	F(125000000, P_UNIPHY1_TX, 2.5, 0, 0),
- 	F(125000000, P_UNIPHY0_TX, 1, 0, 0),
-+	F(125000000, P_UNIPHY1_TX, 1, 0, 0),
- 	F(156250000, P_UNIPHY1_TX, 2, 0, 0),
- 	F(312500000, P_UNIPHY1_TX, 1, 0, 0),
- 	{ }
 @@ -2684,7 +2684,7 @@ static struct clk_rcg2 lpass_q6_axim_clk_src = {
  	},
  };
@@ -2408,75 +944,6 @@ index 45493af714e25e..c69acde14641df 100644
  	F(24000000, P_XO, 1, 0, 0),
  	F(50000000, P_GPLL0, 16, 0, 0),
  	{ }
---- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-+++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-@@ -110,14 +110,14 @@
- 		opp-864000000 {
- 			opp-hz = /bits/ 64 <864000000>;
- 			opp-microvolt = <1>;
--			opp-supported-hw = <0xf>;
-+			opp-supported-hw = <0x7>;
- 			clock-latency-ns = <200000>;
- 		};
- 
- 		opp-1056000000 {
- 			opp-hz = /bits/ 64 <1056000000>;
- 			opp-microvolt = <2>;
--			opp-supported-hw = <0xf>;
-+			opp-supported-hw = <0x7>;
- 			clock-latency-ns = <200000>;
- 		};
- 
-@@ -130,35 +130,35 @@
- 
- 		opp-1320000000 {
- 			opp-hz = /bits/ 64 <1320000000>;
--			opp-microvolt = <4>;
-+			opp-microvolt = <3>;
- 			opp-supported-hw = <0x3>;
- 			clock-latency-ns = <200000>;
- 		};
- 
- 		opp-1440000000 {
- 			opp-hz = /bits/ 64 <1440000000>;
--			opp-microvolt = <5>;
-+			opp-microvolt = <4>;
- 			opp-supported-hw = <0x3>;
- 			clock-latency-ns = <200000>;
- 		};
- 
- 		opp-1512000000 {
- 			opp-hz = /bits/ 64 <1512000000>;
--			opp-microvolt = <6>;
-+			opp-microvolt = <5>;
- 			opp-supported-hw = <0x2>;
- 			clock-latency-ns = <200000>;
- 		};
- 
- 		opp-1608000000 {
- 			opp-hz = /bits/ 64 <1608000000>;
--			opp-microvolt = <7>;
-+			opp-microvolt = <5>;
- 			opp-supported-hw = <0x1>;
- 			clock-latency-ns = <200000>;
- 		};
- 
- 		opp-1800000000 {
- 			opp-hz = /bits/ 64 <1800000000>;
--			opp-microvolt = <8>;
-+			opp-microvolt = <6>;
- 			opp-supported-hw = <0x1>;
- 			clock-latency-ns = <200000>;
- 		};
-@@ -962,7 +962,7 @@
- 					  "host2rxdma-monitor-ring3",
- 					  "host2rxdma-monitor-ring2",
- 					  "host2rxdma-monitor-ring1",
--					  "reo2ost-exception", "wbm2host-rx-release",
-+					  "reo2host-exception", "wbm2host-rx-release",
- 					  "reo2host-status",
- 					  "reo2host-destination-ring4",
- 					  "reo2host-destination-ring3",
 
 From 19be13369d8e32f1ade15cf75dd7d534661b0098 Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
@@ -2613,186 +1080,6 @@ index bd93358e3d34cb..7846e1b539f406 100644
  };
  
  static int __init msm_apm_init(void)
-
-From 4a41820fceb462e43c1a2b0cd3c49731139cc716 Mon Sep 17 00:00:00 2001
-From: Robert Marko <robimarko@gmail.com>
-Date: Mon, 29 Jul 2024 13:40:24 +0200
-Subject: [PATCH] remoteproc: q6: mpd: Convert to platform remove callback
- returning void
-
-The .remove() callback for a platform driver returns an int which makes
-many driver authors wrongly assume it's possible to do error handling by
-returning an error code. However the value returned is ignored (apart
-from emitting a warning) and this typically results in resource leaks.
-
-To improve here there is a quest to make the remove callback return
-void. In the first step of this quest all drivers are converted to
-.remove_new(), which already returns void. Eventually after all drivers
-are converted, .remove_new() will be renamed to .remove().
-
-Trivially convert this driver from always returning zero in the remove
-callback to the void returning variant.
-
-Signed-off-by: Robert Marko <robimarko@gmail.com>
----
- drivers/remoteproc/qcom_q6v5_mpd.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
-
-diff --git a/drivers/remoteproc/qcom_q6v5_mpd.c b/drivers/remoteproc/qcom_q6v5_mpd.c
-index 1535a5f704da8d..8a4c46d8a63b52 100644
---- a/drivers/remoteproc/qcom_q6v5_mpd.c
-+++ b/drivers/remoteproc/qcom_q6v5_mpd.c
-@@ -611,7 +611,7 @@ static int q6_wcss_probe(struct platform_device *pdev)
- 	return ret;
- }
- 
--static int q6_wcss_remove(struct platform_device *pdev)
-+static void q6_wcss_remove(struct platform_device *pdev)
- {
- 	struct rproc *rproc = platform_get_drvdata(pdev);
- 	struct q6_wcss *wcss = rproc->priv;
-@@ -620,8 +620,6 @@ static int q6_wcss_remove(struct platform_device *pdev)
- 
- 	rproc_del(rproc);
- 	rproc_free(rproc);
--
--	return 0;
- }
- 
- static const struct wcss_data q6_ipq5018_res_init = {
-@@ -700,7 +698,7 @@ MODULE_DEVICE_TABLE(of, q6_wcss_of_match);
- 
- static struct platform_driver q6_wcss_driver = {
- 	.probe = q6_wcss_probe,
--	.remove = q6_wcss_remove,
-+	.remove_new = q6_wcss_remove,
- 	.driver = {
- 		.name = "qcom-q6-mpd",
- 		.of_match_table = q6_wcss_of_match,
-
-From 86f1cabb0a32afb0ebd88aef8f8d765d2dede6ea Mon Sep 17 00:00:00 2001
-From: BrainSlayer <s.gottschall@dd-wrt.com>
-Date: Tue, 30 Jul 2024 20:53:19 +0000
-Subject: [PATCH] backport vmalloc performance patch from 6.10
-
-git-svn-id: svn://svn.dd-wrt.com/DD-WRT@57694 52c4871e-980c-0410-b1e0-e73912ce01f8
----
- .../mm/vmalloc.c      | 48 +++++++++----------
- 1 file changed, 22 insertions(+), 26 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index f673e32d78f..327ac7240f8 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1575,15 +1575,26 @@ preload_this_cpu_lock(spinlock_t *lock, gfp_t gfp_mask, int node)
- 		kmem_cache_free(vmap_area_cachep, va);
- }
- 
-+static inline void setup_vmalloc_vm(struct vm_struct *vm,
-+	struct vmap_area *va, unsigned long flags, const void *caller)
-+{
-+	vm->flags = flags;
-+	vm->addr = (void *)va->va_start;
-+	vm->size = va->va_end - va->va_start;
-+	vm->caller = caller;
-+	va->vm = vm;
-+}
-+
- /*
-  * Allocate a region of KVA of the specified size and alignment, within the
-- * vstart and vend.
-+ * vstart and vend. If vm is passed in, the two will also be bound.
-  */
- static struct vmap_area *alloc_vmap_area(unsigned long size,
- 				unsigned long align,
- 				unsigned long vstart, unsigned long vend,
- 				int node, gfp_t gfp_mask,
--				unsigned long va_flags)
-+				unsigned long va_flags, struct vm_struct *vm,
-+				unsigned long flags, const void *caller)
- {
- 	struct vmap_area *va;
- 	unsigned long freed;
-@@ -1630,6 +1641,9 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	va->vm = NULL;
- 	va->flags = va_flags;
- 
-+	if (vm)
-+		setup_vmalloc_vm(vm, va, flags, caller);
-+
- 	spin_lock(&vmap_area_lock);
- 	insert_vmap_area(va, &vmap_area_root, &vmap_area_list);
- 	spin_unlock(&vmap_area_lock);
-@@ -2048,7 +2062,8 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
- 	va = alloc_vmap_area(VMAP_BLOCK_SIZE, VMAP_BLOCK_SIZE,
- 					VMALLOC_START, VMALLOC_END,
- 					node, gfp_mask,
--					VMAP_RAM|VMAP_BLOCK);
-+					VMAP_RAM|VMAP_BLOCK, NULL,
-+					0, NULL);
- 	if (IS_ERR(va)) {
- 		kfree(vb);
- 		return ERR_CAST(va);
-@@ -2411,7 +2426,8 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node)
- 		struct vmap_area *va;
- 		va = alloc_vmap_area(size, PAGE_SIZE,
- 				VMALLOC_START, VMALLOC_END,
--				node, GFP_KERNEL, VMAP_RAM);
-+				node, GFP_KERNEL, VMAP_RAM,
-+				NULL, 0, NULL);
- 		if (IS_ERR(va))
- 			return NULL;
- 
-@@ -2555,24 +2571,6 @@ static void vmap_init_free_space(void)
- 	}
- }
- 
--static inline void setup_vmalloc_vm_locked(struct vm_struct *vm,
--	struct vmap_area *va, unsigned long flags, const void *caller)
--{
--	vm->flags = flags;
--	vm->addr = (void *)va->va_start;
--	vm->size = va->va_end - va->va_start;
--	vm->caller = caller;
--	va->vm = vm;
--}
--
--static void setup_vmalloc_vm(struct vm_struct *vm, struct vmap_area *va,
--			      unsigned long flags, const void *caller)
--{
--	spin_lock(&vmap_area_lock);
--	setup_vmalloc_vm_locked(vm, va, flags, caller);
--	spin_unlock(&vmap_area_lock);
--}
--
- static void clear_vm_uninitialized_flag(struct vm_struct *vm)
- {
- 	/*
-@@ -2609,14 +2607,12 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
- 	if (!(flags & VM_NO_GUARD))
- 		size += PAGE_SIZE;
- 
--	va = alloc_vmap_area(size, align, start, end, node, gfp_mask, 0);
-+	va = alloc_vmap_area(size, align, start, end, node, gfp_mask, 0, area, flags, caller);
- 	if (IS_ERR(va)) {
- 		kfree(area);
- 		return NULL;
- 	}
- 
--	setup_vmalloc_vm(area, va, flags, caller);
--
- 	/*
- 	 * Mark pages for non-VM_ALLOC mappings as accessible. Do it now as a
- 	 * best-effort approach, as they can be mapped outside of vmalloc code.
-@@ -4182,7 +4178,7 @@ struct vm_struct **pcpu_get_vm_areas(const unsigned long *offsets,
- 	for (area = 0; area < nr_vms; area++) {
- 		insert_vmap_area(vas[area], &vmap_area_root, &vmap_area_list);
- 
--		setup_vmalloc_vm_locked(vms[area], vas[area], VM_ALLOC,
-+		setup_vmalloc_vm(vms[area], vas[area], VM_ALLOC,
- 				 pcpu_get_vm_areas);
- 	}
- 	spin_unlock(&vmap_area_lock);
 
 From 7d3dc2ca85fcf0e858bfdfe0d7632450c348051b Mon Sep 17 00:00:00 2001
 From: BrainSlayer <s.gottschall@dd-wrt.com>
@@ -3012,17 +1299,6 @@ index 51318cad4ae..58602570e52 100644
  
  /*
  * Used by test_cipher_speed()
---- a/drivers/clk/qcom/clk-alpha-pll.c
-+++ b/drivers/clk/qcom/clk-alpha-pll.c
-@@ -421,6 +421,8 @@ void clk_alpha_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
- 	mask |= config->pre_div_mask;
- 	mask |= config->post_div_mask;
- 	mask |= config->vco_mask;
-+	mask |= config->alpha_en_mask;
-+	mask |= config->alpha_mode_mask;
- 
- 	regmap_update_bits(regmap, PLL_USER_CTL(pll), mask, val);
- 
 --- a/drivers/clk/qcom/gcc-ipq6018.c
 +++ b/drivers/clk/qcom/gcc-ipq6018.c
 @@ -4194,10 +4194,9 @@ static const struct alpha_pll_config ubi32_pll_config = {
@@ -3045,4 +1321,577 @@ index 51318cad4ae..58602570e52 100644
  };
  
  static struct clk_hw *gcc_ipq6018_hws[] = {
+
+From 0f3a6fc93f4d838076959758ca0d14bd695b254b Mon Sep 17 00:00:00 2001
+From: BrainSlayer <s.gottschall@dd-wrt.com>
+Date: Sun, 12 Jan 2025 09:42:37 +0000
+Subject: [PATCH] according to codelinaro sources 6018 uses 250 mhz clock
+
+git-svn-id: svn://svn.dd-wrt.com/DD-WRT@59159 52c4871e-980c-0410-b1e0-e73912ce01f8
+---
+ .../drivers/phy/qualcomm/phy-qcom-qmp-pcie.c             | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/linux/universal/linux-6.6-nss/drivers/phy/qualcomm/phy-qcom-qmp-pcie.c b/src/linux/universal/linux-6.6-nss/drivers/phy/qualcomm/phy-qcom-qmp-pcie.c
+index 9c124556d14b..8366f654728f 100644
+--- a/drivers/phy/qualcomm/phy-qcom-qmp-pcie.c
++++ b/drivers/phy/qualcomm/phy-qcom-qmp-pcie.c
+@@ -2464,6 +2464,8 @@ static const struct qmp_phy_cfg ipq6018_pciephy_cfg = {
+ 
+ 	.pwrdn_ctrl		= SW_PWRDN | REFCLK_DRV_DSBL,
+ 	.phy_status		= PHYSTATUS,
++	.pipe_clock_rate	= 250000000,
++
+ };
+ 
+ static const struct qmp_phy_cfg sdm845_qmp_pciephy_cfg = {
+
+
+From d671084eb2b79d924d655a0481bcabeefebaffef Mon Sep 17 00:00:00 2001
+From: BrainSlayer <s.gottschall@dd-wrt.com>
+Date: Tue, 14 Jan 2025 07:35:37 +0000
+Subject: [PATCH] increase cb for compatibility with ath11k 8 chain signal
+ report
+
+git-svn-id: svn://svn.dd-wrt.com/DD-WRT@59175 52c4871e-980c-0410-b1e0-e73912ce01f8
+---
+ src/linux/universal/linux-6.6/include/linux/skbuff.h | 2 +-
+ src/linux/universal/linux-6.6/net/core/skbuff.c      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/linux/universal/linux-6.6/include/linux/skbuff.h b/src/linux/universal/linux-6.6/include/linux/skbuff.h
+index dd6a14392da6..b3ee9ce25c22 100644
+--- a/include/linux/skbuff.h
++++ b/include/linux/skbuff.h
+@@ -873,7 +873,7 @@ struct sk_buff {
+ 	 * want to keep them across layers you have to do a skb_clone()
+ 	 * first. This is owned by whoever has the skb queued ATM.
+ 	 */
+-	char			cb[48] __aligned(8);
++	char			cb[56] __aligned(8);
+ 
+ 	union {
+ 		struct {
+
+--- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
++++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
+@@ -1126,8 +1126,8 @@
+ 		};
+ 	};
+ 
+-	thermal-zones {
+-		nss-top-thermal {
++	thermal_zones: thermal-zones {
++		nss_top_thermal: nss-top-thermal {
+ 			polling-delay-passive = <250>;
+ 			thermal-sensors = <&tsens 4>;
+ 
+@@ -1131,8 +1131,8 @@
+ 			polling-delay-passive = <250>;
+ 			thermal-sensors = <&tsens 4>;
+ 
+ 			trips {
+-				nss-top-critical {
++				nss_top_critical: nss-top-critical {
+ 					temperature = <125000>;
+ 					hysteresis = <1000>;
+ 					type = "critical";
+@@ -1140,7 +1140,7 @@
+ 			};
+ 		};
+ 
+-		nss-thermal {
++		nss_thermal: nss-thermal {
+ 			polling-delay-passive = <250>;
+ 			thermal-sensors = <&tsens 5>;
+ 
+@@ -1144,8 +1144,8 @@
+ 			polling-delay-passive = <250>;
+ 			thermal-sensors = <&tsens 5>;
+ 
+ 			trips {
+-				nss-critical {
++				nss_critical: nss-critical {
+ 					temperature = <125000>;
+ 					hysteresis = <1000>;
+ 					type = "critical";
+@@ -1153,7 +1153,7 @@
+ 			};
+ 		};
+ 
+-		wcss-phya0-thermal {
++		wcss_phya0_thermal: wcss-phya0-thermal {
+ 			polling-delay-passive = <250>;
+ 			thermal-sensors = <&tsens 7>;
+ 
+@@ -1157,8 +1157,8 @@
+ 			polling-delay-passive = <250>;
+ 			thermal-sensors = <&tsens 7>;
+ 
+ 			trips {
+-				wcss-phya0-critical {
++				wcss_phya0_critical: wcss-phya0-critical {
+ 					temperature = <125000>;
+ 					hysteresis = <1000>;
+ 					type = "critical";
+@@ -1166,7 +1166,7 @@
+ 			};
+ 		};
+ 
+-		wcss-phya1-thermal {
++		wcss_phya1_thermal: wcss-phya1-thermal {
+ 			polling-delay-passive = <250>;
+ 			polling-delay = <1000>;
+ 			thermal-sensors = <&tsens 8>;
+@@ -1171,8 +1171,8 @@
+ 			polling-delay = <1000>;
+ 			thermal-sensors = <&tsens 8>;
+ 
+ 			trips {
+-				wcss-phya1-critical {
++				wcss_phya1_critical: wcss-phya1-critical {
+ 					temperature = <125000>;
+ 					hysteresis = <1000>;
+ 					type = "critical";
+@@ -1180,7 +1180,7 @@
+ 			};
+ 		};
+ 
+-		cpu-thermal {
++		cpu_thermal: cpu-thermal {
+ 			polling-delay-passive = <250>;
+ 			thermal-sensors = <&tsens 13>;
+ 
+@@ -1184,8 +1184,8 @@
+ 			polling-delay-passive = <250>;
+ 			thermal-sensors = <&tsens 13>;
+ 
+ 			trips {
+-				cpu-critical {
++				cpu_critical: cpu-critical {
+ 					temperature = <125000>;
+ 					hysteresis = <1000>;
+ 					type = "critical";
+@@ -1198,7 +1198,7 @@
+ 				};
+ 			};
+ 
+-			cooling-maps {
++			cooling_maps: cooling-maps {
+ 				map0 {
+ 					trip = <&cpu_alert>;
+ 					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+@@ -1209,7 +1209,7 @@
+ 			};
+ 		};
+ 
+-		lpass-thermal {
++		lpass_thermal: lpass-thermal {
+ 			polling-delay-passive = <250>;
+ 			thermal-sensors = <&tsens 14>;
+ 
+@@ -1213,8 +1213,8 @@
+ 			polling-delay-passive = <250>;
+ 			thermal-sensors = <&tsens 14>;
+ 
+ 			trips {
+-				lpass-critical {
++				lpass_critical: lpass-critical {
+ 					temperature = <125000>;
+ 					hysteresis = <1000>;
+ 					type = "critical";
+@@ -1222,7 +1222,7 @@
+ 			};
+ 		};
+ 
+-		ddrss-top-thermal {
++		ddrss_top_thermal: ddrss-top-thermal {
+ 			polling-delay-passive = <250>;
+ 			thermal-sensors = <&tsens 15>;
+ 
+@@ -1226,8 +1226,8 @@
+ 			polling-delay-passive = <250>;
+ 			thermal-sensors = <&tsens 15>;
+ 
+ 			trips {
+-				ddrss-top-critical {
++				ddrss_top_critical: ddrss-top-critical {
+ 					temperature = <125000>;
+ 					hysteresis = <1000>;
+ 					type = "critical";
+--- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
++++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
+@@ -10,6 +10,7 @@
+ #include <dt-bindings/reset/qcom,gcc-ipq6018.h>
+ #include <dt-bindings/clock/qcom,apss-ipq.h>
+ #include <dt-bindings/thermal/thermal.h>
++#include <dt-bindings/gpio/gpio.h>
+ 
+ / {
+ 	#address-cells = <2>;
+@@ -205,7 +206,7 @@
+ 		};
+ 	};
+ 
+-	reserved-memory {
++	reserved_memory: reserved-memory {
+ 		#address-cells = <2>;
+ 		#size-cells = <2>;
+ 		ranges;
+@@ -215,7 +216,7 @@
+ 			no-map;
+ 		};
+ 
+-		nss_region: nss@40000000 {
++		nss_region: nss_region@40000000 {
+ 			reg = <0x0 0x40000000 0x0 0x01000000>;
+ 			no-map;
+ 		};
+@@ -230,7 +231,7 @@
+ 			no-map;
+ 		};
+ 
+-		smem@4aa00000 {
++		smem_region: memory@4aa00000 {
+ 			compatible = "qcom,smem";
+ 			reg = <0x0 0x4aa00000 0x0 0x00100000>;
+ 			no-map;
+@@ -238,22 +239,22 @@
+ 			hwlocks = <&tcsr_mutex 3>;
+ 		};
+ 
+-		tzapp_region: tzapp@4a600000 {
++		tz: memory@4a600000 {
+ 			reg = <0x0 0x4a600000 0x0 0x400000>;
+ 			no-map;
+ 		};
+ 
+-		q6_region: wcnss@4ab00000 {
++		q6_region: memory@4ab00000 {
+ 			reg = <0x0 0x4ab00000 0x0 0x5500000>;
+ 			no-map;
+ 		};
+ 
+-		q6_etr_region: q6_etr_dump@1 {
++		q6_etr_region: q6_etr_region@50000000 {
+ 			reg = <0x0 0x50000000 0x0 0x00100000>;
+ 			no-map;
+ 		};
+ 
+-		m3_dump_region: m3_dump@50100000 {
++		m3_dump_region: m3_dump_region@50100000 {
+ 			reg = <0x0 0x50100000 0x0 0x00100000>;
+ 			no-map;
+ 		};
+@@ -351,6 +352,7 @@
+ 				clock-names = "pipe0";
+ 				clock-output-names = "gcc_pcie0_pipe_clk_src";
+ 				#clock-cells = <0>;
++				gen3 = <1>;
+ 			};
+ 		};
+ 
+@@ -804,7 +806,7 @@
+ 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
+ 			ranges = <0 0 0 0xb00a000 0 0xffd>;
+ 
+-			v2m@0 {
++			v2m0: v2m@0 {
+ 				compatible = "arm,gic-v2m-frame";
+ 				msi-controller;
+ 				reg = <0x0 0x0 0x0 0xffd>;
+@@ -1067,9 +1069,13 @@
+ 			max-link-speed = <3>;
+ 			#address-cells = <3>;
+ 			#size-cells = <2>;
++			axi-halt-val = <0x1e>; /* increase halt window size to 1GB */
+ 
+ 			phys = <&pcie_phy0>;
+ 			phy-names = "pciephy";
++
++/*			ranges = <0x81000000 0x0 0x20200000 0x0 0x20200000 0x0 0x100000>,
++				 <0x82000000 0x0 0x20300000 0x0 0x20300000 0x0 0x10000000>;*/
+ 
+ 			ranges = <0x81000000 0x0 0x00000000 0x0 0x20200000 0x0 0x10000>,
+ 				 <0x82000000 0x0 0x20220000 0x0 0x20220000 0x0 0xfde0000>;
+@@ -1111,10 +1117,11 @@
+ 				      "ahb",
+ 				      "axi_m_sticky",
+ 				      "axi_s_sticky";
+-
+-			status = "disabled";
+-
+-			pcie@0 {
++/*			msi-parent = <&v2m0>;*/
++			perst-gpios = <&tlmm 60 GPIO_ACTIVE_LOW>;
++			status = "disabled";
++
++/*			pcie@0 {
+ 				device_type = "pci";
+ 				reg = <0x0 0x0 0x0 0x0 0x0>;
+ 				bus-range = <0x01 0xff>;
+@@ -1122,7 +1129,7 @@
+ 				#address-cells = <3>;
+ 				#size-cells = <2>;
+ 				ranges;
+-			};
++			};*/
+ 		};
+ 	};
+ 
+--- a/arch/arm64/boot/dts/qcom/ipq6018-mp5496.dtsi
++++ b/arch/arm64/boot/dts/qcom/ipq6018-mp5496.dtsi
+@@ -5,22 +5,6 @@
+  */
+ 
+ #include "ipq6018.dtsi"
+-
+-&cpu0 {
+-	cpu-supply = <&mp5496_s2>;
+-};
+-
+-&cpu1 {
+-	cpu-supply = <&mp5496_s2>;
+-};
+-
+-&cpu2 {
+-	cpu-supply = <&mp5496_s2>;
+-};
+-
+-&cpu3 {
+-	cpu-supply = <&mp5496_s2>;
+-};
+ 
+ &rpm_requests {
+ 	regulators {
+--- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
++++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
+@@ -110,14 +110,14 @@
+ 		opp-864000000 {
+ 			opp-hz = /bits/ 64 <864000000>;
+ 			opp-microvolt = <1>;
+-			opp-supported-hw = <0xf>;
++			opp-supported-hw = <0x7>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+ 		opp-1056000000 {
+ 			opp-hz = /bits/ 64 <1056000000>;
+ 			opp-microvolt = <2>;
+-			opp-supported-hw = <0xf>;
++			opp-supported-hw = <0x7>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+@@ -145,21 +145,21 @@
+ 		opp-1512000000 {
+ 			opp-hz = /bits/ 64 <1512000000>;
+ 			opp-microvolt = <6>;
+-			opp-supported-hw = <0x2>;
++			opp-supported-hw = <0x3>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+ 		opp-1608000000 {
+ 			opp-hz = /bits/ 64 <1608000000>;
+ 			opp-microvolt = <7>;
+-			opp-supported-hw = <0x1>;
++			opp-supported-hw = <0x3>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+ 		opp-1800000000 {
+ 			opp-hz = /bits/ 64 <1800000000>;
+ 			opp-microvolt = <8>;
+-			opp-supported-hw = <0x1>;
++			opp-supported-hw = <0x3>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 	};
+
+From fd4bc44f7546b0c606102f8ee89ad44a8a94a13f Mon Sep 17 00:00:00 2001
+From: BrainSlayer <s.gottschall@dd-wrt.com>
+Date: Wed, 18 Jun 2025 16:52:52 +0000
+Subject: [PATCH] this symbol is important needs to be exported
+
+git-svn-id: svn://svn.dd-wrt.com/DD-WRT@61815 52c4871e-980c-0410-b1e0-e73912ce01f8
+---
+ src/arch/mips/kernel/cmpxchg.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/mips/kernel/cmpxchg.c b/arch/mips/kernel/cmpxchg.c
+index c371def2302..6ec71300796 100644
+--- a/arch/mips/kernel/cmpxchg.c
++++ b/arch/mips/kernel/cmpxchg.c
+@@ -46,6 +46,7 @@ unsigned long __xchg_small(volatile void *ptr, unsigned long val, unsigned int s
+ 
+ 	return (load32 & mask) >> shift;
+ }
++EXPORT_SYMBOL(__xchg_small);
+ 
+ unsigned long __cmpxchg_small(volatile void *ptr, unsigned long old,
+ 			      unsigned long new, unsigned int size)
+
+From: Kathiravan Thirumoorthy <kathiravan.thirumoorthy@oss.qualcomm.com>
+To: Rob Herring <robh@kernel.org>,
+	Krzysztof Kozlowski <krzk+dt@kernel.org>,
+	Conor Dooley <conor+dt@kernel.org>,
+	Bjorn Andersson <andersson@kernel.org>,
+	Konrad Dybcio <konradybcio@kernel.org>
+Cc: linux-arm-msm@vger.kernel.org, devicetree@vger.kernel.org,
+	linux-kernel@vger.kernel.org,
+	Kathiravan Thirumoorthy
+	<kathiravan.thirumoorthy@oss.qualcomm.com>
+Subject: [PATCH v2 1/6] dt-bindings: sram: qcom,imem: Document Qualcomm IPQ SoC's IMEM compatibles
+Date: Tue, 08 Jul 2025 11:09:11 +0530	[thread overview]
+Message-ID: <20250708-imem-v2-1-692eb92b228e@oss.qualcomm.com> (raw)
+In-Reply-To: <20250708-imem-v2-0-692eb92b228e@oss.qualcomm.com>
+
+IMEM is present in the Qualcomm's IPQ SoCs as well. Document the same.
+
+Signed-off-by: Kathiravan Thirumoorthy <kathiravan.thirumoorthy@oss.qualcomm.com>
+---
+Changes in v2:
+- added the entries in the sorted order (Krzysztof)
+---
+ Documentation/devicetree/bindings/sram/qcom,imem.yaml | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/Documentation/devicetree/bindings/sram/qcom,imem.yaml b/Documentation/devicetree/bindings/sram/qcom,imem.yaml
+index 72d35e30c439ccf4901d937f838fe7c7a81f33b1..7286014e698f99184c1d6871f9a012c25c9147f6 100644
+--- a/Documentation/devicetree/bindings/sram/qcom,imem.yaml
++++ b/Documentation/devicetree/bindings/sram/qcom,imem.yaml
+@@ -18,6 +18,11 @@ properties:
+     items:
+       - enum:
+           - qcom,apq8064-imem
++          - qcom,ipq5018-imem
++          - qcom,ipq5332-imem
++          - qcom,ipq6018-imem
++          - qcom,ipq8074-imem
++          - qcom,ipq9574-imem
+           - qcom,msm8226-imem
+           - qcom,msm8974-imem
+           - qcom,msm8976-imem
+
+-- 
+2.34.1
+
+From: Kathiravan Thirumoorthy <kathiravan.thirumoorthy@oss.qualcomm.com>
+To: Rob Herring <robh@kernel.org>,
+	Krzysztof Kozlowski <krzk+dt@kernel.org>,
+	Conor Dooley <conor+dt@kernel.org>,
+	Bjorn Andersson <andersson@kernel.org>,
+	Konrad Dybcio <konradybcio@kernel.org>
+Cc: linux-arm-msm@vger.kernel.org, devicetree@vger.kernel.org,
+	linux-kernel@vger.kernel.org,
+	Kathiravan Thirumoorthy
+	<kathiravan.thirumoorthy@oss.qualcomm.com>
+Subject: [PATCH v2 3/6] arm64: dts: qcom: ipq6018: Add the IMEM node
+Date: Tue, 08 Jul 2025 11:09:13 +0530	[thread overview]
+Message-ID: <20250708-imem-v2-3-692eb92b228e@oss.qualcomm.com> (raw)
+In-Reply-To: <20250708-imem-v2-0-692eb92b228e@oss.qualcomm.com>
+
+Add the IMEM node to the device tree to extract debugging information
+like system restart reason, which is populated via IMEM. Define the
+IMEM region to enable this functionality.
+
+As described, overall IMEM region is 32KB but only initial 4KB is
+accessible by all masters in the SoC.
+
+Signed-off-by: Kathiravan Thirumoorthy <kathiravan.thirumoorthy@oss.qualcomm.com>
+---
+Changes in v2:
+- Rounded off the size to 0x8000 (Konrad)
+- Represent the reg's address space in hexadecimal format (Krzysztof)
+---
+In 'ranges' property 0 is used instead of 0x0 to align with the existing
+format.
+---
+ arch/arm64/boot/dts/qcom/ipq6018.dtsi | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/ipq6018.dtsi b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
+index bfe59b0208415902c69fd0c0c7565d97997d4207..3b9e40045906b26b94e2d2510b0570d3eaf084ce 100644
+--- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
++++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
+@@ -659,6 +659,15 @@ qpic_nand: nand-controller@79b0000 {
+ 			status = "disabled";
+ 		};
+ 
++		sram@8600000 {
++			compatible = "qcom,ipq6018-imem", "syscon", "simple-mfd";
++			reg = <0x0 0x08600000 0x0 0x8000>;
++			ranges = <0 0 0x08600000 0x8000>;
++
++			#address-cells = <1>;
++			#size-cells = <1>;
++		};
++
+ 		usb3: usb@8af8800 {
+ 			compatible = "qcom,ipq6018-dwc3", "qcom,dwc3";
+ 			reg = <0x0 0x08af8800 0x0 0x400>;
+
+-- 
+2.34.1
+
+From: Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+To: "Lorenzo Pieralisi" <lpieralisi@kernel.org>,
+	"Krzysztof Wilczyński" <kw@linux.com>,
+	"Rob Herring" <robh@kernel.org>,
+	"Bjorn Helgaas" <bhelgaas@google.com>,
+	"Krzysztof Kozlowski" <krzk+dt@kernel.org>,
+	"Conor Dooley" <conor+dt@kernel.org>,
+	"Bjorn Andersson" <andersson@kernel.org>,
+	"Konrad Dybcio" <konradybcio@kernel.org>,
+	cros-qcom-dts-watchers@chromium.org
+Cc: linux-arm-msm@vger.kernel.org, linux-pci@vger.kernel.org,
+	 devicetree@vger.kernel.org, linux-kernel@vger.kernel.org,
+	 Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+Subject: [PATCH 19/23] arm64: dts: qcom: ipq6018: Add missing MSI and 'global' IRQs
+Date: Thu, 27 Feb 2025 19:11:01 +0530	[thread overview]
+Message-ID: <20250227-pcie-global-irq-v1-19-2b70a7819d1e@linaro.org> (raw)
+In-Reply-To: <20250227-pcie-global-irq-v1-0-2b70a7819d1e@linaro.org>
+
+IPQ6018 has 8 MSI SPI interrupts and one 'global' interrupt.
+
+Signed-off-by: Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+---
+ arch/arm64/boot/dts/qcom/ipq6018.dtsi | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/ipq6018.dtsi b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
+index dbf6716bcb59..d1b1dc048262 100644
+--- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
++++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
+@@ -888,8 +888,24 @@ pcie0: pcie@20000000 {
+ 			ranges = <0x81000000 0x0 0x00000000 0x0 0x20200000 0x0 0x10000>,
+ 				 <0x82000000 0x0 0x20220000 0x0 0x20220000 0x0 0xfde0000>;
+ 
+-			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+-			interrupt-names = "msi";
++			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>,
++				     <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
++			interrupt-names = "msi0",
++					  "msi1",
++					  "msi2",
++					  "msi3",
++					  "msi4",
++					  "msi5",
++					  "msi6",
++					  "msi7",
++					  "global";
+ 
+ 			#interrupt-cells = <1>;
+ 			interrupt-map-mask = <0 0 0 0x7>;
+
+-- 
+2.25.1
 
