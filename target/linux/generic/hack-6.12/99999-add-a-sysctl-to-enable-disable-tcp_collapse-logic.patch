@@ -1,8 +1,8 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From 2b4dc54edd1589e720e5b27e4536fd549c31f34e Mon Sep 17 00:00:00 2001
 From: "mfreemon@cloudflare.com" <mfreemon@cloudflare.com>
 Date: Tue, 1 Mar 2022 17:06:02 -0600
-Subject: [PATCH] Add a sysctl to skip tcp collapse processing when the receive
- buffer is full.
+Subject: [PATCH] tcp: Add a sysctl to skip tcp collapse processing when the
+ receive buffer is full
 
 For context and additional information about this patch, see the
 blog post at https://blog.cloudflare.com/optimizing-tcp-for-high-throughput-and-low-latency/
@@ -29,19 +29,21 @@ The result is that we avoid latency spikes caused by the
 time it takes to perform the collapse logic when the receive
 queue is large and full, while preserving existing behavior
 and performance for all other cases.
+
+Signed-off-by: Alexandre Frade <kernel@xanmod.org>
 ---
  include/net/netns/ipv4.h   |  1 +
  include/trace/events/tcp.h |  7 +++++++
  net/ipv4/sysctl_net_ipv4.c |  7 +++++++
  net/ipv4/tcp_input.c       | 36 ++++++++++++++++++++++++++++++++++++
- net/ipv4/tcp_ipv4.c        |  2 ++
- 5 files changed, 53 insertions(+)
+ net/ipv4/tcp_ipv4.c        |  1 +
+ 5 files changed, 52 insertions(+)
 
 diff --git a/include/net/netns/ipv4.h b/include/net/netns/ipv4.h
-index 6c5b2efc4f17..bf2c9b5847e4 100644
+index 276f622f3516..d91b9a0fd63a 100644
 --- a/include/net/netns/ipv4.h
 +++ b/include/net/netns/ipv4.h
-@@ -196,6 +196,7 @@
+@@ -226,6 +226,7 @@ struct netns_ipv4 {
  
  	u8 sysctl_fib_notify_on_flag_change;
  	u8 sysctl_tcp_syn_linear_timeouts;
@@ -50,10 +52,10 @@ index 6c5b2efc4f17..bf2c9b5847e4 100644
  #ifdef CONFIG_NET_L3_MASTER_DEV
  	u8 sysctl_udp_l3mdev_accept;
 diff --git a/include/trace/events/tcp.h b/include/trace/events/tcp.h
-index 521059d8dc0a..35fa0f23680c 100644
+index a27c4b619dff..24ad08cb01a7 100644
 --- a/include/trace/events/tcp.h
 +++ b/include/trace/events/tcp.h
-@@ -187,6 +187,13 @@ DEFINE_EVENT(tcp_event_sk, tcp_rcv_space_adjust,
+@@ -213,6 +213,13 @@ DEFINE_EVENT(tcp_event_sk, tcp_rcv_space_adjust,
  	TP_ARGS(sk)
  );
  
@@ -68,12 +70,12 @@ index 521059d8dc0a..35fa0f23680c 100644
  
  	TP_PROTO(const struct sock *sk, const struct request_sock *req),
 diff --git a/net/ipv4/sysctl_net_ipv4.c b/net/ipv4/sysctl_net_ipv4.c
-index 6f1e64d49232..a61e6b1ac0cc 100644
+index a79b2a52ce01..10d6d842af65 100644
 --- a/net/ipv4/sysctl_net_ipv4.c
 +++ b/net/ipv4/sysctl_net_ipv4.c
-@@ -1573,6 +1573,13 @@
- 		.proc_handler	= proc_dointvec_minmax,
- 		.extra1		= SYSCTL_ONE,
+@@ -1557,6 +1557,13 @@ static struct ctl_table ipv4_net_table[] = {
+ 		.extra1		= SYSCTL_ZERO,
+ 		.extra2		= SYSCTL_ONE,
  	},
 +	{
 +		.procname	= "tcp_collapse_max_bytes",
@@ -82,22 +84,22 @@ index 6f1e64d49232..a61e6b1ac0cc 100644
 +		.mode		= 0644,
 +		.proc_handler	= proc_douintvec_minmax,
 +	},
- };
- 
- static __net_init int ipv4_sysctl_init_net(struct net *net)
+ 	{
+ 		.procname	= "tcp_pingpong_thresh",
+ 		.data		= &init_net.ipv4.sysctl_tcp_pingpong_thresh,
 diff --git a/net/ipv4/tcp_input.c b/net/ipv4/tcp_input.c
-index f3b623967436..204f33f2835c 100644
+index efb92e47a632..fca11e37862f 100644
 --- a/net/ipv4/tcp_input.c
 +++ b/net/ipv4/tcp_input.c
-@@ -5340,6 +5340,7 @@ static bool tcp_prune_ofo_queue(struct sock *sk)
- static int tcp_prune_queue(struct sock *sk)
+@@ -5652,6 +5652,7 @@ static bool tcp_prune_ofo_queue(struct sock *sk, const struct sk_buff *in_skb)
+ static int tcp_prune_queue(struct sock *sk, const struct sk_buff *in_skb)
  {
  	struct tcp_sock *tp = tcp_sk(sk);
 +	struct net *net = sock_net(sk);
  
  	NET_INC_STATS(sock_net(sk), LINUX_MIB_PRUNECALLED);
  
-@@ -5351,6 +5352,39 @@ static int tcp_prune_queue(struct sock *sk)
+@@ -5663,6 +5664,39 @@ static int tcp_prune_queue(struct sock *sk, const struct sk_buff *in_skb)
  	if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf)
  		return 0;
  
@@ -137,7 +139,7 @@ index f3b623967436..204f33f2835c 100644
  	tcp_collapse_ofo_queue(sk);
  	if (!skb_queue_empty(&sk->sk_receive_queue))
  		tcp_collapse(sk, &sk->sk_receive_queue, NULL,
-@@ -5370,6 +5404,8 @@ static int tcp_prune_queue(struct sock *sk)
+@@ -5681,6 +5715,8 @@ static int tcp_prune_queue(struct sock *sk, const struct sk_buff *in_skb)
  	if (atomic_read(&sk->sk_rmem_alloc) <= sk->sk_rcvbuf)
  		return 0;
  
@@ -147,18 +149,17 @@ index f3b623967436..204f33f2835c 100644
  	 * drop receive data on the floor.  It will get retransmitted
  	 * and hopefully then we'll have sufficient space.
 diff --git a/net/ipv4/tcp_ipv4.c b/net/ipv4/tcp_ipv4.c
-index 0fe9461647da..4fadbf38525f 100644
+index 5afe5e57c89b..e502d042ccb3 100644
 --- a/net/ipv4/tcp_ipv4.c
 +++ b/net/ipv4/tcp_ipv4.c
-@@ -3218,6 +3218,8 @@ static int __net_init tcp_sk_init(struct net *net)
- 	else
- 		net->ipv4.tcp_congestion_control = &tcp_reno;
+@@ -3524,6 +3524,7 @@ static int __net_init tcp_sk_init(struct net *net)
  
+ 	net->ipv4.sysctl_tcp_syn_linear_timeouts = 4;
+ 	net->ipv4.sysctl_tcp_shrink_window = 0;
 +	net->ipv4.sysctl_tcp_collapse_max_bytes = 0;
-+
- 	return 0;
- fail:
- 	tcp_sk_exit(net);
--- 
-2.35.1
  
+ 	net->ipv4.sysctl_tcp_pingpong_thresh = 1;
+ 	net->ipv4.sysctl_tcp_rto_min_us = jiffies_to_usecs(TCP_RTO_MIN);
+-- 
+2.45.2
+
