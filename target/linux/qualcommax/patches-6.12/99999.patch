@@ -597,7 +597,7 @@ Signed-off-by: Mantas Pucka <mantas@8devices.com>
  			clocks = <&xo>,
  				 <&sleep_clk>,
  				 <&usb3phy_0_cc_pipe_clk>,
-+				 <&usb0_ssphy>,
++				 <&ssphy_0>,
  				 <&pcie_phy>;
  			clock-names = "xo",
  				      "sleep_clk",
