@@ -593,15 +593,6 @@ Signed-off-by: Mantas Pucka <mantas@8devices.com>
 
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-@@ -322,6 +322,8 @@
- 				<&gcc GCC_PCIE0_AHB_CLK>;
- 			clock-names = "aux", "cfg_ahb";
- 
-+			#clock-cells = <0>;
-+
- 			resets = <&gcc GCC_PCIE0_PHY_BCR>,
- 				<&gcc GCC_PCIE0PHY_PHY_BCR>;
- 			reset-names = "phy",
 @@ -437,6 +439,7 @@
  			clocks = <&xo>,
  				 <&sleep_clk>,
