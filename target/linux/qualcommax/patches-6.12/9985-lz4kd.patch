@@ -2,9 +2,9 @@ lib: Import LZ4KD compression algorithm from HUAWEI
 
 ABR-AL60_HarmonyOS4.0.0_opensource.tar.gz
 
-diff -ruN linux-6.6.61.orig/crypto/Kconfig linux-6.6.61/crypto/Kconfig
---- linux-6.6.61.orig/crypto/Kconfig	2024-11-19 09:16:54.201480322 +0800
-+++ linux-6.6.61/crypto/Kconfig	2024-11-19 23:49:33.241872109 +0800
+diff -ruN a/crypto/Kconfig b/crypto/Kconfig
+--- a/crypto/Kconfig
++++ b/crypto/Kconfig
 @@ -1205,6 +1205,15 @@
  
  	  See https://github.com/lz4/lz4 for further information.
@@ -21,9 +21,9 @@ diff -ruN linux-6.6.61.orig/crypto/Kconfig linux-6.6.61/crypto/Kconfig
  config CRYPTO_LZ4HC
  	tristate "LZ4HC"
  	select CRYPTO_ALGAPI
-diff -ruN linux-6.6.61.orig/crypto/lz4kd.c linux-6.6.61/crypto/lz4kd.c
---- linux-6.6.61.orig/crypto/lz4kd.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-6.6.61/crypto/lz4kd.c	2024-11-19 23:50:17.082313648 +0800
+diff -ruN a/crypto/lz4kd.c b/crypto/lz4kd.c
+--- a/crypto/lz4kd.c
++++ b/crypto/lz4kd.c
 @@ -0,0 +1,96 @@
 +/*
 + * Cryptographic API.
@@ -121,33 +121,33 @@ diff -ruN linux-6.6.61.orig/crypto/lz4kd.c linux-6.6.61/crypto/lz4kd.c
 +MODULE_LICENSE("GPL");
 +MODULE_DESCRIPTION("LZ4KD Compression Algorithm");
 +MODULE_ALIAS_CRYPTO("lz4kd");
-diff -ruN linux-6.6.61.orig/crypto/Makefile linux-6.6.61/crypto/Makefile
---- linux-6.6.61.orig/crypto/Makefile	2024-11-14 20:19:41.000000000 +0800
-+++ linux-6.6.61/crypto/Makefile	2024-11-19 23:49:51.634638182 +0800
+diff -ruN a/crypto/Makefile b/crypto/Makefile
+--- a/crypto/Makefile
++++ b/crypto/Makefile
 @@ -161,6 +161,7 @@
  obj-$(CONFIG_CRYPTO_AUTHENC) += authenc.o authencesn.o
  obj-$(CONFIG_CRYPTO_LZO) += lzo.o lzo-rle.o
  obj-$(CONFIG_CRYPTO_LZ4) += lz4.o
-+obj-$(CONFIG_CRYPTO_LZ4KD) += lz4kd.o
++obj-$(CONFIG_ZRAM_BACKEND_LZ4KD) += lz4kd.o
  obj-$(CONFIG_CRYPTO_LZ4HC) += lz4hc.o
  obj-$(CONFIG_CRYPTO_XXHASH) += xxhash_generic.o
  obj-$(CONFIG_CRYPTO_842) += 842.o
-diff -ruN linux-6.6.61.orig/drivers/block/zram/zcomp.c linux-6.6.61/drivers/block/zram/zcomp.c
---- linux-6.6.61.orig/drivers/block/zram/zcomp.c	2024-11-14 20:19:41.000000000 +0800
-+++ linux-6.6.61/drivers/block/zram/zcomp.c	2024-11-19 23:50:50.512885844 +0800
+diff -ruN a/drivers/block/zram/zcomp.c b/drivers/block/zram/zcomp.c
+--- a/drivers/block/zram/zcomp.c
++++ b/drivers/block/zram/zcomp.c
 @@ -25,6 +25,9 @@
- #if IS_ENABLED(CONFIG_CRYPTO_LZ4HC)
- 	"lz4hc",
+ #if IS_ENABLED(CONFIG_ZRAM_BACKEND_LZ4HC)
+ 	&backend_lz4hc,
  #endif
-+#if IS_ENABLED(CONFIG_CRYPTO_LZ4KD)
++#if IS_ENABLED(CONFIG_ZRAM_BACKEND_LZ4KD)
 +	"lz4kd",
 +#endif
- #if IS_ENABLED(CONFIG_CRYPTO_842)
- 	"842",
+ #if IS_ENABLED(CONFIG_ZRAM_BACKEND_ZSTD)
+ 	&backend_zstd,
  #endif
-diff -ruN linux-6.6.61.orig/include/linux/lz4kd.h linux-6.6.61/include/linux/lz4kd.h
---- linux-6.6.61.orig/include/linux/lz4kd.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-6.6.61/include/linux/lz4kd.h	2024-11-19 23:51:12.450604245 +0800
+diff -ruN a/include/linux/lz4kd.h b/include/linux/lz4kd.h
+--- a/include/linux/lz4kd.h
++++ b/include/linux/lz4kd.h
 @@ -0,0 +1,216 @@
 +/*
 + * Copyright (c) Huawei Technologies Co., Ltd. 2022. All rights reserved.
@@ -365,9 +365,9 @@ diff -ruN linux-6.6.61.orig/include/linux/lz4kd.h linux-6.6.61/include/linux/lz4
 +	unsigned out_max);
 +
 +#endif /* _LZ4KD_H */
-diff -ruN linux-6.6.61.orig/lib/Kconfig linux-6.6.61/lib/Kconfig
---- linux-6.6.61.orig/lib/Kconfig	2024-11-19 09:16:54.199480348 +0800
-+++ linux-6.6.61/lib/Kconfig	2024-11-19 23:52:21.768710299 +0800
+diff -ruN a/lib/Kconfig b/lib/Kconfig
+--- a/lib/Kconfig
++++ b/lib/Kconfig
 @@ -339,9 +339,15 @@
  config LZ4HC_COMPRESS
  	tristate
@@ -384,9 +384,9 @@ diff -ruN linux-6.6.61.orig/lib/Kconfig linux-6.6.61/lib/Kconfig
  config ZSTD_COMMON
  	select XXHASH
  	tristate
-diff -ruN linux-6.6.61.orig/lib/lz4kd/lz4kd_decode.c linux-6.6.61/lib/lz4kd/lz4kd_decode.c
---- linux-6.6.61.orig/lib/lz4kd/lz4kd_decode.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-6.6.61/lib/lz4kd/lz4kd_decode.c	2024-11-19 22:37:57.985338096 +0800
+diff -ruN a/lib/lz4kd/lz4kd_decode.c b/lib/lz4kd/lz4kd_decode.c
+--- a/lib/lz4kd/lz4kd_decode.c
++++ b/lib/lz4kd/lz4kd_decode.c
 @@ -0,0 +1,243 @@
 +/*
 + * Copyright (c) Huawei Technologies Co., Ltd. 2022. All rights reserved.
@@ -631,9 +631,9 @@ diff -ruN linux-6.6.61.orig/lib/lz4kd/lz4kd_decode.c linux-6.6.61/lib/lz4kd/lz4k
 +
 +MODULE_LICENSE("Dual BSD/GPL");
 +MODULE_DESCRIPTION("LZ4K decoder");
-diff -ruN linux-6.6.61.orig/lib/lz4kd/lz4kd_encode.c linux-6.6.61/lib/lz4kd/lz4kd_encode.c
---- linux-6.6.61.orig/lib/lz4kd/lz4kd_encode.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-6.6.61/lib/lz4kd/lz4kd_encode.c	2024-11-19 22:37:57.985338096 +0800
+diff -ruN a/lib/lz4kd/lz4kd_encode.c b/lib/lz4kd/lz4kd_encode.c
+--- a/lib/lz4kd/lz4kd_encode.c
++++ b/lib/lz4kd/lz4kd_encode.c
 @@ -0,0 +1,418 @@
 +/*
 + * Copyright (c) Huawei Technologies Co., Ltd. 2022. All rights reserved.
@@ -1053,9 +1053,9 @@ diff -ruN linux-6.6.61.orig/lib/lz4kd/lz4kd_encode.c linux-6.6.61/lib/lz4kd/lz4k
 +
 +MODULE_LICENSE("Dual BSD/GPL");
 +MODULE_DESCRIPTION("LZ4K encoder");
-diff -ruN linux-6.6.61.orig/lib/lz4kd/lz4kd_encode_private.h linux-6.6.61/lib/lz4kd/lz4kd_encode_private.h
---- linux-6.6.61.orig/lib/lz4kd/lz4kd_encode_private.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-6.6.61/lib/lz4kd/lz4kd_encode_private.h	2024-11-19 22:37:57.985338096 +0800
+diff -ruN a/lib/lz4kd/lz4kd_encode_private.h b/lib/lz4kd/lz4kd_encode_private.h
+--- a/lib/lz4kd/lz4kd_encode_private.h
++++ b/lib/lz4kd/lz4kd_encode_private.h
 @@ -0,0 +1,135 @@
 +/*
 + * Copyright (c) Huawei Technologies Co., Ltd. 2022. All rights reserved.
@@ -1192,9 +1192,9 @@ diff -ruN linux-6.6.61.orig/lib/lz4kd/lz4kd_encode_private.h linux-6.6.61/lib/lz
 +
 +#endif /* _LZ4KD_ENCODE_PRIVATE_H */
 +
-diff -ruN linux-6.6.61.orig/lib/lz4kd/lz4kd_private.h linux-6.6.61/lib/lz4kd/lz4kd_private.h
---- linux-6.6.61.orig/lib/lz4kd/lz4kd_private.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-6.6.61/lib/lz4kd/lz4kd_private.h	2024-11-19 22:37:57.985338096 +0800
+diff -ruN a/lib/lz4kd/lz4kd_private.h b/lib/lz4kd/lz4kd_private.h
+--- a/lib/lz4kd/lz4kd_private.h
++++ b/lib/lz4kd/lz4kd_private.h
 @@ -0,0 +1,304 @@
 +/*
 + * Copyright (c) Huawei Technologies Co., Ltd. 2022. All rights reserved.
@@ -1500,16 +1500,16 @@ diff -ruN linux-6.6.61.orig/lib/lz4kd/lz4kd_private.h linux-6.6.61/lib/lz4kd/lz4
 +}
 +
 +#endif /* _LZ4KD_PRIVATE_H */
-diff -ruN linux-6.6.61.orig/lib/lz4kd/Makefile linux-6.6.61/lib/lz4kd/Makefile
---- linux-6.6.61.orig/lib/lz4kd/Makefile	1970-01-01 08:00:00.000000000 +0800
-+++ linux-6.6.61/lib/lz4kd/Makefile	2024-11-19 22:37:57.985338096 +0800
+diff -ruN a/lib/lz4kd/Makefile b/lib/lz4kd/Makefile
+--- a/lib/lz4kd/Makefile
++++ b/lib/lz4kd/Makefile
 @@ -0,0 +1,3 @@
 +ccflags-y += -O3
 +obj-$(CONFIG_LZ4KD_COMPRESS) += lz4kd_encode.o
 +obj-$(CONFIG_LZ4KD_DECOMPRESS) += lz4kd_decode.o
-diff -ruN linux-6.6.61.orig/lib/Makefile linux-6.6.61/lib/Makefile
---- linux-6.6.61.orig/lib/Makefile	2024-11-19 09:16:53.954483572 +0800
-+++ linux-6.6.61/lib/Makefile	2024-11-19 23:52:43.725425912 +0800
+diff -ruN a/lib/Makefile b/lib/Makefile
+--- a/lib/Makefile
++++ b/lib/Makefile
 @@ -211,6 +211,8 @@
  obj-$(CONFIG_LZ4_COMPRESS) += lz4/
  obj-$(CONFIG_LZ4HC_COMPRESS) += lz4/

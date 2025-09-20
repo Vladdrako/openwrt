@@ -143,20 +143,19 @@ Add support to power up, down & load userpd firmware.
 
 Signed-off-by: Manikanta Mylavarapu <quic_mmanikan@quicinc.com>
 ---
- drivers/firmware/qcom_scm.c            | 114 +++++++++++++++++++++++++
- drivers/firmware/qcom_scm.h            |   6 ++
+ drivers/firmware/qcom/qcom_scm.c            | 114 +++++++++++++++++++++++++
+ drivers/firmware/qcom/qcom_scm.h            |   6 ++
  include/linux/firmware/qcom/qcom_scm.h |   3 +
  3 files changed, 123 insertions(+)
 
-diff --git a/drivers/firmware/qcom_scm.c b/drivers/firmware/qcom_scm.c
+diff --git a/drivers/firmware/qcom/qcom_scm.c b/drivers/firmware/qcom/qcom_scm.c
 index fde33acd46b756..c617e9e671ecf9 100644
---- a/drivers/firmware/qcom_scm.c
-+++ b/drivers/firmware/qcom_scm.c
-@@ -643,6 +643,120 @@ int qcom_scm_pas_shutdown(u32 peripheral)
- }
- EXPORT_SYMBOL(qcom_scm_pas_shutdown);
+--- a/drivers/firmware/qcom/qcom_scm.c
++++ b/drivers/firmware/qcom/qcom_scm.c
+@@ -778,6 +778,120 @@
+ EXPORT_SYMBOL_GPL(qcom_scm_pas_shutdown);
  
-+/**
+ /**
 + * qti_scm_int_radio_powerup - Bring up WCSS AHB userpd
 + *
 + * @peripheral:	peripheral id
@@ -270,13 +269,14 @@ index fde33acd46b756..c617e9e671ecf9 100644
 +}
 +EXPORT_SYMBOL(qti_scm_pdseg_memcpy_v2);
 +
- /**
++/**
   * qcom_scm_pas_supported() - Check if the peripheral authentication service is
   *			      available for the given peripherial
-diff --git a/drivers/firmware/qcom_scm.h b/drivers/firmware/qcom_scm.h
+  * @peripheral:	peripheral id
+diff --git a/drivers/firmware/qcom/qcom_scm.h b/drivers/firmware/qcom/qcom_scm.h
 index e6e512bd57d1b9..99e3ab2f198672 100644
---- a/drivers/firmware/qcom_scm.h
-+++ b/drivers/firmware/qcom_scm.h
+--- a/drivers/firmware/qcom/qcom_scm.h
++++ b/drivers/firmware/qcom/qcom_scm.h
 @@ -132,6 +132,12 @@ extern int scm_legacy_call(struct device *dev, const struct qcom_scm_desc *desc,
  #define QCOM_SCM_SMMU_CONFIG_ERRATA1		0x03
  #define QCOM_SCM_SMMU_CONFIG_ERRATA1_CLIENT_ALL	0x02
@@ -294,16 +294,16 @@ diff --git a/include/linux/firmware/qcom/qcom_scm.h b/include/linux/firmware/qco
 index 250ea4efb7cb6a..488d6eccb5a4a5 100644
 --- a/include/linux/firmware/qcom/qcom_scm.h
 +++ b/include/linux/firmware/qcom/qcom_scm.h
-@@ -86,6 +86,9 @@
- extern int qcom_scm_pas_load_segment(u32 peripheral, int segment, dma_addr_t dma, int seg_cnt);
- extern int qcom_scm_msa_lock(u32 peripheral);
- extern int qcom_scm_msa_unlock(u32 peripheral);
+@@ -84,6 +84,9 @@
+ int qcom_scm_pas_load_segment(u32 peripheral, int segment, dma_addr_t dma, int seg_cnt);
+ int qcom_scm_msa_lock(u32 peripheral);
+ int qcom_scm_msa_unlock(u32 peripheral);
 +int qti_scm_int_radio_powerup(u32 peripheral);
 +int qti_scm_int_radio_powerdown(u32 peripheral);
 +int qti_scm_pdseg_memcpy_v2(u32 peripheral, int phno, dma_addr_t dma, int seg_cnt);
  
- extern int qcom_scm_io_readl(phys_addr_t addr, unsigned int *val);
- extern int qcom_scm_io_writel(phys_addr_t addr, unsigned int val);
+ int qcom_scm_io_readl(phys_addr_t addr, unsigned int *val);
+ int qcom_scm_io_writel(phys_addr_t addr, unsigned int val);
 From 34d72673425473a85ef0f1f7e93c268cfdb4f4c6 Mon Sep 17 00:00:00 2001
 From: Manikanta Mylavarapu <quic_mmanikan@quicinc.com>
 Date: Mon, 22 May 2023 03:58:48 +0530
@@ -546,114 +546,6 @@ index 6f4be3aa0acfce..bcd3823b743446 100644
 +#define USB0_GDSC				0
 +#define USB1_GDSC				1
  #endif
---- a/drivers/usb/dwc3/dwc3-qcom.c
-+++ b/drivers/usb/dwc3/dwc3-qcom.c
-@@ -57,7 +57,7 @@ struct dwc3_acpi_pdata {
- 	u32			qscratch_base_offset;
- 	u32			qscratch_base_size;
- 	u32			dwc3_core_base_size;
--	int			hs_phy_irq_index;
-+	int			qusb2_phy_irq_index;
- 	int			dp_hs_phy_irq_index;
- 	int			dm_hs_phy_irq_index;
- 	int			ss_phy_irq_index;
-@@ -73,7 +73,7 @@ struct dwc3_qcom {
- 	int			num_clocks;
- 	struct reset_control	*resets;
- 
--	int			hs_phy_irq;
-+	int			qusb2_phy_irq;
- 	int			dp_hs_phy_irq;
- 	int			dm_hs_phy_irq;
- 	int			ss_phy_irq;
-@@ -372,7 +372,7 @@ static void dwc3_qcom_disable_wakeup_irq(int irq)
- 
- static void dwc3_qcom_disable_interrupts(struct dwc3_qcom *qcom)
- {
--	dwc3_qcom_disable_wakeup_irq(qcom->hs_phy_irq);
-+	dwc3_qcom_disable_wakeup_irq(qcom->qusb2_phy_irq);
- 
- 	if (qcom->usb2_speed == USB_SPEED_LOW) {
- 		dwc3_qcom_disable_wakeup_irq(qcom->dm_hs_phy_irq);
-@@ -389,7 +389,7 @@ static void dwc3_qcom_disable_interrupts(struct dwc3_qcom *qcom)
- 
- static void dwc3_qcom_enable_interrupts(struct dwc3_qcom *qcom)
- {
--	dwc3_qcom_enable_wakeup_irq(qcom->hs_phy_irq, 0);
-+	dwc3_qcom_enable_wakeup_irq(qcom->qusb2_phy_irq, 0);
- 
- 	/*
- 	 * Configure DP/DM line interrupts based on the USB2 device attached to
-@@ -543,20 +543,20 @@
- 	int irq;
- 	int ret;
- 
--	irq = dwc3_qcom_get_irq(pdev, "hs_phy_irq",
--				pdata ? pdata->hs_phy_irq_index : -1);
-+	irq = dwc3_qcom_get_irq(pdev, "qusb2_phy",
-+				pdata ? pdata->qusb2_phy_irq_index : -1);
- 	if (irq > 0) {
- 		/* Keep wakeup interrupts disabled until suspend */
- 		irq_set_status_flags(irq, IRQ_NOAUTOEN);
- 		ret = devm_request_threaded_irq(qcom->dev, irq, NULL,
- 					qcom_dwc3_resume_irq,
- 					IRQF_ONESHOT,
--					"qcom_dwc3 HS", qcom);
-+					"qcom_dwc3 QUSB2", qcom);
- 		if (ret) {
--			dev_err(qcom->dev, "hs_phy_irq failed: %d\n", ret);
-+			dev_err(qcom->dev, "qusb2_phy_irq failed: %d\n", ret);
- 			return ret;
- 		}
--		qcom->hs_phy_irq = irq;
-+		qcom->qusb2_phy_irq = irq;
- 	}
- 
- 	irq = dwc3_qcom_get_irq(pdev, "dp_hs_phy_irq",
-@@ -1058,7 +1058,7 @@ static const struct dwc3_acpi_pdata sdm845_acpi_pdata = {
- 	.qscratch_base_offset = SDM845_QSCRATCH_BASE_OFFSET,
- 	.qscratch_base_size = SDM845_QSCRATCH_SIZE,
- 	.dwc3_core_base_size = SDM845_DWC3_CORE_SIZE,
--	.hs_phy_irq_index = 1,
-+	.qusb2_phy_irq_index = 1,
- 	.dp_hs_phy_irq_index = 4,
- 	.dm_hs_phy_irq_index = 3,
- 	.ss_phy_irq_index = 2
-@@ -1068,7 +1068,7 @@ static const struct dwc3_acpi_pdata sdm845_acpi_urs_pdata = {
- 	.qscratch_base_offset = SDM845_QSCRATCH_BASE_OFFSET,
- 	.qscratch_base_size = SDM845_QSCRATCH_SIZE,
- 	.dwc3_core_base_size = SDM845_DWC3_CORE_SIZE,
--	.hs_phy_irq_index = 1,
-+	.qusb2_phy_irq_index = 1,
- 	.dp_hs_phy_irq_index = 4,
- 	.dm_hs_phy_irq_index = 3,
- 	.ss_phy_irq_index = 2,
-
-From a4488ead8665acb18b85addd9e856e0652f50e06 Mon Sep 17 00:00:00 2001
-From: Robert Marko <robimarko@gmail.com>
-Date: Fri, 15 Dec 2023 19:55:16 +0100
-Subject: [PATCH] remoteproc: mpd: include <linux/of_platform.h>
-
-It seems that there was a header include cleanup that removed accidental
-inclusion of of_platform.h, so we need to include it ourself.
-
-Signed-off-by: Robert Marko <robimarko@gmail.com>
----
- drivers/remoteproc/qcom_q6v5_mpd.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/drivers/remoteproc/qcom_q6v5_mpd.c b/drivers/remoteproc/qcom_q6v5_mpd.c
-index 5c092f31fba26c..1535a5f704da8d 100644
---- a/drivers/remoteproc/qcom_q6v5_mpd.c
-+++ b/drivers/remoteproc/qcom_q6v5_mpd.c
-@@ -14,6 +14,7 @@
- #include <linux/module.h>
- #include <linux/of_address.h>
- #include <linux/of_device.h>
-+#include <linux/of_platform.h>
- #include <linux/of_reserved_mem.h>
- #include <linux/platform_device.h>
- #include <linux/reset.h>
 
 From 505f9c8653fc218ca47a153ec58ebc16bef5502f Mon Sep 17 00:00:00 2001
 From: Mantas Pucka <mantas@8devices.com>
@@ -734,95 +626,6 @@ Signed-off-by: Mantas Pucka <mantas@8devices.com>
 +			};
  		};
  	};
- 
-
-From 858f2b25c98315b1b23e45e4ff7d87834468d337 Mon Sep 17 00:00:00 2001
-From: Robert Marko <robimarko@gmail.com>
-Date: Sun, 11 Feb 2024 18:06:05 +0100
-Subject: [PATCH] regulator: cpr3: Replace strlcpy() with strscpy()
-
-strlcpy() reads the entire source buffer first. This read may exceed
-the destination size limit. This is both inefficient and can lead
-to linear read overflows if a source string is not NUL-terminated[1].
-Additionally, it returns the size of the source string, not the
-resulting size of the destination string. In an effort to remove strlcpy()
-completely[2], replace strlcpy() here with strscpy().
-
-Nothing checks the return value here, so a direct replacement with
-strspy() is possible.
-
-strlcpy() was dropped upstream in 6.8.
-
-Signed-off-by: Robert Marko <robimarko@gmail.com>
----
- drivers/regulator/cpr3-util.c | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
-
-diff --git a/drivers/regulator/cpr3-util.c b/drivers/regulator/cpr3-util.c
-index 45493af714e25e..c69acde14641df 100644
---- a/drivers/regulator/cpr3-util.c
-+++ b/drivers/regulator/cpr3-util.c
-@@ -1552,9 +1552,9 @@ int cpr3_determine_part_type(struct cpr3_regulator *vreg, int fuse_volt)
- 		return 0;
- 
- 	if (soc_version_major > 1)
--		strlcpy(prop_name, prop_name_v2, sizeof(prop_name_v2));
-+		strscpy(prop_name, prop_name_v2, sizeof(prop_name_v2));
- 	else
--		strlcpy(prop_name, prop_name_def, sizeof(prop_name_def));
-+		strscpy(prop_name, prop_name_def, sizeof(prop_name_def));
- 
- 	if (!of_find_property(vreg->of_node, prop_name, &len)) {
- 		cpr3_err(vreg, "property %s is missing\n", prop_name);
-@@ -1603,7 +1603,7 @@ int cpr3_determine_temp_base_open_loop_correction(struct cpr3_regulator *vreg,
- 			"qcom,cpr-cold-temp-voltage-adjustment-%d",
- 			vreg->part_type);
- 	} else {
--		strlcpy(prop_str, "qcom,cpr-cold-temp-voltage-adjustment",
-+		strscpy(prop_str, "qcom,cpr-cold-temp-voltage-adjustment",
- 			sizeof(prop_str));
- 	}
- 
-@@ -1658,10 +1658,10 @@ bool cpr3_can_adjust_cold_temp(struct cpr3_regulator *vreg)
- 	BUG_ON(soc_version_major <= 0);
- 
- 	if (soc_version_major > 1)
--		strlcpy(prop_str, "qcom,cpr-cold-temp-threshold-v2",
-+		strscpy(prop_str, "qcom,cpr-cold-temp-threshold-v2",
- 			sizeof(prop_str));
- 	else
--		strlcpy(prop_str, "qcom,cpr-cold-temp-threshold",
-+		strscpy(prop_str, "qcom,cpr-cold-temp-threshold",
- 			sizeof(prop_str));
- 
- 	if (!of_find_property(vreg->of_node, prop_str, NULL)) {
-@@ -1701,15 +1701,15 @@ int cpr3_get_cold_temp_threshold(struct cpr3_regulator *vreg, int *cold_temp)
- 			"qcom,cpr-cold-temp-voltage-adjustment-%d",
- 			vreg->part_type);
- 	} else {
--		strlcpy(req_prop_str, "qcom,cpr-cold-temp-voltage-adjustment",
-+		strscpy(req_prop_str, "qcom,cpr-cold-temp-voltage-adjustment",
- 			sizeof(req_prop_str));
- 	}
- 
- 	if (soc_version_major > 1)
--		strlcpy(prop_str, "qcom,cpr-cold-temp-threshold-v2",
-+		strscpy(prop_str, "qcom,cpr-cold-temp-threshold-v2",
- 			sizeof(prop_str));
- 	else
--		strlcpy(prop_str, "qcom,cpr-cold-temp-threshold",
-+		strscpy(prop_str, "qcom,cpr-cold-temp-threshold",
- 			sizeof(prop_str));
- 
- 	if (!of_find_property(vreg->of_node, req_prop_str, NULL)) {
-@@ -1767,7 +1767,7 @@ int cpr3_adjust_fused_open_loop_voltages(struct cpr3_regulator *vreg,
- 			 "qcom,cpr-open-loop-voltage-fuse-adjustment-%d",
- 			 vreg->part_type);
- 	} else {
--		strlcpy(prop_str, "qcom,cpr-open-loop-voltage-fuse-adjustment",
-+		strscpy(prop_str, "qcom,cpr-open-loop-voltage-fuse-adjustment",
- 			sizeof(prop_str));
- 	}
  
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
@@ -905,45 +708,6 @@ index 45493af714e25e..c69acde14641df 100644
  					  "reo2host-status",
  					  "reo2host-destination-ring4",
  					  "reo2host-destination-ring3",
---- a/drivers/crypto/qce/core.c
-+++ b/drivers/crypto/qce/core.c
-@@ -277,7 +277,7 @@ err_mem_path_disable:
- 	return ret;
- }
- 
--static int qce_crypto_remove(struct platform_device *pdev)
-+static void qce_crypto_remove(struct platform_device *pdev)
- {
- 	struct qce_device *qce = platform_get_drvdata(pdev);
- 
-@@ -287,7 +287,6 @@ static int qce_crypto_remove(struct platform_device *pdev)
- 	clk_disable_unprepare(qce->bus);
- 	clk_disable_unprepare(qce->iface);
- 	clk_disable_unprepare(qce->core);
--	return 0;
- }
- 
- static const struct of_device_id qce_crypto_of_match[] = {
-@@ -300,7 +299,7 @@ MODULE_DEVICE_TABLE(of, qce_crypto_of_match);
- 
- static struct platform_driver qce_crypto_driver = {
- 	.probe = qce_crypto_probe,
--	.remove = qce_crypto_remove,
-+	.remove_new = qce_crypto_remove,
- 	.driver = {
- 		.name = KBUILD_MODNAME,
- 		.of_match_table = qce_crypto_of_match,
---- a/drivers/clk/qcom/gcc-ipq6018.c
-+++ b/drivers/clk/qcom/gcc-ipq6018.c
-@@ -2684,7 +2684,7 @@ static struct clk_rcg2 lpass_q6_axim_clk_src = {
- 	},
- };
- 
--static struct freq_tbl ftbl_rbcpr_wcss_clk_src[] = {
-+static const struct freq_tbl ftbl_rbcpr_wcss_clk_src[] = {
- 	F(24000000, P_XO, 1, 0, 0),
- 	F(50000000, P_GPLL0, 16, 0, 0),
- 	{ }
 
 From 19be13369d8e32f1ade15cf75dd7d534661b0098 Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
@@ -974,20 +738,6 @@ diff --git a/drivers/regulator/cpr3-npu-regulator.c b/drivers/regulator/cpr3-npu
 index 6f4abb83c9287f..eab0904a395580 100644
 --- a/drivers/regulator/cpr3-npu-regulator.c
 +++ b/drivers/regulator/cpr3-npu-regulator.c
-@@ -668,11 +668,11 @@ static int cpr3_npu_regulator_probe(struct platform_device *pdev)
- 	return cpr3_open_loop_regulator_register(pdev, ctrl);
- }
- 
--static int cpr3_npu_regulator_remove(struct platform_device *pdev)
-+static void cpr3_npu_regulator_remove(struct platform_device *pdev)
- {
- 	struct cpr3_controller *ctrl = platform_get_drvdata(pdev);
- 
--	return cpr3_open_loop_regulator_unregister(ctrl);
-+	cpr3_open_loop_regulator_unregister(ctrl);
- }
- 
- static struct platform_driver cpr3_npu_regulator_driver = {
 @@ -682,7 +682,7 @@ static struct platform_driver cpr3_npu_regulator_driver = {
  		.owner		= THIS_MODULE,
  	},
@@ -1001,20 +751,6 @@ diff --git a/drivers/regulator/cpr4-apss-regulator.c b/drivers/regulator/cpr4-ap
 index 98f1cd9cfc148c..4d4982bf8ddb2f 100644
 --- a/drivers/regulator/cpr4-apss-regulator.c
 +++ b/drivers/regulator/cpr4-apss-regulator.c
-@@ -1783,11 +1783,11 @@ static int cpr4_apss_regulator_probe(struct platform_device *pdev)
- 	return cpr3_regulator_register(pdev, ctrl);
- }
- 
--static int cpr4_apss_regulator_remove(struct platform_device *pdev)
-+static void cpr4_apss_regulator_remove(struct platform_device *pdev)
- {
- 	struct cpr3_controller *ctrl = platform_get_drvdata(pdev);
- 
--	return cpr3_regulator_unregister(ctrl);
-+	cpr3_regulator_unregister(ctrl);
- }
- 
- static struct platform_driver cpr4_apss_regulator_driver = {
 @@ -1797,7 +1797,7 @@ static struct platform_driver cpr4_apss_regulator_driver = {
  		.owner		= THIS_MODULE,
  	},
@@ -1053,24 +789,6 @@ diff --git a/drivers/power/qcom/apm.c b/drivers/power/qcom/apm.c
 index bd93358e3d34cb..7846e1b539f406 100644
 --- a/drivers/power/qcom/apm.c
 +++ b/drivers/power/qcom/apm.c
-@@ -900,7 +900,7 @@ static int msm_apm_probe(struct platform_device *pdev)
- 	return ret;
- }
- 
--static int msm_apm_remove(struct platform_device *pdev)
-+static void msm_apm_remove(struct platform_device *pdev)
- {
- 	struct msm_apm_ctrl_dev *ctrl_dev;
- 
-@@ -911,8 +911,6 @@ static int msm_apm_remove(struct platform_device *pdev)
- 		mutex_unlock(&apm_ctrl_list_mutex);
- 		apm_debugfs_deinit(ctrl_dev);
- 	}
--
--	return 0;
- }
- 
- static struct platform_driver msm_apm_driver = {
 @@ -922,7 +920,7 @@ static struct platform_driver msm_apm_driver = {
  		.owner		= THIS_MODULE,
  	},
@@ -1080,154 +798,6 @@ index bd93358e3d34cb..7846e1b539f406 100644
  };
  
  static int __init msm_apm_init(void)
-
-From 7d3dc2ca85fcf0e858bfdfe0d7632450c348051b Mon Sep 17 00:00:00 2001
-From: BrainSlayer <s.gottschall@dd-wrt.com>
-Date: Mon, 24 Jun 2024 05:47:27 +0000
-Subject: [PATCH] revert some dma api changes
-
-git-svn-id: svn://svn.dd-wrt.com/DD-WRT@56986 52c4871e-980c-0410-b1e0-e73912ce01f8
----
- .../arch/arm/include/asm/cacheflush.h         | 21 +++++++++++++++++++
- .../arch/arm/include/asm/glue-cache.h         |  2 ++
- .../linux-6.6-nss/arch/arm/mm/cache-v7.S      |  6 ++++--
- .../linux-6.6-nss/arch/arm/mm/proc-macros.S   |  4 +++-
- .../linux-6.6-nss/arch/arm/mm/proc-syms.c     |  3 +++
- 5 files changed, 33 insertions(+), 3 deletions(-)
-
-diff --git a/arch/arm/include/asm/cacheflush.h b/arch/arm/include/asm/cacheflush.h
-index 1075534b0a2e..34c020563133 100644
---- a/arch/arm/include/asm/cacheflush.h
-+++ b/arch/arm/include/asm/cacheflush.h
-@@ -91,6 +91,21 @@
-  *	DMA Cache Coherency
-  *	===================
-  *
-+ *	dma_inv_range(start, end)
-+ *
-+ *		Invalidate (discard) the specified virtual address range.
-+ *		May not write back any entries.  If 'start' or 'end'
-+ *		are not cache line aligned, those lines must be written
-+ *		back.
-+ *		- start  - virtual start address
-+ *		- end    - virtual end address
-+ *
-+ *	dma_clean_range(start, end)
-+ *
-+ *		Clean (write back) the specified virtual address range.
-+ *		- start  - virtual start address
-+ *		- end    - virtual end address
-+ *
-  *	dma_flush_range(start, end)
-  *
-  *		Clean and invalidate the specified virtual address range.
-@@ -112,6 +127,8 @@ struct cpu_cache_fns {
- 	void (*dma_map_area)(const void *, size_t, int);
- 	void (*dma_unmap_area)(const void *, size_t, int);
- 
-+	void (*dma_inv_range)(const void *, const void *);
-+	void (*dma_clean_range)(const void *, const void *);
- 	void (*dma_flush_range)(const void *, const void *);
- } __no_randomize_layout;
- 
-@@ -137,6 +154,8 @@ extern struct cpu_cache_fns cpu_cache;
-  * is visible to DMA, or data written by DMA to system memory is
-  * visible to the CPU.
-  */
-+#define dmac_inv_range			cpu_cache.dma_inv_range
-+#define dmac_clean_range		cpu_cache.dma_clean_range
- #define dmac_flush_range		cpu_cache.dma_flush_range
- 
- #else
-@@ -156,6 +175,8 @@ extern void __cpuc_flush_dcache_area(void *, size_t);
-  * is visible to DMA, or data written by DMA to system memory is
-  * visible to the CPU.
-  */
-+extern void dmac_inv_range(const void *, const void *);
-+extern void dmac_clean_range(const void *, const void *);
- extern void dmac_flush_range(const void *, const void *);
- 
- #endif
-diff --git a/arch/arm/include/asm/glue-cache.h b/arch/arm/include/asm/glue-cache.h
-index 724f8dac1e5b..89a7ee6822d9 100644
---- a/arch/arm/include/asm/glue-cache.h
-+++ b/arch/arm/include/asm/glue-cache.h
-@@ -156,6 +156,8 @@ static inline void nop_dma_unmap_area(const void *s, size_t l, int f) { }
- #define __cpuc_flush_dcache_area	__glue(_CACHE,_flush_kern_dcache_area)
- 
- #define dmac_flush_range		__glue(_CACHE,_dma_flush_range)
-+#define dmac_inv_range			__glue(_CACHE, _dma_inv_range)
-+#define dmac_clean_range		__glue(_CACHE, _dma_clean_range)
- #endif
- 
- #endif
-diff --git a/arch/arm/mm/cache-v7.S b/arch/arm/mm/cache-v7.S
-index 127afe2096ba..849b03946f09 100644
---- a/arch/arm/mm/cache-v7.S
-+++ b/arch/arm/mm/cache-v7.S
-@@ -361,7 +361,7 @@ ENDPROC(v7_flush_kern_dcache_area)
-  *	- start   - virtual start address of region
-  *	- end     - virtual end address of region
-  */
--v7_dma_inv_range:
-+ENTRY(v7_dma_inv_range)
- 	dcache_line_size r2, r3
- 	sub	r3, r2, #1
- 	tst	r0, r3
-@@ -391,7 +391,7 @@ ENDPROC(v7_dma_inv_range)
-  *	- start   - virtual start address of region
-  *	- end     - virtual end address of region
-  */
--v7_dma_clean_range:
-+ENTRY(v7_dma_clean_range)
- 	dcache_line_size r2, r3
- 	sub	r3, r2, #1
- 	bic	r0, r0, r3
-@@ -477,6 +477,8 @@ ENDPROC(v7_dma_unmap_area)
- 
- 	globl_equ	b15_dma_map_area,		v7_dma_map_area
- 	globl_equ	b15_dma_unmap_area,		v7_dma_unmap_area
-+	globl_equ	b15_dma_inv_range,		v7_dma_inv_range
-+	globl_equ	b15_dma_clean_range,		v7_dma_clean_range
- 	globl_equ	b15_dma_flush_range,		v7_dma_flush_range
- 
- 	define_cache_functions b15
-diff --git a/arch/arm/mm/proc-macros.S b/arch/arm/mm/proc-macros.S
-index e43f6d716b4b..ec4deefb5203 100644
---- a/arch/arm/mm/proc-macros.S
-+++ b/arch/arm/mm/proc-macros.S
-@@ -326,7 +326,7 @@ ENTRY(\name\()_processor_functions)
- ENTRY(\name\()_cache_fns)
- 	.long	\name\()_flush_icache_all
- 	.long	\name\()_flush_kern_cache_all
--	.long   \name\()_flush_kern_cache_louis
-+	.long	\name\()_flush_kern_cache_louis
- 	.long	\name\()_flush_user_cache_all
- 	.long	\name\()_flush_user_cache_range
- 	.long	\name\()_coherent_kern_range
-@@ -334,6 +334,8 @@ ENTRY(\name\()_cache_fns)
- 	.long	\name\()_flush_kern_dcache_area
- 	.long	\name\()_dma_map_area
- 	.long	\name\()_dma_unmap_area
-+	.long	\name\()_dma_inv_range
-+	.long	\name\()_dma_clean_range
- 	.long	\name\()_dma_flush_range
- 	.size	\name\()_cache_fns, . - \name\()_cache_fns
- .endm
-diff --git a/arch/arm/mm/proc-syms.c b/arch/arm/mm/proc-syms.c
-index e21249548e9f..33e4a9b8f1ba 100644
---- a/arch/arm/mm/proc-syms.c
-+++ b/arch/arm/mm/proc-syms.c
-@@ -27,6 +27,9 @@ EXPORT_SYMBOL(__cpuc_flush_user_all);
- EXPORT_SYMBOL(__cpuc_flush_user_range);
- EXPORT_SYMBOL(__cpuc_coherent_kern_range);
- EXPORT_SYMBOL(__cpuc_flush_dcache_area);
-+EXPORT_SYMBOL(dmac_inv_range);
-+EXPORT_SYMBOL(dmac_clean_range);
-+EXPORT_SYMBOL(dmac_flush_range);
- #else
- EXPORT_SYMBOL(cpu_cache);
- #endif
 
 From f9e7b3bea6d498c30e51fdcc3f55099e21391e11 Mon Sep 17 00:00:00 2001
 From: BrainSlayer <s.gottschall@dd-wrt.com>
@@ -1584,12 +1154,12 @@ index dd6a14392da6..b3ee9ce25c22 100644
  			no-map;
  		};
 @@ -351,6 +352,7 @@
- 				clock-names = "pipe0";
- 				clock-output-names = "gcc_pcie0_pipe_clk_src";
- 				#clock-cells = <0>;
-+				gen3 = <1>;
- 			};
- 		};
+ 
+ 			clock-output-names = "gcc_pcie0_pipe_clk_src";
+ 			#clock-cells = <0>;
++			gen3 = <1>;
+ 
+ 			#phy-cells = <0>;
  
 @@ -804,7 +806,7 @@
  			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
@@ -1600,13 +1170,13 @@ index dd6a14392da6..b3ee9ce25c22 100644
  				compatible = "arm,gic-v2m-frame";
  				msi-controller;
  				reg = <0x0 0x0 0x0 0xffd>;
-@@ -1067,9 +1069,13 @@
+@@ -1079,9 +1080,13 @@
  			max-link-speed = <3>;
  			#address-cells = <3>;
  			#size-cells = <2>;
 +			axi-halt-val = <0x1e>; /* increase halt window size to 1GB */
  
- 			phys = <&pcie_phy0>;
+ 			phys = <&pcie_phy>;
  			phy-names = "pciephy";
 +
 +/*			ranges = <0x81000000 0x0 0x20200000 0x0 0x20200000 0x0 0x100000>,
