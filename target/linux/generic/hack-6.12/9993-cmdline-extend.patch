@@ -17,7 +17,7 @@ https://github.com/gregkh/linux/commit/cae118b6acc309539b33339e846cbb19187c164c
  	help
 --- a/arch/arm64/kernel/pi/idreg-override.c
 +++ b/arch/arm64/kernel/pi/idreg-override.c
-@@ -370,7 +370,9 @@
+@@ -370,8 +370,11 @@
  	static char const cmdline[] __initconst = CONFIG_CMDLINE;
  	const u8 *prop = get_bootargs_cmdline(fdt, chosen);
  
@@ -26,5 +26,7 @@ https://github.com/gregkh/linux/commit/cae118b6acc309539b33339e846cbb19187c164c
 +	    IS_ENABLED(CONFIG_CMDLINE_FORCE) ||
 +	    !prop) {
  		__parse_cmdline(cmdline, true);
++	}
  
  	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE) && prop)
+ 		__parse_cmdline(prop, true);
