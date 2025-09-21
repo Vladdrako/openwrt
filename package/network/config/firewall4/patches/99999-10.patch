@@ -1,0 +1,51 @@
+From 383e26a4e00165b85ee82e3a2959dc9c26177bcb Mon Sep 17 00:00:00 2001
+From: Andris PE <neandris@gmail.com>
+Date: Fri, 23 May 2025 17:08:20 +0000
+Subject: [PATCH] config: mark unsupported fw3 options correctly
+
+- mark sysctl-based fw3 options UNSUPPORTED, emitting warning
+- remove notion of unsupported option from default config file
+
+No change in ruleset logic.
+
+Signed-off-by: Andris PE <neandris@gmail.com>
+---
+ root/etc/config/firewall    |  2 --
+ root/usr/share/ucode/fw4.uc | 10 +++++-----
+ 2 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/root/etc/config/firewall b/root/etc/config/firewall
+index 48b2440..88684d1 100644
+--- a/root/etc/config/firewall
++++ b/root/etc/config/firewall
+@@ -3,8 +3,6 @@ config defaults
+ 	option input		REJECT
+ 	option output		ACCEPT
+ 	option forward		REJECT
+-# Uncomment this line to disable ipv6 rules
+-#	option disable_ipv6	1
+ 	option fullcone '0'
+ 	option fullcone6	0
+ 
+diff --git a/root/usr/share/ucode/fw4.uc b/root/usr/share/ucode/fw4.uc
+index 690deb0..a9b454f 100644
+--- a/root/usr/share/ucode/fw4.uc
++++ b/root/usr/share/ucode/fw4.uc
+@@ -1959,12 +1959,12 @@ return {
+ 			synflood_rate: [ "limit", "25/second" ],
+ 			synflood_burst: [ "int", "50" ],
+ 
+-			tcp_syncookies: [ "bool", "1" ],
+-			tcp_ecn: [ "int" ],
+-			tcp_window_scaling: [ "bool", "1" ],
++			tcp_syncookies: [ "bool", null, UNSUPPORTED ],
++			tcp_ecn: [ "int", null, UNSUPPORTED ],
++			tcp_window_scaling: [ "bool", null, UNSUPPORTED ],
+ 
+-			accept_redirects: [ "bool" ],
+-			accept_source_route: [ "bool" ],
++			accept_redirects: [ "bool", null, UNSUPPORTED ],
++			accept_source_route: [ "bool", null, UNSUPPORTED ],
+ 
+ 			auto_helper: [ "bool", "1" ],
+ 			custom_chains: [ "bool", null, UNSUPPORTED ],

@@ -1,0 +1,516 @@
+From a1f42721d838ad80163c7b4d32c2bf30f5abce2b Mon Sep 17 00:00:00 2001
+From: Andris PE <neandris@gmail.com>
+Date: Sun, 16 Feb 2025 21:11:33 +0000
+Subject: [PATCH] Do not reject invalid (out of state) packets
+
+We cannot fix invalid (checksum, out of state, short) packets by
+replying them with valid packet. Lets keep grief to bare minimum
+---
+ root/usr/share/firewall4/templates/ruleset.uc      | 9 ++++++---
+ root/usr/share/firewall4/templates/zone-verdict.uc | 2 +-
+ tests/01_configuration/01_ruleset                  | 9 +++++----
+ tests/01_configuration/02_rule_order               | 1 +
+ tests/02_zones/01_policies                         | 5 +++--
+ tests/02_zones/02_masq                             | 5 +++--
+ tests/02_zones/03_masq_src_dest_restrictions       | 1 +
+ tests/02_zones/04_masq_allow_invalid               | 1 +
+ tests/02_zones/04_wildcard_devices                 | 1 +
+ tests/02_zones/05_subnet_mask_matches              | 1 +
+ tests/02_zones/06_family_selections                | 1 +
+ tests/02_zones/07_helpers                          | 1 +
+ tests/02_zones/08_log_limit                        | 1 +
+ tests/03_rules/01_direction                        | 1 +
+ tests/03_rules/02_enabled                          | 1 +
+ tests/03_rules/03_constraints                      | 1 +
+ tests/03_rules/04_icmp                             | 1 +
+ tests/03_rules/05_mangle                           | 1 +
+ tests/03_rules/06_subnet_mask_matches              | 1 +
+ tests/03_rules/07_redirect                         | 1 +
+ tests/03_rules/08_family_inheritance               | 1 +
+ tests/03_rules/09_time                             | 1 +
+ tests/03_rules/10_notrack                          | 1 +
+ tests/03_rules/11_log                              | 1 +
+ tests/03_rules/12_mark                             | 1 +
+ tests/04_forwardings/01_family_selections          | 1 +
+ tests/05_ipsets/01_declaration                     | 1 +
+ tests/05_ipsets/02_usage                           | 1 +
+ tests/06_includes/01_nft_includes                  | 1 +
+ tests/06_includes/02_firewall.user_include         | 1 +
+ tests/06_includes/04_disabled_include              | 1 +
+ tests/06_includes/05_automatic_includes            | 1 +
+ 32 files changed, 45 insertions(+), 12 deletions(-)
+
+diff --git a/root/usr/share/firewall4/templates/ruleset.uc b/root/usr/share/firewall4/templates/ruleset.uc
+index 2bec4d9..9683129 100644
+--- a/root/usr/share/firewall4/templates/ruleset.uc
++++ b/root/usr/share/firewall4/templates/ruleset.uc
+@@ -126,7 +126,7 @@ table inet fw4 {
+ 		{%+ include("zone-jump.uc", { fw4, zone, rule, direction: "input" }) %}
+ {% endfor; endfor %}
+ {% if (fw4.input_policy() == "reject"): %}
+-		jump handle_reject
++		goto handle_reject
+ {% endif %}
+ {% fw4.includes('chain-append', 'input') %}
+ 	}
+@@ -147,7 +147,7 @@ table inet fw4 {
+ {% endfor; endfor %}
+ {% fw4.includes('chain-append', 'forward') %}
+ {% if (fw4.forward_policy() == "reject"): %}
+-		jump handle_reject
++		goto handle_reject
+ {% endif %}
+ 	}
+ 
+@@ -175,7 +175,7 @@ table inet fw4 {
+ {% endfor %}
+ {% fw4.includes('chain-append', 'output') %}
+ {% if (fw4.output_policy() == "reject"): %}
+-		jump handle_reject
++		goto handle_reject
+ {% endif %}
+ 	}
+ 
+@@ -195,6 +195,9 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++{% if (!fw4.default_option("drop_invalid")): %}
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
++{% endif %}
+ 		meta l4proto tcp reject with {{
+ 			(fw4.default_option("tcp_reject_code") != "tcp-reset")
+ 				? `icmpx type ${fw4.default_option("tcp_reject_code")}`
+diff --git a/root/usr/share/firewall4/templates/zone-verdict.uc b/root/usr/share/firewall4/templates/zone-verdict.uc
+index 61dd06e..1a4ceb6 100644
+--- a/root/usr/share/firewall4/templates/zone-verdict.uc
++++ b/root/usr/share/firewall4/templates/zone-verdict.uc
+@@ -10,7 +10,7 @@
+ {%+  if (verdict != "accept" && (zone.log & 1)): -%}
+ 	log prefix "{{ verdict }} {{ zone.name }} {{ egress ? "out" : "in" }}: " {%+ endif -%}
+ {%   if (verdict == "reject"): -%}
+-	jump handle_reject comment "!fw4: reject {{ zone.name }} {{ fw4.nfproto(rule.family, true) }} traffic"
++	goto handle_reject comment "!fw4: reject {{ zone.name }} {{ fw4.nfproto(rule.family, true) }} traffic"
+ {%   else -%}
+ 	{{ verdict }} comment "!fw4: {{ verdict }} {{ zone.name }} {{ fw4.nfproto(rule.family, true) }} traffic"
+ {%   endif -%}
+diff --git a/tests/01_configuration/01_ruleset b/tests/01_configuration/01_ruleset
+index 108dff9..e5b92e8 100644
+--- a/tests/01_configuration/01_ruleset
++++ b/tests/01_configuration/01_ruleset
+@@ -116,7 +116,7 @@ table inet fw4 {
+ 		tcp flags & (fin | syn | rst | ack) == syn jump syn_flood comment "!fw4: Rate limit TCP syn packets"
+ 		iifname "br-lan" jump input_lan comment "!fw4: Handle lan IPv4/IPv6 input traffic"
+ 		iifname "pppoe-wan" jump input_wan comment "!fw4: Handle wan IPv4/IPv6 input traffic"
+-		jump handle_reject
++		goto handle_reject
+ 	}
+ 
+ 	chain forward {
+@@ -126,7 +126,7 @@ table inet fw4 {
+ 		ct state vmap { established : accept, related : accept } comment "!fw4: Handle forwarded flows"
+ 		iifname "br-lan" jump forward_lan comment "!fw4: Handle lan IPv4/IPv6 forward traffic"
+ 		iifname "pppoe-wan" jump forward_wan comment "!fw4: Handle wan IPv4/IPv6 forward traffic"
+-		jump handle_reject
++		goto handle_reject
+ 	}
+ 
+ 	chain output {
+@@ -146,6 +146,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+@@ -220,11 +221,11 @@ table inet fw4 {
+ 	}
+ 
+ 	chain reject_from_wan {
+-		iifname "pppoe-wan" counter jump handle_reject comment "!fw4: reject wan IPv4/IPv6 traffic"
++		iifname "pppoe-wan" counter goto handle_reject comment "!fw4: reject wan IPv4/IPv6 traffic"
+ 	}
+ 
+ 	chain reject_to_wan {
+-		oifname "pppoe-wan" counter jump handle_reject comment "!fw4: reject wan IPv4/IPv6 traffic"
++		oifname "pppoe-wan" counter goto handle_reject comment "!fw4: reject wan IPv4/IPv6 traffic"
+ 	}
+ 
+ 
+diff --git a/tests/01_configuration/02_rule_order b/tests/01_configuration/02_rule_order
+index c5c52a4..17bf7a0 100644
+--- a/tests/01_configuration/02_rule_order
++++ b/tests/01_configuration/02_rule_order
+@@ -121,6 +121,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/02_zones/01_policies b/tests/02_zones/01_policies
+index e956ad4..83eb015 100644
+--- a/tests/02_zones/01_policies
++++ b/tests/02_zones/01_policies
+@@ -129,6 +129,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+@@ -195,11 +196,11 @@ table inet fw4 {
+ 	}
+ 
+ 	chain reject_from_test3 {
+-		iifname "zone3" counter jump handle_reject comment "!fw4: reject test3 IPv4/IPv6 traffic"
++		iifname "zone3" counter goto handle_reject comment "!fw4: reject test3 IPv4/IPv6 traffic"
+ 	}
+ 
+ 	chain reject_to_test3 {
+-		oifname "zone3" counter jump handle_reject comment "!fw4: reject test3 IPv4/IPv6 traffic"
++		oifname "zone3" counter goto handle_reject comment "!fw4: reject test3 IPv4/IPv6 traffic"
+ 	}
+ 
+ 
+diff --git a/tests/02_zones/02_masq b/tests/02_zones/02_masq
+index aedc9bd..5916e02 100644
+--- a/tests/02_zones/02_masq
++++ b/tests/02_zones/02_masq
+@@ -130,6 +130,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+@@ -188,11 +189,11 @@ table inet fw4 {
+ 	}
+ 
+ 	chain reject_from_test3 {
+-		iifname "zone3" counter jump handle_reject comment "!fw4: reject test3 IPv4/IPv6 traffic"
++		iifname "zone3" counter goto handle_reject comment "!fw4: reject test3 IPv4/IPv6 traffic"
+ 	}
+ 
+ 	chain reject_to_test3 {
+-		oifname "zone3" counter jump handle_reject comment "!fw4: reject test3 IPv4/IPv6 traffic"
++		oifname "zone3" counter goto handle_reject comment "!fw4: reject test3 IPv4/IPv6 traffic"
+ 	}
+ 
+ 
+diff --git a/tests/02_zones/03_masq_src_dest_restrictions b/tests/02_zones/03_masq_src_dest_restrictions
+index e173601..a3b17ac 100644
+--- a/tests/02_zones/03_masq_src_dest_restrictions
++++ b/tests/02_zones/03_masq_src_dest_restrictions
+@@ -150,6 +150,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/02_zones/04_masq_allow_invalid b/tests/02_zones/04_masq_allow_invalid
+index d5d1ccf..9afd73f 100644
+--- a/tests/02_zones/04_masq_allow_invalid
++++ b/tests/02_zones/04_masq_allow_invalid
+@@ -96,6 +96,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/02_zones/04_wildcard_devices b/tests/02_zones/04_wildcard_devices
+index 5e6809a..35fdda2 100644
+--- a/tests/02_zones/04_wildcard_devices
++++ b/tests/02_zones/04_wildcard_devices
+@@ -179,6 +179,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/02_zones/05_subnet_mask_matches b/tests/02_zones/05_subnet_mask_matches
+index 55c5635..10713a9 100644
+--- a/tests/02_zones/05_subnet_mask_matches
++++ b/tests/02_zones/05_subnet_mask_matches
+@@ -118,6 +118,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/02_zones/06_family_selections b/tests/02_zones/06_family_selections
+index d766be7..8726a96 100644
+--- a/tests/02_zones/06_family_selections
++++ b/tests/02_zones/06_family_selections
+@@ -177,6 +177,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/02_zones/07_helpers b/tests/02_zones/07_helpers
+index e4955a1..749a3b1 100644
+--- a/tests/02_zones/07_helpers
++++ b/tests/02_zones/07_helpers
+@@ -206,6 +206,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/02_zones/08_log_limit b/tests/02_zones/08_log_limit
+index 02bd201..1239289 100644
+--- a/tests/02_zones/08_log_limit
++++ b/tests/02_zones/08_log_limit
+@@ -281,6 +281,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/03_rules/01_direction b/tests/03_rules/01_direction
+index 535ffcb..e6fd3a2 100644
+--- a/tests/03_rules/01_direction
++++ b/tests/03_rules/01_direction
+@@ -97,6 +97,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/03_rules/02_enabled b/tests/03_rules/02_enabled
+index 9c14ed9..9d739b2 100644
+--- a/tests/03_rules/02_enabled
++++ b/tests/03_rules/02_enabled
+@@ -92,6 +92,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/03_rules/03_constraints b/tests/03_rules/03_constraints
+index 76f4c0c..c573839 100644
+--- a/tests/03_rules/03_constraints
++++ b/tests/03_rules/03_constraints
+@@ -131,6 +131,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/03_rules/04_icmp b/tests/03_rules/04_icmp
+index f9eec47..57ad177 100644
+--- a/tests/03_rules/04_icmp
++++ b/tests/03_rules/04_icmp
+@@ -104,6 +104,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/03_rules/05_mangle b/tests/03_rules/05_mangle
+index fbb8141..72afb18 100644
+--- a/tests/03_rules/05_mangle
++++ b/tests/03_rules/05_mangle
+@@ -208,6 +208,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/03_rules/06_subnet_mask_matches b/tests/03_rules/06_subnet_mask_matches
+index b397066..e0095ea 100644
+--- a/tests/03_rules/06_subnet_mask_matches
++++ b/tests/03_rules/06_subnet_mask_matches
+@@ -175,6 +175,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/03_rules/07_redirect b/tests/03_rules/07_redirect
+index 80e24bb..0a85d64 100644
+--- a/tests/03_rules/07_redirect
++++ b/tests/03_rules/07_redirect
+@@ -196,6 +196,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/03_rules/08_family_inheritance b/tests/03_rules/08_family_inheritance
+index 679f3b9..53da94a 100644
+--- a/tests/03_rules/08_family_inheritance
++++ b/tests/03_rules/08_family_inheritance
+@@ -227,6 +227,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/03_rules/09_time b/tests/03_rules/09_time
+index 63c7724..53cbb3e 100644
+--- a/tests/03_rules/09_time
++++ b/tests/03_rules/09_time
+@@ -173,6 +173,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/03_rules/10_notrack b/tests/03_rules/10_notrack
+index 470f922..769b387 100644
+--- a/tests/03_rules/10_notrack
++++ b/tests/03_rules/10_notrack
+@@ -137,6 +137,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/03_rules/11_log b/tests/03_rules/11_log
+index f777291..53a489a 100644
+--- a/tests/03_rules/11_log
++++ b/tests/03_rules/11_log
+@@ -139,6 +139,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/03_rules/12_mark b/tests/03_rules/12_mark
+index 2744096..f4a9d79 100644
+--- a/tests/03_rules/12_mark
++++ b/tests/03_rules/12_mark
+@@ -120,6 +120,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/04_forwardings/01_family_selections b/tests/04_forwardings/01_family_selections
+index 029501a..305d0ee 100644
+--- a/tests/04_forwardings/01_family_selections
++++ b/tests/04_forwardings/01_family_selections
+@@ -123,6 +123,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/05_ipsets/01_declaration b/tests/05_ipsets/01_declaration
+index 60c1514..0222359 100644
+--- a/tests/05_ipsets/01_declaration
++++ b/tests/05_ipsets/01_declaration
+@@ -110,6 +110,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/05_ipsets/02_usage b/tests/05_ipsets/02_usage
+index 81ed6ed..8d58d60 100644
+--- a/tests/05_ipsets/02_usage
++++ b/tests/05_ipsets/02_usage
+@@ -190,6 +190,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/06_includes/01_nft_includes b/tests/06_includes/01_nft_includes
+index d267f5c..c6e81e3 100644
+--- a/tests/06_includes/01_nft_includes
++++ b/tests/06_includes/01_nft_includes
+@@ -183,6 +183,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/06_includes/02_firewall.user_include b/tests/06_includes/02_firewall.user_include
+index 1f83b04..ab4099a 100644
+--- a/tests/06_includes/02_firewall.user_include
++++ b/tests/06_includes/02_firewall.user_include
+@@ -118,6 +118,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/06_includes/04_disabled_include b/tests/06_includes/04_disabled_include
+index 5b69540..b0a1ea0 100644
+--- a/tests/06_includes/04_disabled_include
++++ b/tests/06_includes/04_disabled_include
+@@ -124,6 +124,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}
+diff --git a/tests/06_includes/05_automatic_includes b/tests/06_includes/05_automatic_includes
+index 83322b9..cafff44 100644
+--- a/tests/06_includes/05_automatic_includes
++++ b/tests/06_includes/05_automatic_includes
+@@ -124,6 +124,7 @@ table inet fw4 {
+ 	}
+ 
+ 	chain handle_reject {
++		ct state invalid counter drop comment "!fw4: drop invalid packets before reject"
+ 		meta l4proto tcp reject with tcp reset comment "!fw4: Reject TCP traffic"
+ 		reject with icmpx type port-unreachable comment "!fw4: Reject any other traffic"
+ 	}

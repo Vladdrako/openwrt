@@ -1,0 +1,26 @@
+From f29ec76ebfbfedd0c184c3540eca00a875dc2580 Mon Sep 17 00:00:00 2001
+From: BrainSlayer <s.gottschall@dd-wrt.com>
+Date: Wed, 18 Jun 2025 08:12:57 +0000
+Subject: [PATCH] this is for testing
+
+git-svn-id: svn://svn.dd-wrt.com/DD-WRT@61813 52c4871e-980c-0410-b1e0-e73912ce01f8
+---
+ .../qca-nss-dp/hal/dp_ops/edma_dp/edma_v1/edma_data_plane.c  | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/router/qca-nss/qca-nss-dp/hal/dp_ops/edma_dp/edma_v1/edma_data_plane.c b/src/router/qca-nss/qca-nss-dp/hal/dp_ops/edma_dp/edma_v1/edma_data_plane.c
+index 807ceee1b35c..1f2646f8b530 100644
+--- a/hal/dp_ops/edma_dp/edma_v1/edma_data_plane.c
++++ b/hal/dp_ops/edma_dp/edma_v1/edma_data_plane.c
+@@ -605,6 +605,11 @@ static void edma_if_set_features(struct nss_dp_data_plane_ctx *dpc)
+ {
+ 	struct net_device *netdev = dpc->dev;
+ 
++	netdev->features |= NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_FRAGLIST | NETIF_F_SG;
++	netdev->hw_features |= NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_FRAGLIST | NETIF_F_SG;
++	netdev->vlan_features |= NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_FRAGLIST | NETIF_F_SG;
++	netdev->wanted_features |= NETIF_F_HW_CSUM | NETIF_F_RXCSUM | NETIF_F_FRAGLIST | NETIF_F_SG;
++
+ 	netdev->features |= NETIF_F_GRO;
+ 	netdev->hw_features |= NETIF_F_GRO;
+ 	netdev->vlan_features |= NETIF_F_GRO;

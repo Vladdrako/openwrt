@@ -1,0 +1,82 @@
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -38,6 +38,7 @@
+ #include "sta_info.h"
+ #include "ieee802_1x.h"
+ #include "wpa_auth.h"
++#include "wpa_auth_i.h"
+ #include "pmksa_cache_auth.h"
+ #include "wmm.h"
+ #include "ap_list.h"
+@@ -440,6 +441,31 @@ static int send_auth_reply(struct hostap
+
+
+ #ifdef CONFIG_IEEE80211R_AP
++static void ft_reassign_psk_vlan(struct hostapd_data *hapd, struct sta_info *sta)
++{
++	const u8 *pmk;
++	struct hostapd_wpa_psk *psk;
++	int pmk_len;
++
++	if (!sta || !sta->wpa_sm)
++		return;
++
++	pmk = wpa_auth_get_pmk(sta->wpa_sm, &pmk_len);
++	if (!pmk || pmk_len != PMK_LEN)
++		return;
++
++	/* Find matching PSK for VLAN assignment after FT roam */
++	for (psk = hapd->conf->ssid.wpa_psk; psk; psk = psk->next) {
++		if (os_memcmp(pmk, psk->psk, PMK_LEN) == 0) {
++			wpa_printf(MSG_INFO, "FT: Found matching PSK for " MACSTR " (vlan_id=%d)", MAC2STR(sta->addr), psk->vlan_id);
++			sta->vlan_id = psk->vlan_id;
++			if (hapd->conf->ssid.dynamic_vlan)
++				ap_sta_set_vlan(hapd, sta, sta->vlan_desc);
++			break;
++		}
++	}
++}
++
+ static void handle_auth_ft_finish(void *ctx, const u8 *dst,
+ 				  u16 auth_transaction, u16 status,
+ 				  const u8 *ies, size_t ies_len)
+@@ -466,6 +492,9 @@ static void handle_auth_ft_finish(void *
+ 	if (status != WLAN_STATUS_SUCCESS)
+ 		return;
+
++	/* Ensure PSK-to-VLAN mapping is properly established for FT roam */
++	ft_reassign_psk_vlan(hapd, sta);
++
+ 	hostapd_logger(hapd, dst, HOSTAPD_MODULE_IEEE80211,
+ 		       HOSTAPD_LEVEL_DEBUG, "authentication OK (FT)");
+ 	sta->flags |= WLAN_STA_AUTH;
+@@ -4526,6 +4555,11 @@ static int __check_assoc_ies(struct host
+ 						       ies_len);
+ 			if (resp != WLAN_STATUS_SUCCESS)
+ 				return resp;
++			/* Re-evaluate VLAN assignment after FT reassociation */
++			if (hapd->conf->ssid.dynamic_vlan) {
++				wpa_printf(MSG_INFO, "FT: Re-evaluating VLAN for " MACSTR, MAC2STR(sta->addr));
++				ft_reassign_psk_vlan(hapd, sta);
++			}
+ 		}
+ #endif /* CONFIG_IEEE80211R_AP */
+
+--- a/src/ap/sta_info.c
++++ b/src/ap/sta_info.c
+@@ -1527,9 +1527,15 @@ const char * ap_sta_wpa_get_keyid(struct
+ 	if (!pmk || pmk_len != PMK_LEN)
+ 		return NULL;
+
++	wpa_printf(MSG_INFO, "ap_sta_wpa_get_keyid: Looking for PSK match for " MACSTR, MAC2STR(sta->addr));
++	wpa_hexdump_key(MSG_INFO, "PMK", pmk, pmk_len);
++
+ 	for (psk = ssid->wpa_psk; psk; psk = psk->next)
+-		if (os_memcmp(pmk, psk->psk, PMK_LEN) == 0)
++		if (os_memcmp(pmk, psk->psk, PMK_LEN) == 0) {
++			wpa_printf(MSG_INFO, "Found matching PSK (keyid='%s', vlan_id=%d)", psk->keyid, psk->vlan_id);
+ 			break;
++		}
++
+ 	if (!psk || !psk->keyid[0])
+ 		return NULL;

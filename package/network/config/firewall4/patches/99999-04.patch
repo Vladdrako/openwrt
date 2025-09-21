@@ -1,0 +1,46 @@
+From 0e76fb41e6dc4fbeab71ae15426b03603aee3b70 Mon Sep 17 00:00:00 2001
+From: Andris PE <neandris@gmail.com>
+Date: Wed, 9 Apr 2025 05:40:43 +0000
+Subject: [PATCH] Re-order loopback accept
+
+@feckert 's idea of pre-including rules before loopback
+https://github.com/openwrt/firewall4/pull/55
+
+Remove iif lo check from each packet
+Part https://github.com/openwrt/firewall4/pull/22
+
+Improves: a5553dae70439c7e4fa910490fcf12a1ffff5bd2
+
+Signed-off-by: Andris PE <neandris@gmail.com>
+---
+ root/usr/share/firewall4/templates/ruleset.uc | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/root/usr/share/firewall4/templates/ruleset.uc b/root/usr/share/firewall4/templates/ruleset.uc
+index 2bec4d9..21dbc82 100644
+--- a/root/usr/share/firewall4/templates/ruleset.uc
++++ b/root/usr/share/firewall4/templates/ruleset.uc
+@@ -112,10 +112,9 @@
+ 	chain input {
+ 		type filter hook input priority filter; policy {{ fw4.input_policy(true) }};
+ 
+-		iif "lo" accept comment "!fw4: Accept traffic from loopback"
+-
+ {% fw4.includes('chain-prepend', 'input') %}
+ 		ct state established,related accept comment "!fw4: Accept inbound flows"
++		iif "lo" accept comment "!fw4: Accept traffic from loopback"
+ {% if (fw4.default_option("synflood_protect") && fw4.default_option("synflood_rate")): %}
+ 		tcp flags & (fin | syn | rst | ack) == syn jump syn_flood comment "!fw4: Rate limit TCP syn packets"
+ {% endif %}
+@@ -154,10 +153,9 @@
+ 	chain output {
+ 		type filter hook output priority filter; policy {{ fw4.output_policy(true) }};
+ 
+-		oif "lo" accept comment "!fw4: Accept traffic towards loopback"
+-
+ {% fw4.includes('chain-prepend', 'output') %}
+ 		ct state established,related accept comment "!fw4: Accept outbound flows"
++		oif "lo" accept comment "!fw4: Accept traffic towards loopback"
+ {% for (let rule in fw4.rules("output")): %}
+ 		{%+ include("rule.uc", { fw4, zone: null, rule }) %}
+ {% endfor %}

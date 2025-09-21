@@ -1,0 +1,79 @@
+From 1073536de65dc2d6dcd5a6b16c50c6fe38c1ff58 Mon Sep 17 00:00:00 2001
+From: Andris PE <neandris@gmail.com>
+Date: Sat, 1 Feb 2025 12:52:52 +0000
+Subject: [PATCH] Drop unaccounted icmp6 packets
+
+Drop ICMPv6 packets that are not explicitly allowed, like falling
+outside conntrack due to missing embedded state header like in
+referenced issue
+
+Add older patch and omit singular echo reply as it is traditionally seen only in
+conntrack state only initiated by echo request
+
+Fixes: https://github.com/openwrt/openwrt/issues/17800
+Supersedes: https://github.com/openwrt/openwrt/pull/17805
+Supersedes: https://github.com/openwrt/firewall4/pull/38
+Signed-off-by:
+---
+ root/etc/config/firewall | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/root/etc/config/firewall b/root/etc/config/firewall
+index d78a00c..59775e6 100644
+--- a/root/etc/config/firewall
++++ b/root/etc/config/firewall
+@@ -81,7 +81,7 @@ config rule
+ 	option src		wan
+ 	option proto	icmp
+ 	list icmp_type		echo-request
+-	list icmp_type		echo-reply
++	# list icmp_type		echo-reply
+ 	list icmp_type		destination-unreachable
+ 	list icmp_type		packet-too-big
+ 	list icmp_type		time-exceeded
+@@ -91,10 +91,18 @@ config rule
+ 	list icmp_type		neighbour-solicitation
+ 	list icmp_type		router-advertisement
+ 	list icmp_type		neighbour-advertisement
++	# list icmo_type		fragmentation-needed
+ 	option limit		1000/sec
+ 	option family		ipv6
+ 	option target		ACCEPT
+ 
++config rule
++	option name		Drop-ICMPv6-Excess
++	option src		wan
++	option proto		icmp
++	option family		ipv6
++	option target		DROP
++
+ # Allow essential forwarded IPv6 ICMP traffic
+ config rule
+ 	option name		Allow-ICMPv6-Forward
+@@ -102,16 +110,25 @@ config rule
+ 	option dest		*
+ 	option proto		icmp
+ 	list icmp_type		echo-request
+-	list icmp_type		echo-reply
++	# list icmp_type		echo-reply
+ 	list icmp_type		destination-unreachable
+ 	list icmp_type		packet-too-big
+ 	list icmp_type		time-exceeded
+ 	list icmp_type		bad-header
+ 	list icmp_type		unknown-header-type
++	# list icmo_type		fragmentation-needed
+ 	option limit		1000/sec
+ 	option family		ipv6
+ 	option target		ACCEPT
+ 
++config rule
++	option name		Drop-ICMPv6-Forward-Excess
++	option sec		wan
++	option dest		*
++	option proto		icmp
++	option family		ipv6
++	option target		DROP
++
+ config rule
+ 	option name		Allow-IPSec-ESP
+ 	option src		wan

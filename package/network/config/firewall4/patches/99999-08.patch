@@ -1,0 +1,54 @@
+From c8427856e7b600197ce7435cfa6b42c23ea7935b Mon Sep 17 00:00:00 2001
+From: Andris PE <neandris@gmail.com>
+Date: Sat, 31 May 2025 06:36:48 +0000
+Subject: [PATCH] config: strict ip6 ipsec matches
+
+ip4 part never served any purpose except confusing users
+eg https://github.com/openwrt/firewall4/issues/53
+Permit only IKE conformant to RFC, ip4 NAT traversal has different port
+and terminating on the router can be handled by ipsec policy filtering.
+
+Fixes: https://github.com/openwrt/openwrt/commit/8fb39f168249f15697ab930245ad08ea66a1b926
+Signed-off-by: Andris PE <neandris@gmail.com>
+---
+ root/etc/config/firewall | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/root/etc/config/firewall b/root/etc/config/firewall
+index 48b2440..61607fa 100644
+--- a/root/etc/config/firewall
++++ b/root/etc/config/firewall
+@@ -113,20 +113,31 @@ config rule
+ 	option target		ACCEPT
+ 
+ config rule
+-	option name		Allow-IPSec-ESP
++	option name		Allow-IPv6-IPSec-ESP
+ 	option src		wan
+ 	option dest		lan
+ 	option proto		esp
++	option family		ipv6
+ 	option target		ACCEPT
+ 
+ config rule
+-	option name		Allow-ISAKMP
++	option name		Allow-IPv6-IKE
+ 	option src		wan
+ 	option dest		lan
++	option src_port		500
+ 	option dest_port	500
+ 	option proto		udp
++	option family		ipv6
+ 	option target		ACCEPT
+ 
++config rule
++	option name		Drop-IPv6-IKE-Unsolicited
++	option src		wan
++	option dest		lan
++	option dest_port	500
++	option proto		udp
++	option family		ipv6
++	option target		DROP
+ 
+ ### EXAMPLE CONFIG SECTIONS
+ # do not allow a specific ip to access wan

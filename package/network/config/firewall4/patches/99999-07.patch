@@ -1,0 +1,58 @@
+From 20f0498ad833b0f82f9d00edd6e4f4754d8d0c90 Mon Sep 17 00:00:00 2001
+From: Andris PE <neandris@gmail.com>
+Date: Thu, 15 May 2025 17:53:03 +0000
+Subject: [PATCH] config: Make DHCP and DHCPv6 response rules strict
+
+Non-server DHCPx responses indicated by non-standard sport are already
+discarded by client, reflect that in firewall rule avoiding unnecessary
+ct state buildup wasting ct resources
+
+Signed-off-by: Andris PE <neandris@gmail.com>
+---
+ root/etc/config/firewall | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/root/etc/config/firewall b/root/etc/config/firewall
+index 48b2440..0c0e2c2 100644
+--- a/root/etc/config/firewall
++++ b/root/etc/config/firewall
+@@ -33,10 +33,19 @@ config rule
+ 	option name		Allow-DHCP-Renew
+ 	option src		wan
+ 	option proto		udp
++	option src_port		67
+ 	option dest_port	68
+ 	option target		ACCEPT
+ 	option family		ipv4
+ 
++config rule
++	option name		Drop-DHCP-Unsolicited
++	option src		wan
++	option proto		udp
++	option dst_port		68
++	option target		DROP
++	option family		ipv4
++
+ # Allow IPv4 ping
+ config rule
+ 	option name		Allow-Ping
+@@ -59,10 +68,19 @@ config rule
+ 	option name		Allow-DHCPv6
+ 	option src		wan
+ 	option proto		udp
++	option src_port		547
+ 	option dest_port	546
+ 	option family		ipv6
+ 	option target		ACCEPT
+ 
++config rule
++	option name		Drop-DHCPv6-Unsolicited
++	option src		wan
++	option proto		udp
++	option dest_port	546
++	option family		ipv6
++	option target		DROP
++
+ config rule
+ 	option name		Allow-MLD
+ 	option src		wan

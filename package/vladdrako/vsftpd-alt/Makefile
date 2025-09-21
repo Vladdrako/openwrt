@@ -9,12 +9,13 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=vsftpd-alt
 PKG_VERSION:=3.0.5
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=vsftpd-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://security.appspot.com/downloads/
 PKG_HASH:=26b602ae454b0ba6d99ef44a09b6b9e0dfa7f67228106736df1f278c70bc91d3
 PKG_LICENSE:=GPLv2
+PKG_CPE_ID:=cpe:/a:vsftpd_project:vsftpd
 
 BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
 PKG_BUILD_DIR:=$(BUILD_DIR)/vsftpd-$(PKG_VERSION)
@@ -28,8 +29,12 @@ define Package/vsftpd-alt/Default
   TITLE:=A fast and secure FTP server (with aio support)
   URL:=http://vsftpd.beasts.org/
   MAINTAINER:=Cezary Jackiewicz <cezary@eko.one.pl>
-  DEPENDS=+libuci +libopenssl
+  DEPENDS=+libuci 
+  #+PACKAGE_libpam:libpam 
 endef
+
+TARGET_CFLAGS += -ffunction-sections -fdata-sections -flto
+TARGET_LDFLAGS += -Wl,--gc-sections,--as-needed,--no-undefined,--no-allow-shlib-undefined
 
 define Package/vsftpd-alt/conffiles
 /etc/vsftpd.conf
@@ -44,6 +49,7 @@ endef
 
 ifneq ($(CONFIG_USE_MUSL),)
   NLSSTRING:=-lcrypt
+  TARGET_CFLAGS += -D_LARGEFILE64_SOURCE
 else ifneq ($(CONFIG_USE_GLIBC),)
   NLSSTRING:=-lcrypt
 else
@@ -57,8 +63,6 @@ $(call Package/vsftpd-alt/Default)
 endef
 
 define Build/Compile
-	$(SED) 's/#undef VSF_BUILD_SSL/#define VSF_BUILD_SSL/' $(PKG_BUILD_DIR)/builddefs.h
-	$(SED) 's/-lcrypt -lnsl/-lcrypt -lnsl -lssl -lcrypto/' $(PKG_BUILD_DIR)/Makefile
 	$(SED) 's/-lcrypt -lnsl/$(NLSSTRING)/' $(PKG_BUILD_DIR)/Makefile
 	$(MAKE) -C $(PKG_BUILD_DIR) \
 		CC="$(TARGET_CC)" \
