@@ -1135,6 +1135,23 @@ index dd6a14392da6..b3ee9ce25c22 100644
  
  			#phy-cells = <0>;
  
+@@ -704,16 +704,6 @@
+ 			pinctrl-0 = <&qpic_pins>;
+ 			pinctrl-names = "default";
+ 			status = "disabled";
+-
+-			pcie@0 {
+-				device_type = "pci";
+-				reg = <0x0 0x0 0x0 0x0 0x0>;
+-				bus-range = <0x01 0xff>;
+-
+-				#address-cells = <3>;
+-				#size-cells = <2>;
+-				ranges;
+-			};
+ 		};
+ 
+ 		sram@8600000 {
 @@ -804,7 +806,7 @@
  			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
  			ranges = <0 0 0 0xb00a000 0 0xffd>;
@@ -1158,6 +1175,31 @@ index dd6a14392da6..b3ee9ce25c22 100644
  
  			ranges = <0x81000000 0x0 0x00000000 0x0 0x20200000 0x0 0x10000>,
  				 <0x82000000 0x0 0x20220000 0x0 0x20220000 0x0 0xfde0000>;
+@@ -1118,10 +1118,11 @@
+ 				      "ahb",
+ 				      "axi_m_sticky",
+ 				      "axi_s_sticky";
+-
+-			status = "disabled";
+-
+-			pcie@0 {
++/*			msi-parent = <&v2m0>;*/
++			perst-gpios = <&tlmm 60 GPIO_ACTIVE_LOW>;
++			status = "disabled";
++
++/*			pcie@0 {
+ 				device_type = "pci";
+ 				reg = <0x0 0x0 0x0 0x0 0x0>;
+ 				bus-range = <0x01 0xff>;
+@@ -1129,7 +1130,7 @@
+ 				#address-cells = <3>;
+ 				#size-cells = <2>;
+ 				ranges;
+-			};
++			};*/
+ 		};
+ 	};
+ 
 --- a/arch/arm64/boot/dts/qcom/ipq6018-mp5496.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018-mp5496.dtsi
 @@ -5,22 +5,6 @@
