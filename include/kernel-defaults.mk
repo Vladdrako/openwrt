@@ -110,16 +110,6 @@ define Kernel/SetNoInitramfs
 	echo "# CONFIG_INITRAMFS_PRESERVE_MTIME is not set" >> $(LINUX_DIR)/.config.set
 endef
 
-define Kernel/Configure/Squashfs
-	mv $(LINUX_DIR)/.config.set $(LINUX_DIR)/.config.old
-	grep -Ev 'CONFIG_SQUASHFS_(ZLIB|LZ4|LZO|XZ|ZSTD)' $(LINUX_DIR)/.config.old > $(LINUX_DIR)/.config.set || /bin/true
-	echo "$(if $(CONFIG_KERNEL_SQUASHFS_GZIP),CONFIG_SQUASHFS_ZLIB=y,# CONFIG_SQUASHFS_ZLIB is not set)" >> $(LINUX_DIR)/.config.set
-	echo "$(if $(CONFIG_KERNEL_SQUASHFS_LZ4),CONFIG_SQUASHFS_LZ4=y,# CONFIG_SQUASHFS_LZ4 is not set)" >> $(LINUX_DIR)/.config.set
-	echo "$(if $(CONFIG_KERNEL_SQUASHFS_LZO),CONFIG_SQUASHFS_LZO=y,# CONFIG_SQUASHFS_LZO is not set)" >> $(LINUX_DIR)/.config.set
-	echo "$(if $(CONFIG_KERNEL_SQUASHFS_XZ),CONFIG_SQUASHFS_XZ=y,# CONFIG_SQUASHFS_XZ is not set)" >> $(LINUX_DIR)/.config.set
-	echo "$(if $(CONFIG_KERNEL_SQUASHFS_ZSTD),CONFIG_SQUASHFS_ZSTD=y,# CONFIG_SQUASHFS_ZSTD is not set)" >> $(LINUX_DIR)/.config.set
-endef
-
 define Kernel/Configure/Default
 	rm -f $(LINUX_DIR)/localversion
 	$(LINUX_CONF_CMD) > $(LINUX_DIR)/.config.target
@@ -131,7 +121,6 @@ define Kernel/Configure/Default
 	$(SCRIPT_DIR)/package-metadata.pl kconfig $(TMP_DIR)/.packageinfo $(TOPDIR)/.config $(KERNEL_PATCHVER) > $(LINUX_DIR)/.config.override
 	$(SCRIPT_DIR)/kconfig.pl 'm+' '+' $(LINUX_DIR)/.config.target /dev/null $(LINUX_DIR)/.config.override > $(LINUX_DIR)/.config.set
 	$(call Kernel/SetNoInitramfs)
-	$(call Kernel/Configure/Squashfs)
 	rm -rf $(KERNEL_BUILD_DIR)/modules
 	cmp -s $(LINUX_DIR)/.config.set $(LINUX_DIR)/.config.prev || { \
 		cp $(LINUX_DIR)/.config.set $(LINUX_DIR)/.config; \
@@ -197,9 +186,9 @@ ifneq ($(CONFIG_TARGET_ROOTFS_INITRAMFS),)
 define Kernel/CompileImage/Initramfs
 	$(call locked,{ \
 		$(if $(2),$(call Kernel/PrepareConfigPerRootfs,$(LINUX_DIR)$(2));) \
-		$(call Kernel/Configure/Initramfs,$(1),$(LINUX_DIR)$(2)); \
-		$(CP) $(GENERIC_PLATFORM_DIR)/other-files/init $(1)/init; \
-		$(if $(SOURCE_DATE_EPOCH),touch -hcd "@$(SOURCE_DATE_EPOCH)" $(1) $(1)/init;) \
+		$(call Kernel/Configure/Initramfs,$(if $(1),$(1),$(TARGET_DIR)),$(LINUX_DIR)$(2)); \
+		$(CP) $(GENERIC_PLATFORM_DIR)/other-files/init $(if $(1),$(1),$(TARGET_DIR))/init; \
+		$(if $(SOURCE_DATE_EPOCH),touch -hcd "@$(SOURCE_DATE_EPOCH)" $(if $(1),$(1),$(TARGET_DIR)) $(if $(1),$(1),$(TARGET_DIR))/init;) \
 		rm -rf $(LINUX_DIR)$(2)/usr/initramfs_data.cpio*; \
 		$(if $(CONFIG_TARGET_ROOTFS_INITRAMFS_SEPARATE), \
 			$(call locked,{ \
@@ -223,10 +212,10 @@ define Kernel/CompileImage/Initramfs
 				$(if $(CONFIG_TARGET_INITRAMFS_COMPRESSION_ZSTD), \
 					$(STAGING_DIR_HOST)/bin/zstd -T0 -f -o $(KERNEL_BUILD_DIR)/initrd$(2).cpio.zstd $(KERNEL_BUILD_DIR)/initrd$(2).cpio;) \
 			}, gen-cpio$(2)); \
-			$(if $(2),,$(KERNEL_MAKE) $(KERNEL_MAKEOPTS_IMAGE) $(if $(KERNELNAME),$(KERNELNAME),all)); $\, \
-			$(KERNEL_MAKE) $(if $(2),-C $(LINUX_DIR)$(2)) $(KERNEL_MAKEOPTS_IMAGE) $(if $(KERNELNAME),$(KERNELNAME),all); $\) \
+			$(if $(2),,$(KERNEL_MAKE) $(KERNEL_MAKEOPTS_IMAGE) $(if $(KERNELNAME),$(KERNELNAME),all);),\
+			$(KERNEL_MAKE) $(if $(2),-C $(LINUX_DIR)$(2)) $(KERNEL_MAKEOPTS_IMAGE) $(if $(KERNELNAME),$(KERNELNAME),all);) \
 		$(call Kernel/CopyImage,-initramfs,$(2)); \
-		$(if $(2),rm -rf $(LINUX_DIR)$(2); $\) \
+		$(if $(2),rm -rf $(LINUX_DIR)$(2);) \
 	}, gen-initramfs$(2));
 endef
 else
