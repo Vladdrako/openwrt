@@ -1,0 +1,39 @@
+From: Mark Baker <mark@vpost.net>
+Date: Mon, 25 Aug 2025 17:50:00 +0500
+Subject: [PATCH] ubus: Lazy regenerate own NR in rrm_nr_get_own
+
+OpenWrt issue #16875 reports intermittent "Command failed: Not found" for
+`ubus call hostapd.wlanX rrm_nr_get_own` immediately after (re)starting
+hostapd. The handler already forces enabling the Neighbor Report capability
+via hostapd_rrm_nr_enable(), but the own neighbor entry may not yet exist at
+that instant (e.g. capability flag set before the helper populates the DB,
+or ordering with other init paths).
+
+Instead of failing outright, attempt a one-time lazy regeneration using
+hostapd_neighbor_set_own_report() if the lookup returns NULL, then retry.
+If it is still missing, return NOT_FOUND as before. Add debug level logs to
+aid future diagnosis without increasing normal verbosity.
+
+This change is minimal and only affects the NOT_FOUND corner case; the
+common fast path (entry present) is unchanged.
+
+--- a/src/ap/ubus.c
++++ b/src/ap/ubus.c
+@@ -1004,8 +1004,17 @@ hostapd_rrm_nr_get_own(struct ubus_conte
+ 	hostapd_rrm_nr_enable(hapd);
+
+ 	nr = hostapd_neighbor_get(hapd, hapd->own_addr, NULL);
+-	if (!nr)
++	if (!nr) {
++		wpa_printf(MSG_DEBUG,
++			"ubus: rrm_nr_get_own: own neighbor entry missing - regenerating");
++		hostapd_neighbor_set_own_report(hapd);
++		nr = hostapd_neighbor_get(hapd, hapd->own_addr, NULL);
++	}
++	if (!nr) {
++		wpa_printf(MSG_DEBUG,
++			"ubus: rrm_nr_get_own: still no own neighbor entry after regenerate");
+ 		return UBUS_STATUS_NOT_FOUND;
++	}
+
+ 	blob_buf_init(&b, 0);
