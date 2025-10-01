@@ -218,7 +218,8 @@ and https://openwrt.org/docs/techref/hardware/cryptographic.hardware.accelerator
 The engine_id is "padlock"
 endef
 
-OPENSSL_OPTIONS:= shared no-tests no-docs
+TARGET_LDFLAGS += -lpthread
+OPENSSL_OPTIONS := shared no-tests no-docs threads
 
 ifndef CONFIG_OPENSSL_WITH_BLAKE2
   OPENSSL_OPTIONS += no-blake2
@@ -358,10 +359,14 @@ ifdef CONFIG_i386
 endif
 
 ifndef CONFIG_OPENSSL_WITH_QUIC
+  OPENSSL_OPTIONS += no-quic
+else
   OPENSSL_OPTIONS += enable-quic
 endif
 
 ifndef CONFIG_OPENSSL_WITH_KTLS
+  OPENSSL_OPTIONS += no-ktls
+else
   OPENSSL_OPTIONS += enable-ktls
 endif
 
