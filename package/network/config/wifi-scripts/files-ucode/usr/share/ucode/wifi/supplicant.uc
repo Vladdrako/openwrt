@@ -276,7 +276,6 @@ export function generate(config_list, data, interface) {
 };
 
 export function setup(config, data) {
-	system(`ubus wait_for wpa_supplicant`);
 	let ret = global.ubus.call('wpa_supplicant', 'config_set', {
 		phy: data.phy,
 		radio: data.config.radio,
@@ -288,7 +287,7 @@ export function setup(config, data) {
 
 	if (ret)
 		netifd.add_process('/usr/sbin/wpa_supplicant', ret.pid, true, true);
-	else
+	else if (fs.access('/usr/sbin/wpa_supplicant', 'x'))
 		netifd.setup_failed('SUPPLICANT_START_FAILED');
 };
 
