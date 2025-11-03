@@ -94,7 +94,7 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
 +	struct ath11k_peer *peer;
 +
 +	spin_lock_bh(&ab->base_lock);
-+	peer = ath11k_peer_find(ar, arvif->vdev_id, addr);
++	peer = ath11k_peer_find(ab, arvif->vdev_id, addr);
 +	spin_unlock_bh(&ab->base_lock);
 +
 +	if (!peer)
