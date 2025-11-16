@@ -249,6 +249,7 @@ hostapd_prepare_device_config() {
 	done
 
 	[ -n "$rssi_reject_assoc_rssi" ] && append base_cfg "rssi_reject_assoc_rssi=$rssi_reject_assoc_rssi" "$N"
+	[ -n "$rssi_reject_assoc_timeout" ] && append base_cfg "rssi_reject_assoc_timeout=$rssi_reject_assoc_timeout" "$N"
 	[ -n "$rssi_ignore_probe_request" ] && append base_cfg "rssi_ignore_probe_request=$rssi_ignore_probe_request" "$N"
 	[ -n "$beacon_rate" ] && append base_cfg "beacon_rate=$beacon_rate" "$N"
 	[ -n "$rlist" ] && append base_cfg "supported_rates=$rlist" "$N"
