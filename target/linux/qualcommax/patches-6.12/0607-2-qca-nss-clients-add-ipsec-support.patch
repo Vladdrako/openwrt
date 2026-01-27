@@ -205,8 +205,8 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  		xfrm_dev_state_delete(x);
 +		xfrm_state_change_notify(x, XFRM_EVENT_STATE_DEL);
  
- 		/* All xfrm_state objects are created by xfrm_state_alloc.
- 		 * The xfrm_state_alloc call gives a reference, and that
+ 		xfrm_state_delete_tunnel(x);
+ 
 @@ -2998,6 +2997,20 @@ struct xfrm_state_afinfo *xfrm_state_get
  	return afinfo;
  }
@@ -228,9 +228,9 @@ Signed-off-by: Pavithra R <quic_pavir@quicinc.com>
  void xfrm_flush_gc(void)
  {
  	flush_work(&xfrm_state_gc_work);
-@@ -3019,38 +3032,16 @@ void xfrm_state_delete_tunnel(struct xfr
+@@ -3016,38 +3029,16 @@ static void xfrm_state_delete_tunnel(str
+ 	}
  }
- EXPORT_SYMBOL(xfrm_state_delete_tunnel);
  
 -u32 xfrm_state_mtu(struct xfrm_state *x, int mtu)
 +int xfrm_state_mtu(struct xfrm_state *x, int mtu)
