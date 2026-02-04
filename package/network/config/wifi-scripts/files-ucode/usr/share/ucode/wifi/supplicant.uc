@@ -61,7 +61,7 @@ export function ratelist(rates) {
 function setup_sta(data, config) {
 	iface.parse_encryption(config);
 
-	if (config.auth_type in [ 'sae', 'owe', 'eap2', 'eap192' ])
+	if (config.auth_type in [ 'sae', 'owe', 'eap2', 'eap192', 'dpp' ])
 		config.ieee80211w = 2;
 	else if (config.auth_type in [ 'psk-sae' ] && !config.ieee80211w)
 		config.ieee80211w = 1;
@@ -123,6 +123,10 @@ function setup_sta(data, config) {
 		break;
 
 	case 'owe':
+		iface.wpa_key_mgmt(config);
+		break;
+
+	case 'dpp':
 		iface.wpa_key_mgmt(config);
 		break;
 
@@ -192,6 +196,7 @@ function setup_sta(data, config) {
 		'anonymous_identity', 'client_cert', 'private_key', 'private_key_passwd',
 		'subject_match', 'altsubject_match', 'domain_match', 'domain_suffix_match',
 		'ca_cert2', 'client_cert2', 'private_key2', 'private_key2_passwd', 'password',
+		'dpp_connector', 'dpp_csign', 'dpp_netaccesskey',
 		'bgscan'
 	]);
 }
