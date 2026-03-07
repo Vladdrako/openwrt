@@ -102,9 +102,9 @@ reverted:
 reverted:
 --- b/src/drivers/driver_nl80211.h
 +++ a/src/drivers/driver_nl80211.h
-@@ -202,8 +202,6 @@
- 	unsigned int qca_ap_allowed_freqs:1;
+@@ -217,8 +217,6 @@ struct wpa_driver_nl80211_data {
  	unsigned int connect_ext_vendor_cmd_avail:1;
+ 	unsigned int support_ap_scan:1;
  
 -	u8 extra_bss_membership_selectors[8];
 -

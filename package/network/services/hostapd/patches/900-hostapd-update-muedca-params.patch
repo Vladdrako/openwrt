@@ -252,16 +252,16 @@
  		wpa_supplicant_event(drv->ctx, EVENT_LINK_RECONFIG, NULL);
  		break;
 +	case NL80211_CMD_UPDATE_HE_MUEDCA_PARAMS:
-+		nl80211_update_muedca_params_event(drv, tb);
++		nl80211_update_muedca_params_event(bss->drv, tb);
 +		break;
  	default:
- 		wpa_dbg(drv->ctx, MSG_DEBUG, "nl80211: Ignored unknown event "
- 			"(cmd=%d)", cmd);
+ 		wpa_printf(MSG_DEBUG, "nl80211: Ignored unknown event "
+ 			   "(cmd=%d)", gnlh->cmd);
 --- a/src/drivers/nl80211_copy.h
 +++ b/src/drivers/nl80211_copy.h
-@@ -1329,6 +1329,11 @@
-  *      %NL80211_ATTR_MLO_TTLM_ULINK attributes are used to specify the
-  *      TID to Link mapping for downlink/uplink traffic.
+@@ -1361,6 +1361,11 @@
+  *	user space that the NAN new cluster has been joined. The cluster ID is
+  *	indicated by %NL80211_ATTR_MAC.
   *
 + * @NL80211_CMD_UPDATE_HE_MUEDCA_PARAMS: Updated MU-EDCA parameters from driver.
 + *	This event is used to update MU-EDCA parameters in Beacon frame, which
@@ -271,9 +271,9 @@
   * @NL80211_CMD_MAX: highest used command number
   * @__NL80211_CMD_AFTER_LAST: internal use
   */
-@@ -1586,6 +1591,7 @@ enum nl80211_commands {
- 
- 	NL80211_CMD_SET_TID_TO_LINK_MAPPING,
+@@ -1624,6 +1629,7 @@ enum nl80211_commands {
+ 	NL80211_CMD_NAN_NEXT_DW_NOTIFICATION,
+ 	NL80211_CMD_NAN_CLUSTER_JOINED,
  
 +	NL80211_CMD_UPDATE_HE_MUEDCA_PARAMS,
  	/* add new commands above here */
@@ -289,9 +289,9 @@
   *
   * @NL80211_ATTR_PUNCT_BITMAP: (u32) Preamble puncturing bitmap, lowest
   *	bit corresponds to the lowest 20 MHz channel. Each bit set to 1
-@@ -3416,6 +3425,7 @@ enum nl80211_attrs {
- 	NL80211_ATTR_WIPHY_RADIOS,
- 	NL80211_ATTR_WIPHY_INTERFACE_COMBINATIONS,
+@@ -3546,6 +3555,7 @@ enum nl80211_attrs {
+ 
+ 	NL80211_ATTR_EPP_PEER,
  
 +	NL80211_ATTR_HE_MUEDCA_PARAMS,
  	/* add attributes here, update the policy in nl80211.c */
