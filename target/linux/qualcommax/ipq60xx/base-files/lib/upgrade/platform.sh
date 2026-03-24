@@ -116,7 +116,7 @@ tplink_do_upgrade() {
 	nand_do_upgrade "$1"
 }
 
-linksys_mx_pre_upgrade() {
+linksys_mr_pre_upgrade() {
 	local setenv_script="/tmp/fw_env_upgrade"
 
 	CI_UBIPART="rootfs"
@@ -229,9 +229,9 @@ platform_do_upgrade() {
 		nand_do_upgrade "$1"
 		;;
 	linksys,mr7350|\
- 	linksys,mr7500)
-		linksys_mx_pre_upgrade "$1"
-		remove_oem_ubi_volume ubifs
+	linksys,mr7500)
+		linksys_mr_pre_upgrade "$1"
+		remove_oem_ubi_volume squashfs
 		nand_do_upgrade "$1"
 		;;
 	tplink,eap610-outdoor|\
