@@ -51,7 +51,7 @@ define Package/dnsmasq/Default
   CATEGORY:=Base system
   TITLE:=DNS and DHCP server
   URL:=http://www.thekelleys.org.uk/dnsmasq/
-  DEPENDS:=+libubus +libidn2
+  DEPENDS:=+libubus +libidn2 +@BUSYBOX_CONFIG_PIDOF
   USERID:=dnsmasq=453:dnsmasq=453
 endef
 
