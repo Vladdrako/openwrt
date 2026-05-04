@@ -1,0 +1,29 @@
+From 88dd718c5b25cd7ad158c047f575ac3dece33e9b Mon Sep 17 00:00:00 2001
+From: Rui Salvaterra <rsalvaterra@gmail.com>
+Date: Wed, 15 Mar 2023 18:00:25 +0000
+Subject: [PATCH 3/3] thp: don't disable by default on smaller systems
+
+Signed-off-by: Rui Salvaterra <rsalvaterra@gmail.com>
+---
+ mm/huge_memory.c | 10 ----------
+ 1 file changed, 10 deletions(-)
+
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -492,16 +492,6 @@ static int __init hugepage_init(void)
+ 	if (err)
+ 		goto err_split_shrinker;
+ 
+-	/*
+-	 * By default disable transparent hugepages on smaller systems,
+-	 * where the extra memory used could hurt more than TLB overhead
+-	 * is likely to save.  The admin can still enable it through /sys.
+-	 */
+-	if (totalram_pages() < (512 << (20 - PAGE_SHIFT))) {
+-		transparent_hugepage_flags = 0;
+-		return 0;
+-	}
+-
+ 	err = start_stop_khugepaged();
+ 	if (err)
+ 		goto err_khugepaged;

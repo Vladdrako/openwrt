@@ -1,0 +1,14 @@
+--- a/drivers/mtd/nand/raw/nand_bbt.c
++++ b/drivers/mtd/nand/raw/nand_bbt.c
+@@ -491,8 +491,6 @@
+ 		ret = scan_block_fast(mtd, bd, from, buf, numpages);
+-		if (ret < 0)
+-			return ret;
+ 
+ 		if (ret) {
+-			bbt_mark_entry(this, i, BBT_BLOCK_FACTORY_BAD);
+-			pr_warn("Bad eraseblock %d at 0x%012llx\n",
+-				i, (unsigned long long)from);
++			bbt_mark_entry(this, i, ret < 0 ? BBT_BLOCK_WORN : BBT_BLOCK_FACTORY_BAD);
++			pr_warn("Bad %sblock %d at 0x%012llx\n", ret < 0
++				? "scan" : "erase", i, (unsigned long long)from);
