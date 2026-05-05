@@ -1,5 +1,4 @@
 #include "ipq5018.dtsi"
-#include "ipq5018-ess.dtsi"
 #include "ipq5018-nss.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
