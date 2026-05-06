@@ -4,8 +4,6 @@
  * Copyright (c) 2023, Andrew Smith <gul.code@outlook.com>
  */
 
-/dts-v1/;
-
 #include "ipq8074.dtsi"
 #include "ipq8074-ess.dtsi"
 #include "ipq8074-nss.dtsi"
