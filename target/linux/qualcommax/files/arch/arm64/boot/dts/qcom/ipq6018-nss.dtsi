@@ -2,6 +2,7 @@
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/clock/qcom,gcc-ipq6018.h>
 
 / {
 	nss_dummy_reg: nss-regulator {
