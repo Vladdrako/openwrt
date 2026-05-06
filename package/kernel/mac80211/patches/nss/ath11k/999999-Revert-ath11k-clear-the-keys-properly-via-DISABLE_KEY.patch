@@ -1,0 +1,56 @@
+From: Nicolas Escande <nico.escande@gmail.com>
+To: ath11k@lists.infradead.org
+Cc: linux-wireless@vger.kernel.org, Steffen Moser <lists@steffen-moser.de>
+Subject: [PATCH] Revert "ath11k: clear the keys properly via DISABLE_KEY"
+Date: Fri, 17 Jan 2025 20:14:55 +0100	[thread overview]
+Message-ID: <20250117191455.3395145-1-nico.escande@gmail.com> (raw)
+
+This reverts commit 436a4e88659842a7cf634d7cc088c8f2cc94ebf5.
+
+This as been reported by multiple people [0] that with this commit,
+broadcast packets were not being delivered after GTK exchange.
+Qualcomm seems to have a similar patch [1] confirming the issue.
+
+[0] https://lore.kernel.org/linux-wireless/Z2Q9POuV-6MIdzRf@pilgrim/
+[1] https://git.codelinaro.org/clo/qsdk/oss/system/feeds/wlan-open/-/blob/win.wlan_host_opensource.3.0.r24/patches/ath11k/350-ath11k-Revert-clear-the-keys-properly-when-DISABLE_K.patch
+
+Fixes: 436a4e886598 ("ath11k: clear the keys properly via DISABLE_KEY")
+Reported-by: Steffen Moser <lists@steffen-moser.de>
+Closes: https://lore.kernel.org/linux-wireless/c6366409-9928-4dd7-bf7b-ba7fcf20eabf@steffen-moser.de
+Signed-off-by: Nicolas Escande <nico.escande@gmail.com>
+---
+ drivers/net/wireless/ath/ath11k/mac.c | 4 +++-
+ drivers/net/wireless/ath/ath11k/wmi.c | 3 +--
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/net/wireless/ath/ath11k/mac.c b/drivers/net/wireless/ath/ath11k/mac.c
+index 1556392f7ad4..70793f8b1081 100644
+--- a/drivers/net/wireless/ath/ath11k/mac.c
++++ b/drivers/net/wireless/ath/ath11k/mac.c
+@@ -4220,7 +4220,9 @@ static int ath11k_install_key(struct ath11k_vif *arvif,
+ 		return 0;
+ 
+ 	if (cmd == DISABLE_KEY) {
+-		arg.key_cipher = WMI_CIPHER_NONE;
++		/* TODO: Check if FW expects  value other than NONE for del */
++		/* arg.key_cipher = WMI_CIPHER_NONE; */
++		arg.key_len = 0;
+ 		arg.key_data = NULL;
+ 		goto install;
+ 	}
+diff --git a/drivers/net/wireless/ath/ath11k/wmi.c b/drivers/net/wireless/ath/ath11k/wmi.c
+index 87abfa547529..02ff0a58952d 100644
+--- a/drivers/net/wireless/ath/ath11k/wmi.c
++++ b/drivers/net/wireless/ath/ath11k/wmi.c
+@@ -1854,8 +1854,7 @@ int ath11k_wmi_vdev_install_key(struct ath11k *ar,
+ 	tlv = (struct wmi_tlv *)(skb->data + sizeof(*cmd));
+ 	tlv->header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_ARRAY_BYTE) |
+ 		      FIELD_PREP(WMI_TLV_LEN, key_len_aligned);
+-	if (arg->key_data)
+-		memcpy(tlv->value, (u8 *)arg->key_data, key_len_aligned);
++	memcpy(tlv->value, (u8 *)arg->key_data, key_len_aligned);
+ 
+ 	ret = ath11k_wmi_cmd_send(wmi, skb, WMI_VDEV_INSTALL_KEY_CMDID);
+ 	if (ret) {
+-- 
+2.48.1

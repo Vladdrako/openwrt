@@ -1,0 +1,127 @@
+Revert https://lore.kernel.org/linux-wireless/20221009221453.1216158-23-sashal@kernel.org/ as it make ipq6000 hang on reboot
+
+--- a/drivers/net/wireless/ath/ath11k/ahb.c
++++ b/drivers/net/wireless/ath/ath11k/ahb.c
+@@ -1325,9 +1325,19 @@
+ 	return ret;
+ }
+ 
+-static void ath11k_ahb_remove_prepare(struct ath11k_base *ab)
+-{
++static int ath11k_ahb_remove(struct platform_device *pdev)
++{
++	struct ath11k_base *ab = platform_get_drvdata(pdev);
+ 	unsigned long left;
++
++	if (test_bit(ATH11K_FLAG_QMI_FAIL, &ab->dev_flags)) {
++		ath11k_ahb_power_down(ab, false);
++		ath11k_debugfs_soc_destroy(ab);
++		ath11k_qmi_deinit_service(ab);
++		goto qmi_fail;
++	}
++
++	reinit_completion(&ab->driver_recovery);
+ 
+ 	if (test_bit(ATH11K_FLAG_RECOVERY, &ab->dev_flags)) {
+ 		left = wait_for_completion_timeout(&ab->driver_recovery,
+@@ -1338,14 +1348,10 @@
+ 
+ 	set_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags);
+ 	cancel_work_sync(&ab->restart_work);
+-	cancel_work_sync(&ab->qmi.event_work);
+ 	cancel_work_sync(&ab->wmi_ast_work);
+-}
+-
+-static void ath11k_ahb_free_resources(struct ath11k_base *ab)
+-{
+-	struct platform_device *pdev = ab->pdev;
+-
++
++	ath11k_core_deinit(ab);
++qmi_fail:
+ 	ath11k_ahb_free_irq(ab);
+ 	ath11k_hal_srng_deinit(ab);
+ 	ath11k_ahb_release_smp2p_handle(ab);
+@@ -1355,67 +1361,17 @@
+ 
+ 	ath11k_core_free(ab);
+ 	platform_set_drvdata(pdev, NULL);
+-}
+-
+-static void ath11k_ahb_remove(struct platform_device *pdev)
+-{
+-	struct ath11k_base *ab = platform_get_drvdata(pdev);
+-
+-	if (test_bit(ATH11K_FLAG_QMI_FAIL, &ab->dev_flags)) {
+-		ath11k_ahb_power_down(ab, false);
+-		ath11k_debugfs_soc_destroy(ab);
+-		ath11k_qmi_deinit_service(ab);
+-		goto qmi_fail;
+-	}
+-
+-	ath11k_ahb_remove_prepare(ab);
+-	ath11k_core_deinit(ab);
+-
+-qmi_fail:
+-	ath11k_fw_destroy(ab);
+-	ath11k_ahb_free_resources(ab);
+-}
+-
+-static void ath11k_ahb_shutdown(struct platform_device *pdev)
+-{
+-	struct ath11k_base *ab = platform_get_drvdata(pdev);
+-
+-	/* platform shutdown() & remove() are mutually exclusive.
+-	 * remove() is invoked during rmmod & shutdown() during
+-	 * system reboot/shutdown.
+-	 */
+-	ath11k_ahb_remove_prepare(ab);
+-
+-	if (!(test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags)))
+-		goto free_resources;
+-
+-	ath11k_core_deinit(ab);
+-
+-free_resources:
+-	ath11k_fw_destroy(ab);
+-	ath11k_ahb_free_resources(ab);
+-}
+-
+-#if LINUX_VERSION_IS_LESS(6,11,0)
+-static int bp_ath11k_ahb_remove(struct platform_device *pdev) {
+-	ath11k_ahb_remove(pdev);
+-
+-	return 0;
+-}
+-#endif
++
++ 	return 0;
++ }
++
+ static struct platform_driver ath11k_ahb_driver = {
+ 	.driver = {
+ 		.name = "ath11k",
+ 		.of_match_table = ath11k_ahb_of_match,
+ 	},
+ 	.probe = ath11k_ahb_probe,
+-#if LINUX_VERSION_IS_GEQ(6,11,0)
+ 	.remove = ath11k_ahb_remove,
+-#else
+-	.remove = bp_ath11k_ahb_remove,
+-#endif
+-	
+-	.shutdown = ath11k_ahb_shutdown,
+ };
+ 
+ module_platform_driver(ath11k_ahb_driver);
+--- a/drivers/net/wireless/ath/ath11k/core.c
++++ b/drivers/net/wireless/ath/ath11k/core.c
+@@ -2550,8 +2550,6 @@
+ 	}
+ 
+ 	wake_up(&ab->wmi_ab.tx_credits_wq);
+-
+-	reinit_completion(&ab->driver_recovery);
+ }
+ 
+ static void ath11k_core_post_reconfigure_recovery(struct ath11k_base *ab)

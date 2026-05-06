@@ -50,10 +50,10 @@
  	hostapd_logger(hapd, dst, HOSTAPD_MODULE_IEEE80211,
  		       HOSTAPD_LEVEL_DEBUG, "authentication OK (FT)");
  	sta->flags |= WLAN_STA_AUTH;
-@@ -4526,6 +4555,11 @@ static int __check_assoc_ies(struct host
+@@ -5745,6 +5745,11 @@
  						       ies_len);
  			if (resp != WLAN_STATUS_SUCCESS)
- 				return resp;
+ 				goto out;
 +			/* Re-evaluate VLAN assignment after FT reassociation */
 +			if (hapd->conf->ssid.dynamic_vlan) {
 +				wpa_printf(MSG_INFO, "FT: Re-evaluating VLAN for " MACSTR, MAC2STR(sta->addr));

@@ -8,6 +8,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=automount
+PKG_VERSION:=1.0
 PKG_FLAGS:=nonshared
 PKG_RELEASE:=$(COMMITCOUNT)
 
@@ -25,20 +26,19 @@ define Package/automount
     +kmod-fs-ext4 \
     +kmod-fs-exfat \
     +kmod-fs-vfat \
-    +ntfs3-mount
+    +ntfsplus-mount
   PKGARCH:=all
 endef
 
 #    +kmod-usb-storage-extras \
 
-define Package/ntfs3-mount
+define Package/ntfsplus-mount
   SECTION:=utils
   CATEGORY:=Utilities
   SUBMENU:=Filesystem
-  TITLE:=NTFS mount script for Paragon NTFS3 driver
-  DEPENDS:=+kmod-fs-ntfs3
+  TITLE:=NTFS mount script for new ntfsplus driver
   CONFLICTS:=ntfs-3g
-  VARIANT:=ntfs3-mount
+  VARIANT:=ntfsplus-mount
   PKGARCH:=all
 endef
 
@@ -50,10 +50,10 @@ define Package/automount/install
 	$(INSTALL_BIN) ./files/15-automount $(1)/etc/hotplug.d/block/
 endef
 
-define Package/ntfs3-mount/install
+define Package/ntfsplus-mount/install
 	$(INSTALL_DIR) $(1)/sbin
 	$(INSTALL_BIN) ./files/mount.ntfs $(1)/sbin
 endef
 
 $(eval $(call BuildPackage,automount))
-$(eval $(call BuildPackage,ntfs3-mount))
+$(eval $(call BuildPackage,ntfsplus-mount))

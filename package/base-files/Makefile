@@ -13,7 +13,7 @@ include $(INCLUDE_DIR)/feeds.mk
 
 PKG_NAME:=base-files
 PKG_FLAGS:=nonshared
-PKG_RELEASE:=$(COMMITCOUNT)
+PKG_RELEASE:=$(or $(COMMITCOUNT),$(patsubst r%,%,$(firstword $(subst -, ,$(REVISION)))))
 
 PKG_FILE_DEPENDS:=$(PLATFORM_DIR)/ $(GENERIC_PLATFORM_DIR)/base-files/
 PKG_BUILD_DEPENDS:=usign/host ucert/host
@@ -46,7 +46,7 @@ define Package/base-files
 	+SELINUX:busybox-selinux +!SELINUX:busybox
   TITLE:=Base filesystem for OpenWrt
   URL:=https://openwrt.org/
-  VERSION:=$(PKG_RELEASE)~$(lastword $(subst -, ,$(REVISION)))
+  VERSION:=$(if $(PKG_RELEASE),$(PKG_RELEASE),0)~$(lastword $(subst -, ,$(REVISION)))
 endef
 
 define Package/base-files/conffiles

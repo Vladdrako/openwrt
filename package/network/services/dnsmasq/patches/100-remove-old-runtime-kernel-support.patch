@@ -140,11 +140,10 @@ Signed-off-by: Kevin Darbyshire-Bryant <ldir@darbyshire-bryant.me.uk>
       my_syslog(LOG_ERR, _("failed to update ipset %s: %s"), setname, strerror(errno));
 --- a/src/util.c
 +++ b/src/util.c
-@@ -930,22 +930,3 @@ int wildcard_matchn(const char* wildcard
- 
+@@ -907,25 +907,6 @@
    return (!num) || (*wildcard == *match);
  }
--
+ 
 -#ifdef HAVE_LINUX_NETWORK
 -int kernel_version(void)
 -{
@@ -163,3 +162,7 @@ Signed-off-by: Kevin Darbyshire-Bryant <ldir@darbyshire-bryant.me.uk>
 -  return version * 256 + (split ? atoi(split) : 0);
 -}
 -#endif
+-
+ #define hash_ptr(x) (((unsigned int)(((char *)(x)) - ((char *)NULL))) & 0xffffff)
+ 
+ void *whine_malloc_real(const char *func, unsigned int line, size_t size)
