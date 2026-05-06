@@ -7,7 +7,7 @@
 	no-map;
 };
 
-&tzapp_region {
+&tz {
 	reg = <0x0 0x4a600000 0x0 0x00400000>;
 	no-map;
 };

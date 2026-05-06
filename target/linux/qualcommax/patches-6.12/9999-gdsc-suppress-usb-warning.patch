@@ -1,0 +1,16 @@
+--- a/drivers/clk/qcom/gdsc.c
++++ b/drivers/clk/qcom/gdsc.c
+@@ -175,7 +175,12 @@ static int gdsc_toggle_logic(struct gdsc *sc, enum gdsc_status status,
+ 	udelay(1);
+ 
+ 	ret = gdsc_poll_status(sc, status);
+-	WARN(ret, "%s status stuck at 'o%s'", sc->pd.name, status ? "ff" : "n");
++	/*
++	 * Suppress warning for USB power domains - they may be in use
++	 * by bootloader/firmware and can't be disabled safely.
++	 */
++	if (ret && !strstr(sc->pd.name, "usb"))
++		pr_warn("%s status stuck at 'o%s'\n", sc->pd.name, status ? "ff" : "n");
+ 
+ 	return ret;
+ }

@@ -1152,15 +1152,6 @@ index dd6a14392da6..b3ee9ce25c22 100644
  		};
  
  		sram@8600000 {
-@@ -804,7 +806,7 @@
- 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
- 			ranges = <0 0 0 0xb00a000 0 0xffd>;
- 
--			v2m@0 {
-+			v2m0: v2m@0 {
- 				compatible = "arm,gic-v2m-frame";
- 				msi-controller;
- 				reg = <0x0 0x0 0x0 0xffd>;
 @@ -1079,9 +1080,13 @@
  			max-link-speed = <3>;
  			#address-cells = <3>;
@@ -1395,64 +1386,4 @@ index bfe59b0208415902c69fd0c0c7565d97997d4207..3b9e40045906b26b94e2d2510b0570d3
 
 -- 
 2.34.1
-
-From: Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
-To: "Lorenzo Pieralisi" <lpieralisi@kernel.org>,
-	"Krzysztof Wilczyński" <kw@linux.com>,
-	"Rob Herring" <robh@kernel.org>,
-	"Bjorn Helgaas" <bhelgaas@google.com>,
-	"Krzysztof Kozlowski" <krzk+dt@kernel.org>,
-	"Conor Dooley" <conor+dt@kernel.org>,
-	"Bjorn Andersson" <andersson@kernel.org>,
-	"Konrad Dybcio" <konradybcio@kernel.org>,
-	cros-qcom-dts-watchers@chromium.org
-Cc: linux-arm-msm@vger.kernel.org, linux-pci@vger.kernel.org,
-	 devicetree@vger.kernel.org, linux-kernel@vger.kernel.org,
-	 Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
-Subject: [PATCH 19/23] arm64: dts: qcom: ipq6018: Add missing MSI and 'global' IRQs
-Date: Thu, 27 Feb 2025 19:11:01 +0530	[thread overview]
-Message-ID: <20250227-pcie-global-irq-v1-19-2b70a7819d1e@linaro.org> (raw)
-In-Reply-To: <20250227-pcie-global-irq-v1-0-2b70a7819d1e@linaro.org>
-
-IPQ6018 has 8 MSI SPI interrupts and one 'global' interrupt.
-
-Signed-off-by: Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
----
- arch/arm64/boot/dts/qcom/ipq6018.dtsi | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
-
-diff --git a/arch/arm64/boot/dts/qcom/ipq6018.dtsi b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-index dbf6716bcb59..d1b1dc048262 100644
---- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-+++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-@@ -888,8 +888,24 @@ pcie0: pcie@20000000 {
- 			ranges = <0x81000000 0x0 0x00000000 0x0 0x20200000 0x0 0x10000>,
- 				 <0x82000000 0x0 0x20220000 0x0 0x20220000 0x0 0xfde0000>;
- 
--			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
--			interrupt-names = "msi";
-+			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>,
-+				     <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>,
-+				     <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>,
-+				     <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
-+				     <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>,
-+				     <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>,
-+				     <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>,
-+				     <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>,
-+				     <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
-+			interrupt-names = "msi0",
-+					  "msi1",
-+					  "msi2",
-+					  "msi3",
-+					  "msi4",
-+					  "msi5",
-+					  "msi6",
-+					  "msi7",
-+					  "global";
- 
- 			#interrupt-cells = <1>;
- 			interrupt-map-mask = <0 0 0 0x7>;
-
--- 
-2.25.1
 
