@@ -1,6 +1,6 @@
-From ebbe85b3b24233439b2063d722272046d64d4d21 Mon Sep 17 00:00:00 2001
+From 38006ae383f131b9d1b6e039f8a3d1d2343c0289 Mon Sep 17 00:00:00 2001
 From: Chen Minqiang <ptpt52@gmail.com>
-Date: Fri, 11 Oct 2024 14:07:00 +0800
+Date: Fri, 24 Apr 2026 17:39:49 +0800
 Subject: [PATCH] net: Allocate ifindex from range 1-63 using bitmap
 
 ---
@@ -10,9 +10,9 @@ Subject: [PATCH] net: Allocate ifindex from range 1-63 using bitmap
 
 --- a/include/net/net_namespace.h
 +++ b/include/net/net_namespace.h
-@@ -189,6 +189,7 @@ struct net {
- #if IS_ENABLED(CONFIG_SMC)
- 	struct netns_smc	smc;
+@@ -196,6 +196,7 @@ struct net {
+ 	/* Move to a better place when the config guard is removed. */
+ 	struct mutex		rtnl_mutex;
  #endif
 +	unsigned int net_device_ifindex_bits[2];
  } __randomize_layout;
@@ -20,7 +20,7 @@ Subject: [PATCH] net: Allocate ifindex from range 1-63 using bitmap
  #include <linux/seq_file_net.h>
 --- a/net/core/dev.c
 +++ b/net/core/dev.c
-@@ -10455,6 +10455,15 @@ static void netdev_free_phy_link_topolog
+@@ -11212,6 +11212,15 @@ static void netdev_free_phy_link_topolog
  	}
  }
  
@@ -36,7 +36,7 @@ Subject: [PATCH] net: Allocate ifindex from range 1-63 using bitmap
  /**
   * register_netdevice() - register a network device
   * @dev: device to register
-@@ -10523,11 +10532,36 @@ int register_netdevice(struct net_device
+@@ -11280,11 +11289,36 @@ int register_netdevice(struct net_device
  	if (ret)
  		goto err_uninit;
  
@@ -73,7 +73,7 @@ Subject: [PATCH] net: Allocate ifindex from range 1-63 using bitmap
  	/* Transfer changeable features to wanted_features and enable
  	 * software offloads (GSO and GRO).
  	 */
-@@ -10630,6 +10664,7 @@ out:
+@@ -11395,6 +11429,7 @@ out:
  err_uninit_notify:
  	call_netdevice_notifiers(NETDEV_PRE_UNINIT, dev);
  err_ifindex_release:
@@ -81,7 +81,7 @@ Subject: [PATCH] net: Allocate ifindex from range 1-63 using bitmap
  	dev_index_release(net, dev->ifindex);
  err_free_pcpu:
  	netdev_do_free_pcpu_stats(dev);
-@@ -11420,6 +11455,7 @@ void unregister_netdevice_queue(struct n
+@@ -12199,6 +12234,7 @@ void unregister_netdevice_queue(struct n
  	if (head) {
  		list_move_tail(&dev->unreg_list, head);
  	} else {
