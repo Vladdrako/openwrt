@@ -1,0 +1,22 @@
+--- a/arch/mips/Kconfig
++++ b/arch/mips/Kconfig
+@@ -3012,7 +3012,7 @@
+ 	default y
+ 
+ config STACKTRACE_SUPPORT
+-	bool
++	bool "Stacktrace Support"
+ 	default y
+ 
+ config PGTABLE_LEVELS
+--- a/init/Kconfig
++++ b/init/Kconfig
+@@ -1482,7 +1482,7 @@
+ menuconfig EXPERT
+ 	bool "Configure standard kernel features (expert users)"
+ 	# Unhide debug options, to make the on-by-default options visible
+-	select DEBUG_KERNEL
++#	select DEBUG_KERNEL
+ 	help
+ 	  This option allows certain base kernel options and settings
+ 	  to be disabled or tweaked. This is for specialized

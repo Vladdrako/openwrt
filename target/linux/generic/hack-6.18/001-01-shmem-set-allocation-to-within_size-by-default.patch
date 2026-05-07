@@ -16,6 +16,6 @@ Signed-off-by: Rui Salvaterra <rsalvaterra@gmail.com>
  
 -static int shmem_huge __read_mostly = SHMEM_HUGE_NEVER;
 +static int shmem_huge __read_mostly = SHMEM_HUGE_WITHIN_SIZE;
+ static int tmpfs_huge __read_mostly = SHMEM_HUGE_NEVER;
  
- bool shmem_is_huge(struct vm_area_struct *vma, struct inode *inode,
- 		   pgoff_t index, bool shmem_huge_force)
+ static unsigned int shmem_get_orders_within_size(struct inode *inode,
