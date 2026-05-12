@@ -17,7 +17,7 @@ Signed-off-by: Jakub Kicinski <kuba@kernel.org>
 
 --- a/include/linux/phy.h
 +++ b/include/linux/phy.h
-@@ -1289,6 +1289,19 @@ static inline bool phy_id_compare(u32 id
+@@ -1284,6 +1284,19 @@ static inline bool phy_id_compare(u32 id
  }
  
  /**
