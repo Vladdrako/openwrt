@@ -109,6 +109,7 @@ GCC_CONFIGURE:= \
 		--disable-libmpx \
 		--disable-nls \
 		--disable-libssp \
+		--disable-tm-clone-registry \
 		$(GRAPHITE_CONFIGURE) \
 		--with-host-libstdcxx=-lstdc++ \
 		$(if $(findstring mips,$(ARCH)),,--with-linker-hash-style=gnu) \
