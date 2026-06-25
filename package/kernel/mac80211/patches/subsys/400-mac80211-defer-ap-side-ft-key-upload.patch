@@ -1,13 +1,13 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: AndreaCovelli <andcov23@gmail.com>
+From: Andrea Covelli <andcov23@gmail.com>
 Date: Thu, 30 Apr 2026 03:30:00 +0200
 Subject: [PATCH] mac80211: defer AP-side FT key upload until station association
 
 AP-side Fast Transition can derive and hand over the pairwise PTK while the
 peer already has a station entry but before mac80211 marks it associated.
 
-Today `ieee80211_add_key()` rejects that with `-ENOENT`, which bubbles up
-to hostapd as:
+The current `ieee80211_add_key()` path rejects that with `-ENOENT`, which
+bubbles up to hostapd as:
 
   nl80211: kernel reports: key addition failed
 
@@ -18,19 +18,19 @@ same rejection can break the roam.
 
 Accept AP-side pairwise keys as soon as the station entry exists, keep them
 in mac80211, skip the initial hardware upload while the station is still
-pre-association, upload it to the driver once the station is associated,
-and keep the later AUTHORIZED transition as an extra retry point.
+pre-association, upload the deferred keys to the driver once the station is
+associated, and keep the later AUTHORIZED transition as an extra retry point.
 This preserves the original intent behind the old ASSOC gate while removing
 the FT race that still exists before the AUTH flag is raised on AP-side
 roams.
 
-Signed-off-by: AndreaCovelli <andcov23@gmail.com>
+Signed-off-by: Andrea Covelli <andcov23@gmail.com>
 ---
  net/mac80211/cfg.c      | 24 +++++++++++++--------
- net/mac80211/key.c      | 59 +++++++++++++++++++++++++++++++++++++++++++++++++
+ net/mac80211/key.c      | 62 +++++++++++++++++++++++++++++++++++++++++++++++++
  net/mac80211/key.h      |  1 +
  net/mac80211/sta_info.c |  4 ++++
- 4 files changed, 79 insertions(+), 9 deletions(-)
+ 4 files changed, 82 insertions(+), 9 deletions(-)
 
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
@@ -88,21 +88,24 @@ Signed-off-by: AndreaCovelli <andcov23@gmail.com>
  
  	/*
  	 * If this is a per-STA GTK, check if it
-@@ -160,6 +164,13 @@ static int ieee80211_key_enable_hw_accel
- 	if (sta && !sta->uploaded)
+@@ -157,6 +161,16 @@ static int ieee80211_key_enable_hw_accel
+ 	    !ieee80211_hw_check(&key->local->hw, SUPPORTS_PER_STA_GTK))
  		goto out_unsupported;
  
 +	/* AP-side FT can install a pairwise key before association completes.
 +	 * Keep it in software until the STA reaches ASSOC so drivers do not
 +	 * see the same premature key upload that cfg.c used to reject.
++	 * Use ret=1 to validate the cipher without failing SW_CRYPTO_CONTROL.
 +	 */
-+	if (pairwise_ap && !test_sta_flag(sta, WLAN_STA_ASSOC))
++	if (pairwise_ap && !test_sta_flag(sta, WLAN_STA_ASSOC)) {
++		ret = 1;
 +		goto out_unsupported;
++	}
 +
- 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
- 		/*
- 		 * The driver doesn't know anything about VLAN interfaces.
-@@ -994,6 +1005,54 @@ void ieee80211_reenable_keys(struct ieee
+ 	if (sta && !sta->uploaded)
+ 		goto out_unsupported;
+ 
+@@ -994,6 +1008,54 @@ void ieee80211_reenable_keys(struct ieee
  	}
  }
  
@@ -134,6 +137,8 @@ Signed-off-by: AndreaCovelli <andcov23@gmail.com>
 +	if (sdata->vif.type != NL80211_IFTYPE_AP &&
 +	    sdata->vif.type != NL80211_IFTYPE_AP_VLAN)
 +		return;
++	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN && !sdata->bss)
++		return;
 +
 +	ieee80211_upload_keys_for_sta(sdata, sta);
 +
@@ -143,8 +148,6 @@ Signed-off-by: AndreaCovelli <andcov23@gmail.com>
 +			ieee80211_upload_keys_for_sta(vlan, sta);
 +		break;
 +	case NL80211_IFTYPE_AP_VLAN:
-+		if (!sdata->bss)
-+			break;
 +		master = container_of(sdata->bss, struct ieee80211_sub_if_data,
 +				      u.ap);
 +		ieee80211_upload_keys_for_sta(master, sta);
@@ -169,7 +172,7 @@ Signed-off-by: AndreaCovelli <andcov23@gmail.com>
  			       unsigned long del_links_mask,
 --- a/net/mac80211/sta_info.c
 +++ b/net/mac80211/sta_info.c
-@@ -1419,6 +1419,8 @@ static int _sta_info_move_state(struct s
+@@ -1424,6 +1424,8 @@ static int _sta_info_move_state(struct s
  				if (!sta->sta.support_p2p_ps)
  					ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
  			}
@@ -178,7 +181,7 @@ Signed-off-by: AndreaCovelli <andcov23@gmail.com>
  		} else if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
  			ieee80211_vif_dec_num_mcast(sta->sdata);
  			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
-@@ -1450,6 +1452,8 @@ static int _sta_info_move_state(struct s
+@@ -1455,6 +1457,8 @@ static int _sta_info_move_state(struct s
  			set_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
  			ieee80211_check_fast_xmit(sta);
  			ieee80211_check_fast_rx(sta);
