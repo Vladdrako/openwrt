@@ -306,8 +306,7 @@ const phy_proto = {
 	},
 
 	wdev_add: function(name, data) {
-		let phydev = this;
-		wdev_create(this.phy, name, {
+		return wdev_create(this.phy, name, {
 			...data,
 			radio: this.radio,
 		});
