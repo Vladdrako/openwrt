@@ -66,14 +66,6 @@
 	status = "okay";
 };
 
-&cryptobam {
-	status = "okay";
-};
-
-&crypto {
-	status = "okay";
-};
-
 &edma {
 	status = "okay";
 };

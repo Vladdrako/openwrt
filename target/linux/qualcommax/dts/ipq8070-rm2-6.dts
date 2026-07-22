@@ -108,14 +108,6 @@
 	status = "okay";
 };
 
-&cryptobam {
-	status = "okay";
-};
-
-&crypto {
-	status = "okay";
-};
-
 &prng {
 	status = "okay";
 };
