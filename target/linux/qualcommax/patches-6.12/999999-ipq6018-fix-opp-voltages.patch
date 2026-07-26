@@ -1,0 +1,68 @@
+From: OpenWRT Developer
+Subject: [PATCH] arm64: dts: qcom: ipq6018: enable all CPU frequencies for all speed bins
+
+The IPQ6018 DTS restricts some higher CPU frequencies to specific speed bins
+via opp-supported-hw bitmask. This causes legitimate chips to be unable to
+run at their full rated frequencies (e.g., 1608MHz, 1800MHz).
+
+The CPR4 regulator reads actual voltage limits from fuses, so there's no
+risk of running at unsupported voltages. Enable all frequencies for all
+speed bins by setting opp-supported-hw = <0x7> everywhere.
+
+Note: The opp-microvolt values (1-8) are placeholders for CPR4 corner IDs,
+not actual voltages. The CPR4 driver translates these to real voltages
+based on fuse data.
+
+Signed-off-by: OpenWRT Developer
+---
+--- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
++++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
+@@ -125,42 +125,42 @@
+ 		opp-1200000000 {
+ 			opp-hz = /bits/ 64 <1200000000>;
+ 			opp-microvolt = <3>;
+-			opp-supported-hw = <0x4>;
++			opp-supported-hw = <0x7>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+ 		opp-1320000000 {
+ 			opp-hz = /bits/ 64 <1320000000>;
+ 			opp-microvolt = <4>;
+-			opp-supported-hw = <0x3>;
++			opp-supported-hw = <0x7>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+ 		opp-1440000000 {
+ 			opp-hz = /bits/ 64 <1440000000>;
+ 			opp-microvolt = <5>;
+-			opp-supported-hw = <0x3>;
++			opp-supported-hw = <0x7>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+ 		opp-1512000000 {
+ 			opp-hz = /bits/ 64 <1512000000>;
+ 			opp-microvolt = <6>;
+-			opp-supported-hw = <0x3>;
++			opp-supported-hw = <0x7>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+ 		opp-1608000000 {
+ 			opp-hz = /bits/ 64 <1608000000>;
+ 			opp-microvolt = <7>;
+-			opp-supported-hw = <0x3>;
++			opp-supported-hw = <0x7>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 
+ 		opp-1800000000 {
+ 			opp-hz = /bits/ 64 <1800000000>;
+ 			opp-microvolt = <8>;
+-			opp-supported-hw = <0x3>;
++			opp-supported-hw = <0x7>;
+ 			clock-latency-ns = <200000>;
+ 		};
+ 	};
