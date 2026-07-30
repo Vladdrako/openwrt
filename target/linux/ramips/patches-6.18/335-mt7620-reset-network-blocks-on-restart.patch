@@ -1,3 +1,4 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Gleb Pesin <dormancygrace@gmail.com>
 Date: Thu, 30 Jul 2026 16:00:00 +0000
 Subject: [PATCH] MIPS: ralink: reset MT7620 network blocks on restart
