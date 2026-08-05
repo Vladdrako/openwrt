@@ -1,6 +1,6 @@
-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From a7ab5c835e4253b6577e4137367c05bfddd79fa2 Mon Sep 17 00:00:00 2001
 From: Julius Bairaktaris <julius@bairaktaris.de>
-Date: Sun, 26 Jul 2026 21:22:37 +0200
+Date: Mon, 27 Jul 2026 00:19:07 +0200
 Subject: [PATCH] wifi: ath11k: implement CE interrupt enable/disable for AHB
 
 ath11k_core_reset() calls ath11k_hif_ce_irq_disable() right before it
@@ -15,9 +15,12 @@ factored into a helper and reused, so behaviour on the stop path is
 unchanged. wcn6750 is not affected: it uses the pcic ops, which
 implement the pair already.
 
-Link: https://lore.kernel.org/ath11k/20260726221908.104873-1-julius@bairaktaris.de/
 Assisted-by: Claude:claude-opus-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
+Reviewed-by: Rameshkumar Sundaram <rameshkumar.sundaram@oss.qualcomm.com>
+Reviewed-by: Baochen Qiang <baochen.qiang@oss.qualcomm.com>
+Link: https://patch.msgid.link/20260726221908.104873-2-julius@bairaktaris.de
+Signed-off-by: Jeff Johnson <jeff.johnson@oss.qualcomm.com>
 ---
  drivers/net/wireless/ath/ath11k/ahb.c | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
