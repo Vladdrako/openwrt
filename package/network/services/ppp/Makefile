@@ -10,7 +10,7 @@ include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=ppp
 PKG_VERSION:=2.5.4
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://download.samba.org/pub/ppp
@@ -224,6 +224,14 @@ define Package/ppp/install
 	$(INSTALL_BIN) ./files/50-ppp-secrets-mode.sh $(1)/etc/uci-defaults
 endef
 Package/ppp-multilink/install=$(Package/ppp/install)
+
+define Package/ppp/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+  killall -s HUP ubusd || true
+fi
+endef
+Package/ppp-multilink/postinst=$(Package/ppp/postinst)
 
 define Package/ppp-mod-pppoa/install
 	$(INSTALL_DIR) $(1)/usr/lib/pppd/$(PKG_VERSION)
