@@ -1,3 +1,4 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Gleb Pesin <dormancygrace@gmail.com>
 Date: Wed, 29 Jul 2026 21:00:00 +0000
 Subject: [PATCH] mt7620: use long calls in affected objects
