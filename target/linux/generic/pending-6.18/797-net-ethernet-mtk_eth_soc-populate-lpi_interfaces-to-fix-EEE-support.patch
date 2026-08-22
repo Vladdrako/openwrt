@@ -1,0 +1,105 @@
+From: Aleksei Sviridkin <f@lex.la>
+Subject: [PATCH] net: ethernet: mtk_eth_soc: populate lpi_interfaces to fix EEE support
+
+mtk_add_mac() fills in phylink_config.lpi_capabilities and
+phylink_config.lpi_timer_default, but never populates
+phylink_config.lpi_interfaces. phylink only treats a MAC as supporting
+phylink managed EEE when the tx_lpi methods are implemented and both
+the LPI capabilities and the LPI interfaces are non-empty, so EEE is
+unavailable on every MAC that uses mtk_phylink_ops:
+
+  # ethtool --show-eee wan
+  Cannot get EEE settings: Not supported
+
+even though those ops implement mac_enable_tx_lpi() and
+mac_disable_tx_lpi(). Since the methods are implemented, phylink takes
+the other branch and calls phy_disable_eee(), which fills
+eee_disabled_modes, so userspace cannot enable EEE either. MT7628 is
+unaffected, as rt5350_phylink_ops has no tx_lpi methods at all.
+
+Copy the supported interfaces into lpi_interfaces once they are
+complete, that is after the SoC specific fixups have added and removed
+modes. In particular the netsys v3 switch path clears the bitmap
+before setting PHY_INTERFACE_MODE_INTERNAL, so copying it any earlier
+would leave stale modes behind.
+
+The MAC does not start using LPI on its own: the driver does not set
+eee_enabled_default, so phylink leaves tx_lpi_enabled false, and
+phy_check_link_status() computes enable_tx_lpi as tx_lpi_enabled &&
+eee_active. One thing does change, and it is worth being explicit
+about: phylink no longer takes the phy_disable_eee() branch, so a PHY
+that advertises EEE out of reset advertises it again instead of being
+forced quiet, and the link may negotiate EEE where it previously could
+not. Nothing on this side asserts LPI until userspace enables it with
+ethtool --set-eee.
+
+This also makes lpi_capabilities take effect for the first time, so
+correct its value in the same change. MAC_MCR only has EEE force bits
+for 100 Mbps (MAC_MCR_EEE100M) and 1 Gbps (MAC_MCR_EEE1G), and
+MAC_EEECR only carries wakeup times for those two speeds
+(MAC_EEE_WAKEUP_TIME_100, MAC_EEE_WAKEUP_TIME_1000), so the MAC cannot
+signal LPI at 2.5 Gbps: drop MAC_2500FD. Correcting the value here
+rather than in a separate patch changes nothing observable: while
+lpi_interfaces was empty, lpi_capabilities never reached
+phy->advertising_eee, so no state ever claimed 2.5 Gbps LPI.
+
+Two sets of interfaces have to come out of lpi_interfaces as well.
+lpi_capabilities cannot express either: it masks the PHY's EEE
+advertisement, a media side property, and never gates LPI activation on
+the MAC side speed, while phylink raises the MAC speed to the interface
+maximum when the PHY rate matches (RATE_MATCH_PAUSE in
+phylink_link_up()), so 2500BASE-X would arm LPI on a 2.5 Gbps MAC even
+for a 1 Gbps media link. Separately, mtk_mac_enable_tx_lpi() refuses
+the xGMII modes outright, which on netsys v3 includes
+PHY_INTERFACE_MODE_INTERNAL, the mode MT7988's built-in 2.5G PHY runs
+in; offering those to phylink would log an error on link up once EEE is
+enabled. What that costs is limited to setups that keep the MAC on
+2500BASE-X or on an xGMII mode, neither of which the MAC has LPI bits
+for; a PHY that switches the interface down to SGMII or 1000BASE-X
+keeps LPI, as those stay in the mask.
+
+On the netsys v3 switch MAC, that empties lpi_interfaces outright, since
+PHY_INTERFACE_MODE_INTERNAL is the only interface it supports. Nothing
+changes there: it is a fixed link port with no PHY, so phylink had no
+EEE to manage on it before this patch either.
+
+Submitted upstream: https://lore.kernel.org/netdev/20260822195252.2934-1-f@lex.la/
+
+Signed-off-by: Aleksei Sviridkin <f@lex.la>
+---
+--- a/drivers/net/ethernet/mediatek/mtk_eth_soc.c
++++ b/drivers/net/ethernet/mediatek/mtk_eth_soc.c
+@@ -5187,8 +5187,11 @@ static int mtk_add_mac(struct mtk_eth *e
+ 	mac->phylink_config.type = PHYLINK_NETDEV;
+ 	mac->phylink_config.mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+ 		MAC_10 | MAC_100 | MAC_1000 | MAC_2500FD;
+-	mac->phylink_config.lpi_capabilities = MAC_100FD | MAC_1000FD |
+-		MAC_2500FD;
++	/* MAC_MCR only has EEE force bits for 100 Mbps and 1 Gbps, and
++	 * MAC_EEECR only has wakeup times for those two speeds, so the MAC
++	 * cannot signal LPI at 2.5 Gbps.
++	 */
++	mac->phylink_config.lpi_capabilities = MAC_100FD | MAC_1000FD;
+ 	mac->phylink_config.lpi_timer_default = 1000;
+ 	mac->phylink_config.num_available_pcs = 0;
+ 	mac->phylink_config.fill_available_pcs = mtk_fill_available_pcs;
+@@ -5310,6 +5313,19 @@ no_pcs:
+ 	eth->netdev[id]->irq = eth->irq[MTK_FE_IRQ_SHARED];
+ 	eth->netdev[id]->dev.of_node = np;
+ 
++	phy_interface_copy(mac->phylink_config.lpi_interfaces,
++			   mac->phylink_config.supported_interfaces);
++
++	/* The MAC side of 2500BASE-X is never below 2.5 Gbps, not even when
++	 * a rate matching PHY drops the media to 1 Gbps, and
++	 * mtk_mac_enable_tx_lpi() refuses the xGMII modes outright.
++	 */
++	__clear_bit(PHY_INTERFACE_MODE_2500BASEX,
++		    mac->phylink_config.lpi_interfaces);
++	for (i = 0; i < PHY_INTERFACE_MODE_MAX; i++)
++		if (mtk_interface_mode_is_xgmii(eth, i))
++			__clear_bit(i, mac->phylink_config.lpi_interfaces);
++
+ 	phylink = phylink_create(&mac->phylink_config,
+ 				 of_fwnode_handle(mac->of_node),
+ 				 phy_mode, &mtk_phylink_ops);
