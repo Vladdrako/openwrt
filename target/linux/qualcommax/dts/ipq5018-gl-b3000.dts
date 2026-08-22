@@ -3,7 +3,6 @@
 #include "ipq5018.dtsi"
 #include "ipq5018-ess.dtsi"
 #include "ipq5018-qcn6122.dtsi"
-#include "ipq5018-nss.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
@@ -284,8 +283,6 @@
 };
 
 &q6v5_wcss {
-	status = "okay";
-
 	/* B3000 currently doesn't support passing bootargs */
 	/*boot-args = <					*/
 			/*       type:	0x1  PCIE0	*/

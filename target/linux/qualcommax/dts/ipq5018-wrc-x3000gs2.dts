@@ -5,7 +5,6 @@
 #include "ipq5018.dtsi"
 #include "ipq5018-ess.dtsi"
 #include "ipq5018-qcn6122.dtsi"
-#include "ipq5018-nss.dtsi"
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
@@ -381,6 +380,8 @@
 };
 
 &wifi1 {
+	status = "disabled";
+
 	qcom,rproc = <&q6_wcss_pd2>;
 	qcom,userpd-subsys-name = "q6v5_wcss_userpd2";
 	qcom,ath11k-calibration-variant = "ELECOM-WRC-X3000GS2";
@@ -389,6 +390,4 @@
 	qcom,m3-dump-addr = <0x4df00000>;
 
 	ieee80211-freq-limit = <5150000 5730000>;
-
-	status = "disabled";
 };

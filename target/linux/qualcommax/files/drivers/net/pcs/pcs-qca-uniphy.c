@@ -10,6 +10,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/cleanup.h>
 #include <linux/clk/clk-conf.h>
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
@@ -301,13 +302,13 @@ static void qca_uniphy_pcs_get_state_sgmii(struct qca_uniphy *uniphy,
 	state->duplex = (val & UNIPHY_CH_STS_DUPLEX) ? DUPLEX_FULL : DUPLEX_HALF;
 
 	switch (FIELD_GET(UNIPHY_CH_STS_SPEED_MODE, val)) {
-	case 0:
+	case UNIPHY_CH_SPEED_10:
 		state->speed = SPEED_10;
 		break;
-	case 1:
+	case UNIPHY_CH_SPEED_100:
 		state->speed = SPEED_100;
 		break;
-	case 2:
+	case UNIPHY_CH_SPEED_1000:
 		state->speed = SPEED_1000;
 		break;
 	default:
@@ -464,10 +465,16 @@ static int qca_uniphy_pcs_config_mode(struct phylink_pcs *pcs,
 	struct qca_uniphy_pcs *upcs = to_qca_uniphy_pcs(pcs);
 	struct qca_uniphy *uniphy = upcs->uniphy;
 	u32 misc2_phy_mode, mode_ctrl, val;
+	bool force;
 	int ret;
 
 	dev_dbg(uniphy->dev, "Configuring PCS: chan=%d, interface=%s, neg_mode=0x%x\n",
 		upcs->channel, phy_modes(interface), neg_mode);
+
+	/* Every channel of the instance calls this with its own phylink state
+	 * mutex, so nothing else keeps two of them out of the sequence below.
+	 */
+	guard(mutex)(&uniphy->lock);
 
 	switch (interface) {
 	case PHY_INTERFACE_MODE_1000BASEX:
@@ -482,10 +489,12 @@ static int qca_uniphy_pcs_config_mode(struct phylink_pcs *pcs,
 		break;
 	case PHY_INTERFACE_MODE_QSGMII:
 		mode_ctrl = UNIPHY_CH0_QSGMII_SGMII;
+		mode_ctrl |= FIELD_PREP(UNIPHY_CH0_MODE_CTRL_25M, UNIPHY_CH0_MODE_MAC);
 		misc2_phy_mode = UNIPHY_MISC2_SGMII;
 		break;
 	case PHY_INTERFACE_MODE_PSGMII:
 		mode_ctrl = UNIPHY_CH0_PSGMII_QSGMII;
+		mode_ctrl |= FIELD_PREP(UNIPHY_CH0_MODE_CTRL_25M, UNIPHY_CH0_MODE_MAC);
 		misc2_phy_mode = 0;
 		break;
 	case PHY_INTERFACE_MODE_USXGMII:
@@ -516,6 +525,29 @@ static int qca_uniphy_pcs_config_mode(struct phylink_pcs *pcs,
 			clk_prepare_enable(uniphy->ref_clk.hw.clk);
 	}
 
+	/* A fixed link carries no in-band negotiation for the channel to take
+	 * its speed from, so the channel has to be forced. The XPCS modes
+	 * drive the channel from the XPCS and never read the bit.
+	 */
+	if (mode_ctrl != UNIPHY_XPCS_MODE) {
+		force = neg_mode == PHYLINK_PCS_NEG_OUTBAND &&
+			!phylink_expects_phy(pcs->phylink);
+		ret = regmap_update_bits(uniphy->regmap,
+					 UNIPHY_CH_CTRL(upcs->channel),
+					 UNIPHY_CH_FORCE_MODE,
+					 force ? UNIPHY_CH_FORCE_MODE : 0);
+		if (ret)
+			return ret;
+	}
+
+	if (uniphy->interface == interface)
+		return 0;
+
+	/* Invalid until the sequence below completes, so that a bail-out
+	 * leaves no cached mode the hardware does not have.
+	 */
+	uniphy->interface = PHY_INTERFACE_MODE_NA;
+
 	/* First update misc2 PHY mode... */
 	regmap_update_bits(uniphy->regmap, UNIPHY_MISC2_PHY_MODE,
 			   UNIPHY_MISC2_PHY_MODE_MASK, misc2_phy_mode);
@@ -533,17 +565,10 @@ static int qca_uniphy_pcs_config_mode(struct phylink_pcs *pcs,
 		reset_control_assert(uniphy->rst_xpcs);
 
 	/* ...and disable PHY clock */
-	clk_disable(uniphy->clks[port_rx_clk_idx(upcs)].clk);
-	clk_disable(uniphy->clks[port_tx_clk_idx(upcs)].clk);
-
-	/* TODO: Fix for IPQ6018 and IPQ8074 */
-	if (uniphy->data->uniphy_type == UNIPHY_IPQ5018) {
-		//set force mode for fixed link
-		if (neg_mode == PHYLINK_PCS_NEG_OUTBAND && !phylink_expects_phy(pcs->phylink)) {
-			regmap_set_bits(uniphy->regmap,
-					UNIPHY_CH_CTRL(upcs->channel),
-					UNIPHY_CH_FORCE_MODE);
-		}
+	if (upcs->clks_enabled) {
+		clk_bulk_disable(QCA_UNIPHY_PORT_CLKS,
+				 &uniphy->clks[port_rx_clk_idx(upcs)]);
+		upcs->clks_enabled = false;
 	}
 
 	/* Third update the mode ctrl... */
@@ -572,6 +597,12 @@ static int qca_uniphy_pcs_config_mode(struct phylink_pcs *pcs,
 				       UNIPHY_CALIBRATION_TIMEOUT_US);
 	if (ret) {
 		dev_err(uniphy->dev, "PCS calibration timeout\n");
+		/* Once another channel configures the same mode the sequence
+		 * is skipped, so nothing else re-enables these.
+		 */
+		if (!clk_bulk_enable(QCA_UNIPHY_PORT_CLKS,
+				     &uniphy->clks[port_rx_clk_idx(upcs)]))
+			upcs->clks_enabled = true;
 		return -EINVAL;
 	}
 
@@ -580,22 +611,38 @@ static int qca_uniphy_pcs_config_mode(struct phylink_pcs *pcs,
 	clk_hw_recalc_rate(&uniphy->tx_clk.hw);
 
 	/* As last step enable PHY clock... */
-	clk_enable(uniphy->clks[port_rx_clk_idx(upcs)].clk);
-	clk_enable(uniphy->clks[port_tx_clk_idx(upcs)].clk);
+	ret = clk_bulk_enable(QCA_UNIPHY_PORT_CLKS,
+			      &uniphy->clks[port_rx_clk_idx(upcs)]);
+	if (ret)
+		return ret;
+	upcs->clks_enabled = true;
 
 	if (interface == PHY_INTERFACE_MODE_USXGMII ||
-	    interface == PHY_INTERFACE_MODE_10GBASER)
-		reset_control_deassert(uniphy->rst_xpcs);
+	    interface == PHY_INTERFACE_MODE_10GBASER) {
+		ret = reset_control_deassert(uniphy->rst_xpcs);
+		if (ret)
+			return ret;
+	}
 
-	if (!uniphy->data->ref_clk_enable)
-		return 0;
+	if (uniphy->data->ref_clk_enable) {
+		/* Trigger UNIPHY ref output clock to recalc rate */
+		clk_hw_recalc_rate(&uniphy->ref_clk.hw);
+		/* Trigger assigned-clock-rates in DT to be applied */
+		ret = of_clk_set_defaults(uniphy->dev->of_node, true);
+		if (ret)
+			return ret;
+		if (!qca_uniphy_refclk_is_enabled(&uniphy->ref_clk.hw)) {
+			ret = qca_uniphy_refclk_enable(&uniphy->ref_clk.hw);
+			if (ret)
+				return ret;
+		}
+	}
 
-	/* Trigger UNIPHY ref output clock to recalc rate */
-	clk_hw_recalc_rate(&uniphy->ref_clk.hw);
-	/* Trigger assigned-clock-rates in DT to be applied */
-	of_clk_set_defaults(uniphy->dev->of_node, true);
-	if (!qca_uniphy_refclk_is_enabled(&uniphy->ref_clk.hw))
-		qca_uniphy_refclk_enable(&uniphy->ref_clk.hw);
+	/* Cache the mode last: a bail-out anywhere above leaves the instance
+	 * half configured, and a mode recorded for it would keep the next
+	 * call from finishing the job.
+	 */
+	uniphy->interface = interface;
 
 	return 0;
 }
@@ -661,6 +708,7 @@ static int uniphy_link_up_sgmii(struct phylink_pcs *pcs,
 	struct qca_uniphy_pcs *upcs = to_qca_uniphy_pcs(pcs);
 	struct qca_uniphy *uniphy = upcs->uniphy;
 	unsigned long uniphy_rate;
+	u32 speed_mode;
 	int ret;
 
 	switch (interface) {
@@ -670,12 +718,15 @@ static int uniphy_link_up_sgmii(struct phylink_pcs *pcs,
 		switch (speed) {
 		case SPEED_10:
 			uniphy_rate = 2500000;
+			speed_mode = UNIPHY_CH_SPEED_10;
 			break;
 		case SPEED_100:
 			uniphy_rate = 25000000;
+			speed_mode = UNIPHY_CH_SPEED_100;
 			break;
 		case SPEED_1000:
 			uniphy_rate = 125000000;
+			speed_mode = UNIPHY_CH_SPEED_1000;
 			break;
 		default:
 			dev_err(uniphy->dev, "Invalid SGMII speed %d\n", speed);
@@ -686,6 +737,7 @@ static int uniphy_link_up_sgmii(struct phylink_pcs *pcs,
 		switch (speed) {
 		case SPEED_1000:
 			uniphy_rate = 125000000;
+			speed_mode = UNIPHY_CH_SPEED_1000;
 			break;
 		default:
 			dev_err(uniphy->dev, "Invalid 1000BaseX speed %d\n", speed);
@@ -696,6 +748,11 @@ static int uniphy_link_up_sgmii(struct phylink_pcs *pcs,
 		switch (speed) {
 		case SPEED_2500:
 			uniphy_rate = 312500000;
+			/* The field has no 2500 encoding: SGMII+ carries the
+			 * rate in the mode and leaves this at the vendor's
+			 * 1000 reset value.
+			 */
+			speed_mode = UNIPHY_CH_SPEED_1000;
 			break;
 		default:
 			dev_err(uniphy->dev, "Invalid 2500BaseX speed %d\n", speed);
@@ -708,6 +765,15 @@ static int uniphy_link_up_sgmii(struct phylink_pcs *pcs,
 
 	clk_set_rate(uniphy->clks[port_rx_clk_idx(upcs)].clk, uniphy_rate);
 	clk_set_rate(uniphy->clks[port_tx_clk_idx(upcs)].clk, uniphy_rate);
+
+	/* A forced channel takes its speed from here instead of from an
+	 * in-band word.
+	 */
+	ret = regmap_update_bits(uniphy->regmap, UNIPHY_CH_CTRL(upcs->channel),
+				 UNIPHY_CH_SPEED_MODE,
+				 FIELD_PREP(UNIPHY_CH_SPEED_MODE, speed_mode));
+	if (ret)
+		return ret;
 
 	ret = regmap_clear_bits(uniphy->regmap, UNIPHY_CH_CTRL(upcs->channel),
 				UNIPHY_CH_ADP_SW_RSTN);
@@ -822,10 +888,9 @@ static void qca_uniphy_pcs_disable(struct phylink_pcs *pcs)
 	struct qca_uniphy_pcs *upcs = to_qca_uniphy_pcs(pcs);
 	struct qca_uniphy *uniphy = upcs->uniphy;
 
-	if (uniphy->data->uniphy_type == UNIPHY_IPQ5018) {
-		clk_disable(uniphy->clks[port_rx_clk_idx(upcs)].clk);
-		clk_disable(uniphy->clks[port_tx_clk_idx(upcs)].clk);
-	}
+	if (uniphy->data->uniphy_type == UNIPHY_IPQ5018)
+		clk_bulk_disable(QCA_UNIPHY_PORT_CLKS,
+				 &uniphy->clks[port_rx_clk_idx(upcs)]);
 }
 
 static int qca_uniphy_pcs_enable(struct phylink_pcs *pcs)
@@ -834,22 +899,16 @@ static int qca_uniphy_pcs_enable(struct phylink_pcs *pcs)
 	struct qca_uniphy *uniphy = upcs->uniphy;
 	int ret;
 
-	if (uniphy->data->uniphy_type == UNIPHY_IPQ5018) {
-		ret = clk_enable(uniphy->clks[port_rx_clk_idx(upcs)].clk);
-		if (ret) {
-			dev_err(uniphy->dev, "Failed to enable RX clock for channel %d\n",
-				upcs->channel);
-			return ret;
-		}
-		ret = clk_enable(uniphy->clks[port_tx_clk_idx(upcs)].clk);
-		if (ret) {
-			dev_err(uniphy->dev, "Failed to enable TX clock for channel %d\n",
-				upcs->channel);
-			return ret;
-		}
-	}
+	if (uniphy->data->uniphy_type != UNIPHY_IPQ5018)
+		return 0;
 
-	return 0;
+	ret = clk_bulk_enable(QCA_UNIPHY_PORT_CLKS,
+			      &uniphy->clks[port_rx_clk_idx(upcs)]);
+	if (ret)
+		dev_err(uniphy->dev, "Failed to enable clocks for channel %d\n",
+			upcs->channel);
+
+	return ret;
 }
 
 static void qca_uniphy_pcs_an_restart(struct phylink_pcs *pcs) { }
@@ -951,6 +1010,10 @@ static int qca_uniphy_probe(struct platform_device *pdev)
 
 	uniphy->dev = dev;
 
+	ret = devm_mutex_init(dev, &uniphy->lock);
+	if (ret)
+		return ret;
+
 	uniphy->data = device_get_match_data(dev);
 	if (!uniphy->data)
 		return -EINVAL;
@@ -994,6 +1057,8 @@ static int qca_uniphy_probe(struct platform_device *pdev)
 		uniphy->port_pcs[i].pcs.poll = true;
 		uniphy->port_pcs[i].uniphy = uniphy;
 		uniphy->port_pcs[i].channel = i;
+		/* devm_clk_bulk_get_all_enabled() left every clock on */
+		uniphy->port_pcs[i].clks_enabled = true;
 	}
 
 	platform_set_drvdata(pdev, uniphy);

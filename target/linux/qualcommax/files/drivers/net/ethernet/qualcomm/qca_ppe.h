@@ -156,6 +156,51 @@
 #define PPE_XGMAC_RX_FLOW_CTRL(xgmac)	(PPE_MAC_XGMAC_CSR_BASE + (xgmac) * 0x4000 + 0x90)
 #define   PPE_XGMAC_RX_FLOW_ENABLE	BIT(0)
 
+#define PPE_XGMAC_MIB(xgmac)		(PPE_MAC_XGMAC_CSR_BASE + (xgmac) * 0x4000)
+#define   PPE_XGMIB_TXBYTE_GB		0x814
+#define   PPE_XGMIB_TXPKT_GB		0x81c
+#define   PPE_XGMIB_TXBROAD		0x824
+#define   PPE_XGMIB_TXMULTI		0x82c
+#define   PPE_XGMIB_TXPKT64		0x834
+#define   PPE_XGMIB_TXPKT65TO127	0x83c
+#define   PPE_XGMIB_TXPKT128TO255	0x844
+#define   PPE_XGMIB_TXPKT256TO511	0x84c
+#define   PPE_XGMIB_TXPKT512TO1023	0x854
+#define   PPE_XGMIB_TXPKT1024TOX	0x85c
+#define   PPE_XGMIB_TXUNI_GB		0x864
+#define   PPE_XGMIB_TXMULTI_GB		0x86c
+#define   PPE_XGMIB_TXBROAD_GB		0x874
+#define   PPE_XGMIB_TXUNDERFLOW		0x87c
+#define   PPE_XGMIB_TXBYTE		0x884
+#define   PPE_XGMIB_TXPKT		0x88c
+#define   PPE_XGMIB_TXPAUSE		0x894
+#define   PPE_XGMIB_TXVLAN		0x89c
+#define   PPE_XGMIB_RXPKT_GB		0x900
+#define   PPE_XGMIB_RXBYTE_GB		0x908
+#define   PPE_XGMIB_RXBYTE		0x910
+#define   PPE_XGMIB_RXBROAD		0x918
+#define   PPE_XGMIB_RXMULTI		0x920
+#define   PPE_XGMIB_RXFCSERR		0x928
+#define   PPE_XGMIB_RXRUNT		0x930
+#define   PPE_XGMIB_RXJABBER		0x934
+#define   PPE_XGMIB_RXUNDERSIZE		0x938
+#define   PPE_XGMIB_RXOVERSIZE		0x93c
+#define   PPE_XGMIB_RXPKT64		0x940
+#define   PPE_XGMIB_RXPKT65TO127	0x948
+#define   PPE_XGMIB_RXPKT128TO255	0x950
+#define   PPE_XGMIB_RXPKT256TO511	0x958
+#define   PPE_XGMIB_RXPKT512TO1023	0x960
+#define   PPE_XGMIB_RXPKT1024TOX	0x968
+#define   PPE_XGMIB_RXUNI		0x970
+#define   PPE_XGMIB_RXLENGTHERR		0x978
+#define   PPE_XGMIB_RXOUTOFRANGE	0x980
+#define   PPE_XGMIB_RXPAUSE		0x988
+#define   PPE_XGMIB_RXFIFOOVER		0x990
+#define   PPE_XGMIB_RXVLAN_GB		0x998
+#define   PPE_XGMIB_RXWATCHDOG		0x9a0
+#define   PPE_XGMIB_RXDISCARD		0x9ac
+#define   PPE_XGMIB_RXDISCARDBYTE	0x9b4
+
 /* --- PRX (base 0x00b000) --- */
 #define PPE_PRX_BASE			0x00b000
 
@@ -190,6 +235,7 @@
 #define PPE_XLT_RULE_TBL(idx)		(PPE_IVLAN_BASE + 0x2000 + (idx) * 0x10)
 #define   PPE_XLT_VALID			BIT(0)
 #define   PPE_XLT_PORT_BMP		GENMASK(8, 1)
+#define   PPE_XLT_SKEY_FMT		GENMASK(11, 9)
 #define   PPE_XLT_CKEY_FMT_0		BIT(31)
 
 #define PPE_XLT_RULE_W1(idx)		(PPE_IVLAN_BASE + 0x2000 + (idx) * 0x10 + 0x4)
@@ -213,6 +259,20 @@
 #define PPE_EG_BRIDGE_CONFIG		(PPE_PTX_BASE + 0x6000)
 #define   PPE_EG_L2_EDIT_EN		BIT(1)
 #define   PPE_EG_QUEUE_CNT_EN		BIT(2)
+
+#define PPE_EG_XLT_TBL_NUM		64
+#define PPE_EG_XLT_RULE(idx)		(PPE_PTX_BASE + 0x200 + (idx) * 0x8)
+#define   PPE_EG_XLT_RULE_VALID		BIT(0)
+#define   PPE_EG_XLT_RULE_PORT_BMP	GENMASK(8, 1)
+#define   PPE_EG_XLT_RULE_VSI_INCL	BIT(9)
+#define   PPE_EG_XLT_RULE_VSI		GENMASK(14, 10)
+#define   PPE_EG_XLT_RULE_VSI_VALID	BIT(15)
+#define   PPE_EG_XLT_RULE_SKEY_FMT	GENMASK(18, 16)
+#define   PPE_EG_XLT_RULE_CKEY_FMT_W1	GENMASK(8, 6)
+#define PPE_EG_XLT_ACTION(idx)		(PPE_PTX_BASE + 0xd000 + (idx) * 0x8)
+#define   PPE_EG_XLT_CVID_CMD		GENMASK(16, 15)
+#define   PPE_EG_XLT_CVID_ADDORREPLACE	1
+#define   PPE_EG_XLT_CVID		GENMASK(28, 17)
 
 #define PPE_PORT_EG_VLAN(port)		(PPE_PTX_BASE + 0x420 + (port) * 0x4)
 #define   PPE_PORT_EG_VLAN_CTAG_MODE	GENMASK(2, 1)
@@ -498,6 +558,7 @@ struct qca_ppe_vlan_entry {
 	u8 pvid_ports;
 	int xlt_idx;
 	int xlt_pvid_idx;
+	int eg_xlt_idx;
 };
 
 struct qca_ppe_priv {
@@ -509,7 +570,9 @@ struct qca_ppe_priv {
 	spinlock_t fdb_lock;
 	DECLARE_BITMAP(vsi_bitmap, PPE_VSI_MAX);
 	DECLARE_BITMAP(xlt_bitmap, PPE_XLT_TBL_NUM);
+	DECLARE_BITMAP(eg_xlt_bitmap, PPE_EG_XLT_TBL_NUM);
 	u32 port_vsi[QCA_PPE_MAX_PORTS];
+	u32 port_fw_vsi[QCA_PPE_MAX_PORTS];
 	struct qca_ppe_bridge_vsi bridges[QCA_PPE_MAX_BRIDGES];
 	struct qca_ppe_vlan_entry vlans[PPE_VSI_MAX];
 	struct net_device *port_br_dev[QCA_PPE_MAX_PORTS];
@@ -517,6 +580,7 @@ struct qca_ppe_priv {
 	struct clk *port_rx_clk[QCA_PPE_MAX_PORTS];
 	struct clk *port_tx_clk[QCA_PPE_MAX_PORTS];
 	struct reset_control *port_rst[QCA_PPE_MAX_PORTS];
+	bool port_xgmac[QCA_PPE_MAX_PORTS];
 };
 
 extern const struct psch_tdm_data cppe_psch_tdm_data;
@@ -532,6 +596,8 @@ static inline struct qca_ppe_priv *ds_to_priv(struct dsa_switch *ds)
 
 void ppe_scheduler_init(struct qca_ppe_priv *priv);
 
+struct qca_ppe_priv *qca_ppe_user_port_resolve(struct net_device *netdev,
+					       int *port);
 int ppe_vsi_alloc(struct qca_ppe_priv *priv);
 void ppe_vsi_free(struct qca_ppe_priv *priv, u32 vsi);
 void ppe_vsi_member_set(struct qca_ppe_priv *priv, u32 vsi, u32 portmask);

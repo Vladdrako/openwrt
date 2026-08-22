@@ -24,7 +24,12 @@ static void edma_irq_disable_all(struct edma_priv *priv)
 	const struct edma_soc_data *soc = priv->soc;
 	int i;
 
-	for (i = 0; i <= soc->txdesc_ring; i++)
+	/*
+	 * TX interrupt registers are per TXCMPL ring; on IPQ807x only 8
+	 * TXCMPL rings exist and higher indices alias into the RXFILL
+	 * register block.
+	 */
+	for (i = 0; i <= soc->txcmpl_ring; i++)
 		regmap_write(priv->regmap,
 			     EDMA_REG_TX_INT_MASK(soc->tx_int_base, i),
 			     0);
@@ -136,6 +141,14 @@ static irqreturn_t edma_misc_irq_handle(int irq, void *ctx)
 	regmap_read(priv->regmap, EDMA_REG_MISC_INT_STAT, &val);
 	if (!val)
 		return IRQ_NONE;
+
+	/*
+	 * The misc status bits have no ack mechanism; mask them off to
+	 * avoid an interrupt storm on a persistent error condition.
+	 */
+	dev_warn_ratelimited(&priv->pdev->dev,
+			     "misc error 0x%x, masking misc interrupts\n", val);
+	regmap_write(priv->regmap, EDMA_REG_MISC_INT_MASK, 0);
 
 	return IRQ_HANDLED;
 }
@@ -899,9 +912,25 @@ static void edma_rings_enable(struct edma_priv *priv)
 
 static void edma_hw_stop(struct edma_priv *priv)
 {
-	edma_irq_disable_all(priv);
-	edma_rings_disable(priv);
-	regmap_write(priv->regmap, EDMA_REG_PORT_CTRL, 0);
+	const struct edma_soc_data *soc = priv->soc;
+
+	/*
+	 * The EDMA block is shared with the NSS firmware, which owns the
+	 * rings outside the partition described in edma_soc_data. Only
+	 * quiesce the host-owned rings here, and leave EDMA_REG_PORT_CTRL
+	 * alone: the firmware depends on the global EDMA enable.
+	 */
+	edma_tx_irq_mask(priv);
+	edma_rx_irq_mask(priv);
+	regmap_write(priv->regmap, EDMA_REG_MISC_INT_MASK, 0);
+
+	regmap_clear_bits(priv->regmap, EDMA_REG_RXDESC_CTRL(soc->rxdesc_ring),
+			  EDMA_RXDESC_RX_EN);
+	regmap_clear_bits(priv->regmap,
+			  EDMA_REG_RXFILL_RING_EN(soc->rxfill_ring),
+			  EDMA_RXFILL_RING_EN);
+	regmap_clear_bits(priv->regmap, EDMA_REG_TXDESC_CTRL(soc->txdesc_ring),
+			  EDMA_TXDESC_TX_EN);
 }
 
 static void edma_hw_reset(struct edma_priv *priv)
@@ -919,7 +948,14 @@ static int edma_hw_init(struct edma_priv *priv)
 	u32 val;
 
 	edma_hw_reset(priv);
-	edma_hw_stop(priv);
+
+	/*
+	 * Full-range disable is only safe here, right after reset and
+	 * before the NSS firmware can be running; at any later point the
+	 * firmware-owned rings must not be touched.
+	 */
+	edma_irq_disable_all(priv);
+	edma_rings_disable(priv);
 
 	regmap_write(priv->regmap, EDMA_QID2RID_TABLE_MEM(0),
 		     soc->rxdesc_ring & 0xF);
@@ -957,7 +993,14 @@ static int edma_hw_init(struct edma_priv *priv)
 		regmap_set_bits(priv->regmap, EDMA_REG_AXIW_CTRL,
 				EDMA_AXIW_MAX_WR_SIZE_EN);
 
-	regmap_write(priv->regmap, EDMA_REG_MISC_INT_MASK, soc->misc_int_mask);
+	/*
+	 * Keep misc error interrupts masked. The NSS firmware shares the
+	 * EDMA block and can raise misc conditions (shared TX SRAM / RX
+	 * desc FIFO flow control) while bringing up its rings; the legacy
+	 * nss-dp driver likewise runs with this mask cleared once a port
+	 * is open. The misc IRQ handler stays registered as a backstop.
+	 */
+	regmap_write(priv->regmap, EDMA_REG_MISC_INT_MASK, 0);
 
 	regmap_write(priv->regmap, EDMA_REG_PORT_CTRL,
 		     EDMA_PORT_PAD_EN | EDMA_PORT_EDMA_EN);
@@ -1021,9 +1064,9 @@ static int edma_ndo_stop(struct net_device *netdev)
 
 static int edma_ndo_change_mtu(struct net_device *netdev, int new_mtu);
 
-static netdev_tx_t edma_ndo_xmit(struct sk_buff *skb, struct net_device *netdev)
+static netdev_tx_t edma_xmit(struct edma_priv *priv, struct net_device *netdev,
+			     struct sk_buff *skb)
 {
-	struct edma_priv *priv = netdev_priv(netdev);
 	const struct edma_soc_data *soc = priv->soc;
 	netdev_tx_t ret;
 	u32 nhead, ntail;
@@ -1063,6 +1106,36 @@ drop:
 	return NETDEV_TX_OK;
 }
 
+static netdev_tx_t edma_ndo_xmit(struct sk_buff *skb, struct net_device *netdev)
+{
+	struct edma_priv *priv = netdev_priv(netdev);
+	struct dsa_oob_tag_info *tag_info;
+	struct edma_dp_owner *rd;
+
+	tag_info = skb_ext_find(skb, SKB_EXT_DSA_OOB);
+	if (tag_info && tag_info->port <= QCA_EDMA_DP_MAX_PORT) {
+		netdev_tx_t ret;
+
+		rcu_read_lock();
+		rd = rcu_dereference(priv->dp_owner[tag_info->port]);
+		if (rd) {
+			if (unlikely(!READ_ONCE(priv->dp_injectable[tag_info->port]))) {
+				rcu_read_unlock();
+				dev_kfree_skb_any(skb);
+				atomic64_inc(&priv->dp_tx_ungranted[tag_info->port]);
+				netdev->stats.tx_dropped++;
+				return NETDEV_TX_OK;
+			}
+			ret = rd->ops->xmit(skb, rd->ctx);
+			rcu_read_unlock();
+			return ret;
+		}
+		rcu_read_unlock();
+	}
+
+	return edma_xmit(priv, netdev, skb);
+}
+
 static const struct net_device_ops edma_netdev_ops = {
 	.ndo_open = edma_ndo_open,
 	.ndo_stop = edma_ndo_stop,
@@ -1072,6 +1145,239 @@ static const struct net_device_ops edma_netdev_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_get_stats64 = dev_get_tstats64,
 };
+
+/*
+ * Serializes owner table mutation and injectable state across all
+ * conduits, and is held across every revoke/grant callback: an owner is
+ * never released while one of its callbacks runs, and claim-time grant,
+ * transition revoke/grant and release order totally.
+ */
+static DEFINE_MUTEX(edma_dp_lock);
+
+bool qca_edma_netdev_is_conduit(const struct net_device *netdev)
+{
+	return netdev && netdev->netdev_ops == &edma_netdev_ops;
+}
+EXPORT_SYMBOL_GPL(qca_edma_netdev_is_conduit);
+
+/*
+ * Restore the EDMA registers the NSS firmware reprograms when it takes
+ * over CPU-port delivery: the QID2RID table (CPU-port queues back to the
+ * host rx ring), the firmware-range ring enables, and the shared
+ * ring-map registers. This returns the block to the host-only baseline
+ * programmed by edma_hw_init(), so host RX resumes as soon as the
+ * firmware data plane detaches and a later firmware boot starts from
+ * the same state as a cold boot. The caller must guarantee the
+ * firmware is stopped (qca-ppe-nss calls this with the NSS cores held
+ * in reset), because the firmware-owned ring range is written.
+ */
+int qca_edma_fw_baseline_restore(struct net_device *conduit)
+{
+	const struct edma_soc_data *soc;
+	struct edma_priv *priv;
+	int i;
+
+	if (!qca_edma_netdev_is_conduit(conduit))
+		return -EINVAL;
+
+	priv = netdev_priv(conduit);
+	soc = priv->soc;
+
+	edma_rings_disable(priv);
+
+	/* Queue 0 to the host rx ring, every other entry parked at 0 */
+	regmap_write(priv->regmap, EDMA_QID2RID_TABLE_MEM(0),
+		     soc->rxdesc_ring & 0xF);
+	for (i = 1; i < EDMA_QID2RID_TABLE_ENTRIES; i++)
+		regmap_write(priv->regmap, EDMA_QID2RID_TABLE_MEM(i), 0);
+
+	regmap_write(priv->regmap, EDMA_REG_RXDESC2FILL_MAP_0, 0);
+	regmap_write(priv->regmap, EDMA_REG_RXDESC2FILL_MAP_1,
+		     (soc->rxfill_ring & 0x7)
+			<< ((soc->rxdesc_ring % 10) * 3));
+
+	if (soc->txcmpl_ring != soc->txdesc_ring) {
+		int map_idx = soc->txdesc_ring / 10;
+		int bit_pos = (soc->txdesc_ring % 10) * 3;
+
+		for (i = 0; i < 3; i++)
+			regmap_write(priv->regmap,
+				     EDMA_REG_TXDESC2CMPL_MAP(i), 0);
+		regmap_set_bits(priv->regmap,
+				EDMA_REG_TXDESC2CMPL_MAP(map_idx),
+				(soc->txcmpl_ring & 0x7) << bit_pos);
+	}
+
+	edma_rings_enable(priv);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qca_edma_fw_baseline_restore);
+
+int qca_edma_port_dp_claim(struct net_device *conduit, unsigned int port,
+			   const struct qca_edma_dp_owner *owner, void *ctx)
+{
+	struct edma_dp_owner *rd;
+	struct edma_priv *priv;
+	int ret = 0;
+
+	if (!qca_edma_netdev_is_conduit(conduit) || !owner || !owner->xmit ||
+	    !owner->revoke || !owner->grant || port > QCA_EDMA_DP_MAX_PORT)
+		return -EINVAL;
+
+	priv = netdev_priv(conduit);
+
+	rd = kzalloc(sizeof(*rd), GFP_KERNEL);
+	if (!rd)
+		return -ENOMEM;
+
+	rd->ops = owner;
+	rd->ctx = ctx;
+
+	mutex_lock(&edma_dp_lock);
+	if (rcu_dereference_protected(priv->dp_owner[port],
+				      lockdep_is_held(&edma_dp_lock))) {
+		kfree(rd);
+		ret = -EBUSY;
+	} else {
+		bool was_open = priv->dp_injectable[port];
+
+		/*
+		 * Publishing the owner while the port is still marked
+		 * injectable hands it conduit TX before the grant has told
+		 * the firmware the port is up, and the firmware discards
+		 * frames for a port it believes is down. Close the port
+		 * across the claim instead: until the owner is published the
+		 * frames still take the host path, after it they are dropped
+		 * and counted against the port, so at no point are they given
+		 * to an owner that cannot send them. Reopen only on a granted
+		 * claim, leaving a refused one to the next transition.
+		 */
+		if (was_open)
+			WRITE_ONCE(priv->dp_injectable[port], false);
+		rcu_assign_pointer(priv->dp_owner[port], rd);
+		if (was_open && !owner->grant(ctx))
+			WRITE_ONCE(priv->dp_injectable[port], true);
+	}
+	mutex_unlock(&edma_dp_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(qca_edma_port_dp_claim);
+
+int qca_edma_port_dp_release(struct net_device *conduit, unsigned int port)
+{
+	struct edma_dp_owner *rd;
+	struct edma_priv *priv;
+
+	if (!qca_edma_netdev_is_conduit(conduit) ||
+	    port > QCA_EDMA_DP_MAX_PORT)
+		return -EINVAL;
+
+	priv = netdev_priv(conduit);
+
+	mutex_lock(&edma_dp_lock);
+	rd = rcu_replace_pointer(priv->dp_owner[port], NULL,
+				 lockdep_is_held(&edma_dp_lock));
+	mutex_unlock(&edma_dp_lock);
+
+	if (!rd)
+		return -ENOENT;
+
+	/* No handler invocation is in flight once this returns. */
+	synchronize_net();
+	kfree(rd);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qca_edma_port_dp_release);
+
+void qca_edma_port_transition_begin(struct net_device *conduit,
+				    unsigned int port)
+{
+	struct edma_dp_owner *rd;
+	struct edma_priv *priv;
+
+	if (!qca_edma_netdev_is_conduit(conduit) ||
+	    port > QCA_EDMA_DP_MAX_PORT)
+		return;
+
+	priv = netdev_priv(conduit);
+
+	mutex_lock(&edma_dp_lock);
+	if (priv->dp_injectable[port]) {
+		WRITE_ONCE(priv->dp_injectable[port], false);
+		rd = rcu_dereference_protected(priv->dp_owner[port],
+					       lockdep_is_held(&edma_dp_lock));
+		if (rd)
+			rd->ops->revoke(rd->ctx);
+	}
+	mutex_unlock(&edma_dp_lock);
+}
+EXPORT_SYMBOL_GPL(qca_edma_port_transition_begin);
+
+void qca_edma_port_transition_end(struct net_device *conduit,
+				  unsigned int port)
+{
+	struct edma_dp_owner *rd;
+	struct edma_priv *priv;
+
+	if (!qca_edma_netdev_is_conduit(conduit) ||
+	    port > QCA_EDMA_DP_MAX_PORT)
+		return;
+
+	priv = netdev_priv(conduit);
+
+	mutex_lock(&edma_dp_lock);
+	if (!priv->dp_injectable[port]) {
+		rd = rcu_dereference_protected(priv->dp_owner[port],
+					       lockdep_is_held(&edma_dp_lock));
+		/*
+		 * Only open the port once the owner confirms it can carry the
+		 * traffic, and leave the flag clear if it cannot. The flag is
+		 * the retry condition as much as the TX permission: setting
+		 * it before the grant, and keeping it set when the grant
+		 * failed, made every later transition skip the grant it was
+		 * supposed to repeat, so one refused grant stranded the port
+		 * until reboot.
+		 * Left clear, host TX for the port is dropped and counted
+		 * rather than silently handed to an owner that cannot send it,
+		 * and the next transition tries again.
+		 */
+		if (!rd || !rd->ops->grant(rd->ctx))
+			WRITE_ONCE(priv->dp_injectable[port], true);
+	}
+	mutex_unlock(&edma_dp_lock);
+}
+EXPORT_SYMBOL_GPL(qca_edma_port_transition_end);
+
+u64 qca_edma_port_dp_tx_ungranted(struct net_device *conduit, unsigned int port)
+{
+	struct edma_priv *priv;
+
+	if (!qca_edma_netdev_is_conduit(conduit) ||
+	    port > QCA_EDMA_DP_MAX_PORT)
+		return 0;
+
+	priv = netdev_priv(conduit);
+
+	return atomic64_read(&priv->dp_tx_ungranted[port]);
+}
+EXPORT_SYMBOL_GPL(qca_edma_port_dp_tx_ungranted);
+
+bool qca_edma_port_dp_injectable(struct net_device *conduit, unsigned int port)
+{
+	struct edma_priv *priv;
+
+	if (!qca_edma_netdev_is_conduit(conduit) ||
+	    port > QCA_EDMA_DP_MAX_PORT)
+		return false;
+
+	priv = netdev_priv(conduit);
+
+	return READ_ONCE(priv->dp_injectable[port]);
+}
+EXPORT_SYMBOL_GPL(qca_edma_port_dp_injectable);
 
 static int edma_irq_init(struct edma_priv *priv)
 {
@@ -1150,6 +1456,22 @@ static struct page_pool *edma_page_pool_create(struct edma_priv *priv,
 	return page_pool_create(&pp);
 }
 
+/*
+ * True while the NSS firmware has taken over CPU-port delivery and owns
+ * the rings outside the host partition. Claim and release run under rtnl,
+ * as does every ndo.
+ */
+static bool edma_fw_owns_rings(struct edma_priv *priv)
+{
+	unsigned int port;
+
+	for (port = 0; port <= QCA_EDMA_DP_MAX_PORT; port++)
+		if (rcu_access_pointer(priv->dp_owner[port]))
+			return true;
+
+	return false;
+}
+
 static int edma_ndo_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct edma_priv *priv = netdev_priv(netdev);
@@ -1164,6 +1486,23 @@ static int edma_ndo_change_mtu(struct net_device *netdev, int new_mtu)
 		return 0;
 	}
 
+	/*
+	 * New receive buffers mean freeing the rings that hold the old
+	 * ones, which needs the engine stopped first. qca-nss-dp's EDMA v1
+	 * map carries no RXDESC disable-done (v2 added one at 0x39024) and
+	 * its v1 data plane quiesces with nothing but edma_disable_port(),
+	 * so the only stop here is the global PORT_CTRL disable - which the
+	 * firmware depends on, and resetting the block instead takes the
+	 * firmware's rings down under it. Refuse while it is there; every
+	 * MTU in ordinary use keeps the page order and returns above.
+	 */
+	if (edma_fw_owns_rings(priv)) {
+		netdev_warn(netdev,
+			    "MTU %d needs a receive buffer rebuild, which cannot be done while the NSS firmware shares the EDMA block\n",
+			    new_mtu);
+		return -EBUSY;
+	}
+
 	new_pool = edma_page_pool_create(priv, new_order);
 	if (IS_ERR(new_pool))
 		return PTR_ERR(new_pool);
@@ -1175,6 +1514,13 @@ static int edma_ndo_change_mtu(struct net_device *netdev, int new_mtu)
 	}
 
 	edma_hw_stop(priv);
+
+	/*
+	 * Stop the engine before the rings go: edma_hw_stop() leaves the
+	 * global enable alone for the firmware, and edma_hw_init() resets
+	 * the block only after the free.
+	 */
+	regmap_write(priv->regmap, EDMA_REG_PORT_CTRL, 0);
 	edma_rings_drain(priv);
 
 	old_pool = priv->page_pool;
@@ -1227,16 +1573,18 @@ static const struct regmap_config edma_regmap_cfg = {
  * whose ports carry the board's addresses either from DT or patched in by
  * the bootloader. DSA user ports without one of their own inherit whatever
  * ends up here.
+ *
+ * A port address is optional here, so no lookup error is fatal: a cell whose
+ * layout driver never binds defers forever, and dsa_port_setup() reads these
+ * same addresses without acting on the error either.
  */
 static int edma_get_mac_address(struct net_device *netdev,
 				struct device_node *np)
 {
 	struct device_node *cpu_port;
-	int ret;
 
-	ret = of_get_ethdev_address(np, netdev);
-	if (!ret || ret == -EPROBE_DEFER)
-		return ret;
+	if (!of_get_ethdev_address(np, netdev))
+		return 0;
 
 	for_each_node_with_property(cpu_port, "ethernet") {
 		struct device_node *conduit __free(device_node) =
@@ -1246,10 +1594,9 @@ static int edma_get_mac_address(struct net_device *netdev,
 			continue;
 
 		for_each_available_child_of_node_scoped(cpu_port->parent, port) {
-			ret = of_get_ethdev_address(port, netdev);
-			if (!ret || ret == -EPROBE_DEFER) {
+			if (!of_get_ethdev_address(port, netdev)) {
 				of_node_put(cpu_port);
-				return ret;
+				return 0;
 			}
 		}
 	}
@@ -1299,10 +1646,7 @@ static int edma_probe(struct platform_device *pdev)
 	priv->pdev = pdev;
 	priv->soc = device_get_match_data(dev);
 
-	ret = edma_get_mac_address(netdev, dev->of_node);
-	if (ret == -EPROBE_DEFER)
-		return dev_err_probe(dev, ret, "failed to get MAC address\n");
-	if (ret)
+	if (edma_get_mac_address(netdev, dev->of_node))
 		eth_hw_addr_random(netdev);
 
 	priv->rx_page_order = edma_rx_page_order(netdev->mtu);
@@ -1365,8 +1709,20 @@ err_page_pool:
 static void edma_remove(struct platform_device *pdev)
 {
 	struct edma_priv *priv = platform_get_drvdata(pdev);
+	struct edma_dp_owner *rd;
+	int i;
 
 	unregister_netdev(priv->netdev);
+
+	/* Datapath owners detach on NETDEV_UNREGISTER; mop up stragglers */
+	mutex_lock(&edma_dp_lock);
+	for (i = 0; i <= QCA_EDMA_DP_MAX_PORT; i++) {
+		rd = rcu_replace_pointer(priv->dp_owner[i], NULL,
+					 lockdep_is_held(&edma_dp_lock));
+		if (rd)
+			kfree_rcu(rd, rcu);
+	}
+	mutex_unlock(&edma_dp_lock);
 	netif_napi_del(&priv->tx_napi);
 	netif_napi_del(&priv->rx_napi);
 	edma_hw_stop(priv);
