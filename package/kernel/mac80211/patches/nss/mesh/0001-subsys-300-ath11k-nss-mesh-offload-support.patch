@@ -36,6 +36,8 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  create mode 100644 drivers/net/wireless/ath/ath11k/debug_nss.c
  create mode 100644 drivers/net/wireless/ath/ath11k/debug_nss.h
 
+diff --git a/include/net/mac80211.h b/include/net/mac80211.h
+index c252313..e0691f2 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -145,6 +145,9 @@
@@ -112,27 +114,27 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  };
  
  
-@@ -2984,6 +3004,7 @@ enum ieee80211_hw_flags {
+@@ -2987,6 +3007,7 @@ enum ieee80211_hw_flags {
  	IEEE80211_HW_HANDLES_QUIET_CSA,
  	IEEE80211_HW_STRICT,
  	IEEE80211_HW_SUPPORTS_NSS_OFFLOAD,
 +	IEEE80211_HW_SUPPORTS_MESH_NSS_OFFLOAD,
+ 	IEEE80211_HW_HAS_TX_QUEUE,
  
  	/* keep last, obviously */
- 	NUM_IEEE80211_HW_FLAGS
-@@ -4520,6 +4541,8 @@ struct ieee80211_prep_tx_info {
-  * @set_sar_specs: Update the SAR (TX power) settings.
-  * @sta_set_decap_offload: Called to notify the driver when a station is allowed
+@@ -4526,6 +4547,8 @@ struct ieee80211_prep_tx_info {
   *	to use rx decapsulation offload
+  * @sta_set_airtime_weight: Called to notify the driver of a change to a
+  *	station's airtime fairness weight, so it can be programmed in hardware.
 + * @config_mesh_offload_path: Configure mesh path table when driver supports mesh offload.
 + *	This calback must be atomic.
   * @add_twt_setup: Update hw with TWT agreement parameters received from the peer.
   *	This callback allows the hw to check if requested parameters
   *	are supported and if there is enough room for a new agreement.
-@@ -4935,6 +4958,12 @@ struct ieee80211_ops {
- 	void (*sta_set_decap_offload)(struct ieee80211_hw *hw,
- 				      struct ieee80211_vif *vif,
- 				      struct ieee80211_sta *sta, bool enabled);
+@@ -4944,6 +4967,12 @@ struct ieee80211_ops {
+ 	void (*sta_set_airtime_weight)(struct ieee80211_hw *hw,
+ 				       struct ieee80211_vif *vif,
+ 				       struct ieee80211_sta *sta, u16 weight);
 +#ifdef CPTCFG_MAC80211_MESH
 +	void (*config_mesh_offload_path)(struct ieee80211_hw *hw,
 +					 struct ieee80211_vif *vif,
@@ -142,7 +144,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	void (*add_twt_setup)(struct ieee80211_hw *hw,
  			      struct ieee80211_sta *sta,
  			      struct ieee80211_twt_setup *twt);
-@@ -7991,4 +8020,101 @@ int ieee80211_emulate_switch_vif_chanctx
+@@ -7999,4 +8028,101 @@ int ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *hw,
   * Return: %true iff the vif is a NAN interface and NAN is started
   */
  bool ieee80211_vif_nan_started(struct ieee80211_vif *vif);
@@ -244,9 +246,11 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
 +#endif
 +
  #endif /* MAC80211_H */
+diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
+index cb1a03c..f61b2bb 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -2793,6 +2793,7 @@ static int ieee80211_update_mesh_config(
+@@ -2797,6 +2797,7 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
  	struct mesh_config *conf;
  	struct ieee80211_sub_if_data *sdata;
  	struct ieee80211_if_mesh *ifmsh;
@@ -254,7 +258,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  
  	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
  	ifmsh = &sdata->u.mesh;
-@@ -2809,8 +2810,11 @@ static int ieee80211_update_mesh_config(
+@@ -2813,8 +2814,11 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
  		conf->dot11MeshMaxPeerLinks = nconf->dot11MeshMaxPeerLinks;
  	if (_chg_mesh_attr(NL80211_MESHCONF_MAX_RETRIES, mask))
  		conf->dot11MeshMaxRetries = nconf->dot11MeshMaxRetries;
@@ -267,7 +271,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	if (_chg_mesh_attr(NL80211_MESHCONF_ELEMENT_TTL, mask))
  		conf->element_ttl = nconf->element_ttl;
  	if (_chg_mesh_attr(NL80211_MESHCONF_AUTO_OPEN_PLINKS, mask)) {
-@@ -2824,8 +2828,12 @@ static int ieee80211_update_mesh_config(
+@@ -2828,8 +2832,12 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
  	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_MAX_PREQ_RETRIES, mask))
  		conf->dot11MeshHWMPmaxPREQretries =
  			nconf->dot11MeshHWMPmaxPREQretries;
@@ -281,7 +285,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	if (_chg_mesh_attr(NL80211_MESHCONF_MIN_DISCOVERY_TIMEOUT, mask))
  		conf->min_discovery_timeout = nconf->min_discovery_timeout;
  	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_ACTIVE_PATH_TIMEOUT, mask))
-@@ -2860,8 +2868,12 @@ static int ieee80211_update_mesh_config(
+@@ -2864,8 +2872,12 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
  	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_RANN_INTERVAL, mask))
  		conf->dot11MeshHWMPRannInterval =
  			nconf->dot11MeshHWMPRannInterval;
@@ -295,7 +299,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	if (_chg_mesh_attr(NL80211_MESHCONF_RSSI_THRESHOLD, mask)) {
  		/* our RSSI threshold implementation is supported only for
  		 * devices that report signal in dBm.
-@@ -2903,6 +2915,7 @@ static int ieee80211_update_mesh_config(
+@@ -2907,6 +2919,7 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
  		conf->dot11MeshConnectedToAuthServer =
  			nconf->dot11MeshConnectedToAuthServer;
  	ieee80211_mbss_info_change_notify(sdata, BSS_CHANGED_BEACON);
@@ -303,6 +307,8 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	return 0;
  }
  
+diff --git a/net/mac80211/debug.h b/net/mac80211/debug.h
+index a777eb6..d8ae677 100644
 --- a/net/mac80211/debug.h
 +++ b/net/mac80211/debug.h
 @@ -68,6 +68,12 @@
@@ -329,19 +335,23 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  #define tdls_dbg(sdata, fmt, ...)					\
  	_sdata_dbg(MAC80211_TDLS_DEBUG,					\
  		   sdata, fmt, ##__VA_ARGS__)
+diff --git a/net/mac80211/debugfs.c b/net/mac80211/debugfs.c
+index 00d020d..90d11ec 100644
 --- a/net/mac80211/debugfs.c
 +++ b/net/mac80211/debugfs.c
-@@ -508,6 +508,7 @@ static const char *hw_flag_names[] = {
+@@ -504,6 +504,7 @@ static const char *hw_flag_names[] = {
  	FLAG(HANDLES_QUIET_CSA),
  	FLAG(STRICT),
  	FLAG(SUPPORTS_NSS_OFFLOAD),
 +	FLAG(SUPPORTS_MESH_NSS_OFFLOAD),
+ 	FLAG(HAS_TX_QUEUE),
  #undef FLAG
  };
- 
+diff --git a/net/mac80211/driver-ops.c b/net/mac80211/driver-ops.c
+index c38e423..70eee0e 100644
 --- a/net/mac80211/driver-ops.c
 +++ b/net/mac80211/driver-ops.c
-@@ -635,3 +635,23 @@ int drv_change_sta_links(struct ieee8021
+@@ -639,3 +639,23 @@ int drv_change_sta_links(struct ieee80211_local *local,
  
  	return 0;
  }
@@ -365,9 +375,11 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
 +	/* TODO: trace event */
 +}
 +#endif
+diff --git a/net/mac80211/driver-ops.h b/net/mac80211/driver-ops.h
+index e7120df..c3ba7c2 100644
 --- a/net/mac80211/driver-ops.h
 +++ b/net/mac80211/driver-ops.h
-@@ -1817,4 +1817,11 @@ static inline int drv_set_eml_op_mode(st
+@@ -1836,4 +1836,11 @@ static inline int drv_set_eml_op_mode(struct ieee80211_sub_if_data *sdata,
  	return ret;
  }
  
@@ -379,9 +391,11 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
 +#endif /* CPTCFG_MAC80211_MESH */
 +
  #endif /* __MAC80211_DRIVER_OPS */
+diff --git a/net/mac80211/mesh.h b/net/mac80211/mesh.h
+index 9829455..46a7306 100644
 --- a/net/mac80211/mesh.h
 +++ b/net/mac80211/mesh.h
-@@ -321,6 +321,10 @@ void mesh_rx_path_sel_frame(struct ieee8
+@@ -321,6 +321,10 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
  			    struct ieee80211_mgmt *mgmt, size_t len);
  struct mesh_path *
  mesh_path_add(struct ieee80211_sub_if_data *sdata, const u8 *dst);
@@ -392,7 +406,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  
  int mesh_path_add_gate(struct mesh_path *mpath);
  int mesh_path_send_to_gates(struct mesh_path *mpath);
-@@ -362,6 +366,7 @@ void mesh_path_discard_frame(struct ieee
+@@ -362,6 +366,7 @@ void mesh_path_discard_frame(struct ieee80211_sub_if_data *sdata,
  void mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata);
  
  bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt);
@@ -400,9 +414,11 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  struct ieee80211_mesh_fast_tx *
  mesh_fast_tx_get(struct ieee80211_sub_if_data *sdata,
  		 struct ieee80211_mesh_fast_tx_key *key);
+diff --git a/net/mac80211/mesh_hwmp.c b/net/mac80211/mesh_hwmp.c
+index 9101858..860de38 100644
 --- a/net/mac80211/mesh_hwmp.c
 +++ b/net/mac80211/mesh_hwmp.c
-@@ -373,6 +373,13 @@ static bool is_metric_better(u32 x, u32
+@@ -373,6 +373,13 @@ static bool is_metric_better(u32 x, u32 y)
  	return (x < y) && (x < (y - x / 10));
  }
  
@@ -416,7 +432,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  /**
   * hwmp_route_info_get - Update routing info to originator and transmitter
   *
-@@ -396,9 +403,10 @@ static u32 hwmp_route_info_get(struct ie
+@@ -396,9 +403,10 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
  {
  	struct ieee80211_local *local = sdata->local;
  	struct mesh_path *mpath;
@@ -428,7 +444,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	u32 orig_sn, orig_metric;
  	unsigned long orig_lifetime, exp_time;
  	u32 last_hop_metric, new_metric;
-@@ -500,7 +508,10 @@ static u32 hwmp_route_info_get(struct ie
+@@ -500,7 +508,10 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
  		}
  
  		if (fresh_info) {
@@ -440,7 +456,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  				mpath->path_change_count++;
  				flush_mpath = true;
  			}
-@@ -522,6 +533,8 @@ static u32 hwmp_route_info_get(struct ie
+@@ -522,6 +533,8 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
  			/* draft says preq_id should be saved to, but there does
  			 * not seem to be any use for it, skipping by now
  			 */
@@ -449,7 +465,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  		} else
  			spin_unlock_bh(&mpath->state_lock);
  	}
-@@ -552,7 +565,14 @@ static u32 hwmp_route_info_get(struct ie
+@@ -552,7 +565,14 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
  		}
  
  		if (fresh_info) {
@@ -465,7 +481,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  				mpath->path_change_count++;
  				flush_mpath = true;
  			}
-@@ -569,6 +589,8 @@ static u32 hwmp_route_info_get(struct ie
+@@ -569,6 +589,8 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
  			/* init it at a low value - 0 start is tricky */
  			ewma_mesh_fail_avg_add(&sta->mesh->fail_avg, 1);
  			mesh_path_tx_pending(mpath);
@@ -474,7 +490,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  		} else
  			spin_unlock_bh(&mpath->state_lock);
  	}
-@@ -707,15 +729,6 @@ static void hwmp_preq_frame_process(stru
+@@ -707,15 +729,6 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
  	}
  }
  
@@ -490,7 +506,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
  				    struct ieee80211_mgmt *mgmt,
  				    const u8 *prep_elem, u32 metric)
-@@ -1359,3 +1372,274 @@ void mesh_path_tx_root_frame(struct ieee
+@@ -1359,3 +1372,274 @@ void mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata)
  		return;
  	}
  }
@@ -765,6 +781,8 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
 +	return ret;
 +}
 +EXPORT_SYMBOL(ieee80211_mesh_path_offld_change_notify);
+diff --git a/net/mac80211/mesh_pathtbl.c b/net/mac80211/mesh_pathtbl.c
+index 0319674..c9934a4 100644
 --- a/net/mac80211/mesh_pathtbl.c
 +++ b/net/mac80211/mesh_pathtbl.c
 @@ -16,6 +16,7 @@
@@ -775,7 +793,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  
  static void mesh_path_free_rcu(struct mesh_table *tbl, struct mesh_path *mpath);
  
-@@ -104,6 +105,63 @@ static void mesh_table_free(struct mesh_
+@@ -104,6 +105,63 @@ static void mesh_table_free(struct mesh_table *tbl)
  				    mesh_path_rht_free, tbl);
  }
  
@@ -839,7 +857,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  /**
   * mesh_path_assign_nexthop - update mesh path next hop
   *
-@@ -241,16 +299,23 @@ static void mesh_path_move_to_queue(stru
+@@ -241,16 +299,23 @@ static void mesh_path_move_to_queue(struct mesh_path *gate_mpath,
  
  
  static struct mesh_path *mpath_lookup(struct mesh_table *tbl, const u8 *dst,
@@ -864,7 +882,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	}
  	return mpath;
  }
-@@ -267,13 +332,13 @@ static struct mesh_path *mpath_lookup(st
+@@ -267,13 +332,13 @@ static struct mesh_path *mpath_lookup(struct mesh_table *tbl, const u8 *dst,
  struct mesh_path *
  mesh_path_lookup(struct ieee80211_sub_if_data *sdata, const u8 *dst)
  {
@@ -880,7 +898,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  }
  
  static struct mesh_path *
-@@ -337,6 +402,7 @@ mpp_path_lookup_by_idx(struct ieee80211_
+@@ -337,6 +402,7 @@ mpp_path_lookup_by_idx(struct ieee80211_sub_if_data *sdata, int idx)
  int mesh_path_add_gate(struct mesh_path *mpath)
  {
  	struct mesh_table *tbl;
@@ -888,7 +906,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	int err;
  
  	rcu_read_lock();
-@@ -349,6 +415,7 @@ int mesh_path_add_gate(struct mesh_path
+@@ -349,6 +415,7 @@ int mesh_path_add_gate(struct mesh_path *mpath)
  		goto err_rcu;
  	}
  	mpath->is_gate = true;
@@ -896,7 +914,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	mpath->sdata->u.mesh.num_gates++;
  
  	spin_lock(&tbl->gates_lock);
-@@ -357,6 +424,8 @@ int mesh_path_add_gate(struct mesh_path
+@@ -357,6 +424,8 @@ int mesh_path_add_gate(struct mesh_path *mpath)
  
  	spin_unlock_bh(&mpath->state_lock);
  
@@ -927,7 +945,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	mpath_dbg(mpath->sdata,
  		  "Mesh path: Deleted gate: %pM. %d known gates\n",
  		  mpath->dst, mpath->sdata->u.mesh.num_gates);
-@@ -668,17 +742,8 @@ void mesh_fast_tx_flush_addr(struct ieee
+@@ -668,17 +742,8 @@ void mesh_fast_tx_flush_addr(struct ieee80211_sub_if_data *sdata,
  	spin_unlock_bh(&cache->walk_lock);
  }
  
@@ -947,7 +965,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  {
  	struct mesh_table *tbl;
  	struct mesh_path *mpath, *new_mpath;
-@@ -719,8 +784,36 @@ struct mesh_path *mesh_path_add(struct i
+@@ -719,8 +784,36 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
  	return new_mpath;
  }
  
@@ -986,7 +1004,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  {
  	struct mesh_table *tbl;
  	struct mesh_path *new_mpath;
-@@ -758,6 +851,25 @@ int mpp_path_add(struct ieee80211_sub_if
+@@ -758,6 +851,25 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
  	return ret;
  }
  
@@ -1012,7 +1030,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  
  /**
   * mesh_plink_broken - deactivates paths and sends perr when a link breaks
-@@ -808,8 +920,29 @@ static void mesh_path_free_rcu(struct me
+@@ -808,8 +920,29 @@ static void mesh_path_free_rcu(struct mesh_table *tbl,
  	kfree_rcu(mpath, rcu);
  }
  
@@ -1043,7 +1061,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	hlist_del_rcu(&mpath->walk_list);
  	rhashtable_remove_fast(&tbl->rhead, &mpath->rhash, mesh_rht_params);
  	if (tbl == &mpath->sdata->u.mesh.mpp_paths)
-@@ -817,6 +950,11 @@ static void __mesh_path_del(struct mesh_
+@@ -817,6 +950,11 @@ static void __mesh_path_del(struct mesh_table *tbl, struct mesh_path *mpath)
  	else
  		mesh_fast_tx_flush_mpath(mpath);
  	mesh_path_free_rcu(tbl, mpath);
@@ -1055,7 +1073,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  }
  
  /**
-@@ -840,7 +978,7 @@ void mesh_path_flush_by_nexthop(struct s
+@@ -840,7 +978,7 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
  	spin_lock_bh(&tbl->walk_lock);
  	hlist_for_each_entry_safe(mpath, n, &tbl->walk_head, walk_list) {
  		if (rcu_access_pointer(mpath->next_hop) == sta)
@@ -1064,7 +1082,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	}
  	spin_unlock_bh(&tbl->walk_lock);
  }
-@@ -855,19 +993,19 @@ static void mpp_flush_by_proxy(struct ie
+@@ -855,19 +993,19 @@ static void mpp_flush_by_proxy(struct ieee80211_sub_if_data *sdata,
  	spin_lock_bh(&tbl->walk_lock);
  	hlist_for_each_entry_safe(mpath, n, &tbl->walk_head, walk_list) {
  		if (ether_addr_equal(mpath->mpp, proxy))
@@ -1087,7 +1105,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	}
  	spin_unlock_bh(&tbl->walk_lock);
  }
-@@ -881,8 +1019,8 @@ static void table_flush_by_iface(struct
+@@ -881,8 +1019,8 @@ static void table_flush_by_iface(struct mesh_table *tbl)
   */
  void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata)
  {
@@ -1098,7 +1116,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  }
  
  /**
-@@ -896,7 +1034,7 @@ void mesh_path_flush_by_iface(struct iee
+@@ -896,7 +1034,7 @@ void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata)
   */
  static int table_path_del(struct mesh_table *tbl,
  			  struct ieee80211_sub_if_data *sdata,
@@ -1107,7 +1125,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  {
  	struct mesh_path *mpath;
  
-@@ -907,7 +1045,7 @@ static int table_path_del(struct mesh_ta
+@@ -907,7 +1045,7 @@ static int table_path_del(struct mesh_table *tbl,
  		return -ENXIO;
  	}
  
@@ -1116,7 +1134,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	spin_unlock_bh(&tbl->walk_lock);
  	return 0;
  }
-@@ -928,7 +1066,7 @@ int mesh_path_del(struct ieee80211_sub_i
+@@ -928,7 +1066,7 @@ int mesh_path_del(struct ieee80211_sub_if_data *sdata, const u8 *addr)
  	/* flush relevant mpp entries first */
  	mpp_flush_by_proxy(sdata, addr);
  
@@ -1125,7 +1143,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	sdata->u.mesh.mesh_paths_generation++;
  	return err;
  }
-@@ -1046,7 +1184,10 @@ void mesh_path_flush_pending(struct mesh
+@@ -1046,7 +1184,10 @@ void mesh_path_flush_pending(struct mesh_path *mpath)
   */
  void mesh_path_fix_nexthop(struct mesh_path *mpath, struct sta_info *next_hop)
  {
@@ -1136,7 +1154,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	mesh_path_assign_nexthop(mpath, next_hop);
  	mpath->sn = 0xffff;
  	mpath->metric = 0;
-@@ -1060,6 +1201,8 @@ void mesh_path_fix_nexthop(struct mesh_p
+@@ -1060,6 +1201,8 @@ void mesh_path_fix_nexthop(struct mesh_path *mpath, struct sta_info *next_hop)
  	/* init it at a low value - 0 start is tricky */
  	ewma_mesh_fail_avg_add(&next_hop->mesh->fail_avg, 1);
  	mesh_path_tx_pending(mpath);
@@ -1145,7 +1163,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  }
  
  void mesh_pathtbl_init(struct ieee80211_sub_if_data *sdata)
-@@ -1071,7 +1214,7 @@ void mesh_pathtbl_init(struct ieee80211_
+@@ -1071,7 +1214,7 @@ void mesh_pathtbl_init(struct ieee80211_sub_if_data *sdata)
  
  static
  void mesh_path_tbl_expire(struct ieee80211_sub_if_data *sdata,
@@ -1154,7 +1172,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  {
  	struct mesh_path *mpath;
  	struct hlist_node *n;
-@@ -1081,15 +1224,15 @@ void mesh_path_tbl_expire(struct ieee802
+@@ -1081,15 +1224,15 @@ void mesh_path_tbl_expire(struct ieee80211_sub_if_data *sdata,
  		if ((!(mpath->flags & MESH_PATH_RESOLVING)) &&
  		    (!(mpath->flags & MESH_PATH_FIXED)) &&
  		     time_after(jiffies, mpath->exp_time + MESH_PATH_EXPIRE))
@@ -1173,9 +1191,11 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  }
  
  void mesh_pathtbl_unregister(struct ieee80211_sub_if_data *sdata)
+diff --git a/net/mac80211/tx.c b/net/mac80211/tx.c
+index 07fb865..297e72f 100644
 --- a/net/mac80211/tx.c
 +++ b/net/mac80211/tx.c
-@@ -2630,7 +2630,7 @@ static struct sk_buff *ieee80211_build_h
+@@ -2644,7 +2644,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
  	bool multicast;
  	u16 info_id = 0;
  	struct ieee80211_chanctx_conf *chanctx_conf = NULL;
@@ -1184,7 +1204,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	int ret;
  	u8 link_id = u32_get_bits(ctrl_flags, IEEE80211_TX_CTRL_MLO_LINK);
  
-@@ -2642,6 +2642,9 @@ static struct sk_buff *ieee80211_build_h
+@@ -2656,6 +2656,9 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
  		info_flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
  #endif
  
@@ -1194,7 +1214,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	/* convert Ethernet header to proper 802.11 header (based on
  	 * operation mode) */
  	ethertype = (skb->data[12] << 8) | skb->data[13];
-@@ -2712,6 +2715,13 @@ static struct sk_buff *ieee80211_build_h
+@@ -2726,6 +2729,13 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
  		break;
  #ifdef CPTCFG_MAC80211_MESH
  	case NL80211_IFTYPE_MESH_POINT:
@@ -1208,7 +1228,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  		if (!is_multicast_ether_addr(skb->data)) {
  			struct sta_info *next_hop;
  			bool mpp_lookup = true;
-@@ -2974,10 +2984,10 @@ static struct sk_buff *ieee80211_build_h
+@@ -2988,10 +2998,10 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
  
  	skb_reset_mac_header(skb);
  
@@ -1223,7 +1243,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	if (info_id) {
  		info->status_data = info_id;
  		info->status_data_idr = 1;
-@@ -4303,6 +4313,7 @@ void __ieee80211_subif_start_xmit(struct
+@@ -4335,6 +4345,7 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
  	struct sk_buff *next;
  	int len = skb->len;
  	struct ieee80211_key *key = NULL;
@@ -1231,7 +1251,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
  	struct ieee80211_sub_if_data *ap_sdata;
  
  	if (unlikely(!ieee80211_sdata_running(sdata) || skb->len < ETH_HLEN)) {
-@@ -4377,9 +4388,15 @@ void __ieee80211_subif_start_xmit(struct
+@@ -4410,9 +4421,15 @@ void __ieee80211_subif_start_xmit(struct sk_buff *skb,
  			goto out;
  		}
  
@@ -1242,7 +1262,7 @@ Signed-off-by: Gautham Kumar Senthilkumaran <quic_gauthamk@quicinc.com>
 +		if (info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) {
 +			if (sta)
 +				key = rcu_dereference(sta->ptk[sta->ptk_idx]);
-+			ieee80211_8023_xmit(sdata, dev, sta, key, skb);
++			ieee80211_8023_xmit(sdata, dev, sta, key, skb, info_flags, ctrl_flags, cookie);
 +		} else {
 +			dev_sw_netstats_tx_add(dev, 1, skb->len);
 +			ieee80211_xmit(sdata, sta, skb);

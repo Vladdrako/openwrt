@@ -19,6 +19,8 @@ Signed-off-by: Seevalamuthu Mariappan <seevalam@codeaurora.org>
  drivers/net/wireless/ath/ath11k/mac.c   |   3 +
  4 files changed, 279 insertions(+), 3 deletions(-)
 
+diff --git a/drivers/net/wireless/ath/ath11k/core.h b/drivers/net/wireless/ath/ath11k/core.h
+index c229e74..70323ae 100644
 --- a/drivers/net/wireless/ath/ath11k/core.h
 +++ b/drivers/net/wireless/ath/ath11k/core.h
 @@ -128,6 +128,7 @@ struct ath11k_skb_cb {
@@ -29,9 +31,11 @@ Signed-off-by: Seevalamuthu Mariappan <seevalam@codeaurora.org>
  } __packed;
  
  struct ath11k_skb_rxcb {
+diff --git a/drivers/net/wireless/ath/ath11k/dp_tx.c b/drivers/net/wireless/ath/ath11k/dp_tx.c
+index 2633ae5..83c4037 100644
 --- a/drivers/net/wireless/ath/ath11k/dp_tx.c
 +++ b/drivers/net/wireless/ath/ath11k/dp_tx.c
-@@ -80,6 +80,43 @@ enum hal_encrypt_type ath11k_dp_tx_get_e
+@@ -80,6 +80,43 @@ enum hal_encrypt_type ath11k_dp_tx_get_encrypt_type(u32 cipher)
  	}
  }
  
@@ -75,7 +79,7 @@ Signed-off-by: Seevalamuthu Mariappan <seevalam@codeaurora.org>
  int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
  		 struct ath11k_sta *arsta, struct sk_buff *skb)
  {
-@@ -97,7 +134,8 @@ int ath11k_dp_tx(struct ath11k *ar, stru
+@@ -97,7 +134,8 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
  	int ret;
  	u32 ring_selector = 0;
  	u8 ring_map = 0;
@@ -150,7 +154,7 @@ Signed-off-by: Seevalamuthu Mariappan <seevalam@codeaurora.org>
  	spin_lock_bh(&tx_ring->tx_idr_lock);
  	idr_remove(&tx_ring->txbuf_idr,
  		   FIELD_GET(DP_TX_DESC_ID_MSDU_ID, ti.desc_id));
-@@ -349,6 +420,9 @@ ath11k_dp_tx_htt_tx_complete_buf(struct
+@@ -349,6 +420,9 @@ ath11k_dp_tx_htt_tx_complete_buf(struct ath11k_base *ab,
  		return;
  	}
  
@@ -160,6 +164,8 @@ Signed-off-by: Seevalamuthu Mariappan <seevalam@codeaurora.org>
  	memset(&info->status, 0, sizeof(info->status));
  
  	if (ts->acked) {
+diff --git a/drivers/net/wireless/ath/ath11k/dp_tx.h b/drivers/net/wireless/ath/ath11k/dp_tx.h
+index c02b1ea..dbdca7e 100644
 --- a/drivers/net/wireless/ath/ath11k/dp_tx.h
 +++ b/drivers/net/wireless/ath/ath11k/dp_tx.h
 @@ -17,6 +17,204 @@ struct ath11k_dp_htt_wbm_tx_status {
@@ -367,9 +373,11 @@ Signed-off-by: Seevalamuthu Mariappan <seevalam@codeaurora.org>
  void ath11k_dp_tx_update_txcompl(struct ath11k *ar, struct hal_tx_status *ts);
  int ath11k_dp_tx_htt_h2t_ver_req_msg(struct ath11k_base *ab);
  int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
+diff --git a/drivers/net/wireless/ath/ath11k/mac.c b/drivers/net/wireless/ath/ath11k/mac.c
+index a04a143..ea1c7ae 100644
 --- a/drivers/net/wireless/ath/ath11k/mac.c
 +++ b/drivers/net/wireless/ath/ath11k/mac.c
-@@ -10620,6 +10620,9 @@ static int __ath11k_mac_register(struct
+@@ -10618,6 +10618,9 @@ static int __ath11k_mac_register(struct ath11k *ar)
  		 */
  		ar->hw->wiphy->interface_modes &= ~BIT(NL80211_IFTYPE_MONITOR);
  
