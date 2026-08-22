@@ -1,3 +1,7 @@
+add-nssmirred
+
+Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
+
 --- a/tc/Makefile
 +++ b/tc/Makefile
 @@ -50,6 +50,7 @@ TCMODULES += m_tunnel_key.o
