@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Alexander Astrovsky <astrouski@google.com>
+Date: Sun, 23 Aug 2026 16:30:00 +0000
+Subject: [PATCH] AP: use link BSSID for Authentication replies
+
+In an AP MLD, management frames transmitted on an affiliated link must
+have Address 3 set to the link's BSSID (hapd->own_addr) per IEEE Std
+802.11be-2024.
+
+Previously, send_auth_reply() set reply->bssid to sa (the AP MLD MAC
+address). This causes client chipsets that filter incoming frames by
+the link BSSID to drop the Authentication reply. Use hapd->own_addr
+instead.
+
+Signed-off-by: Alexander Astrovsky <astrouski@google.com>
+---
+ src/ap/ieee802_11.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/src/ap/ieee802_11.c
++++ b/src/ap/ieee802_11.c
+@@ -404,7 +404,7 @@ static int send_auth_reply(struct hostap
+ 					    WLAN_FC_STYPE_AUTH);
+ 	os_memcpy(reply->da, dst, ETH_ALEN);
+ 	os_memcpy(reply->sa, sa, ETH_ALEN);
+-	os_memcpy(reply->bssid, sa, ETH_ALEN);
++	os_memcpy(reply->bssid, hapd->own_addr, ETH_ALEN);
+ 
+ 	reply->u.auth.auth_alg = host_to_le16(auth_alg);
+ 	reply->u.auth.auth_transaction = host_to_le16(auth_transaction);
