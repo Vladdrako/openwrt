@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Alexander Astrovsky <astrouski@google.com>
+Date: Sun, 23 Aug 2026 21:10:00 +0000
+Subject: [PATCH] eapol_auth: report EAP type from internal EAP server
+
+When hostapd uses its integrated internal EAP server rather than an
+external RADIUS authentication server, sm->eap_type_authsrv is not
+populated. Consequently, the log message upon successful authentication
+prints "authenticated - EAP type: 0 (NONE)" instead of the actual EAP
+method used (e.g., EAP-TLS, PEAP, TTLS).
+
+Populate sm->eap_type_authsrv from sm->eap->currentMethod when using the
+internal EAP server so the EAP method is accurately logged and reported.
+
+Signed-off-by: Alexander Astrovsky <astrouski@google.com>
+---
+ src/eapol_auth/eapol_auth_sm.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+--- a/src/eapol_auth/eapol_auth_sm.c
++++ b/src/eapol_auth/eapol_auth_sm.c
+@@ -15,6 +15,7 @@
+ #include "eap_common/eap_defs.h"
+ #include "eap_common/eap_common.h"
+ #include "eap_server/eap.h"
++#include "eap_server/eap_i.h"
+ #include "eapol_auth_sm.h"
+ #include "eapol_auth_sm_i.h"
+ 
+@@ -320,6 +321,8 @@ SM_STATE(AUTH_PAE, AUTHENTICATED)
+ 		extra = " (pre-authentication)";
+ 	else if (sm->flags & EAPOL_SM_FROM_PMKSA_CACHE)
+ 		extra = " (PMKSA cache)";
++	if (sm->eap && sm->eap_type_authsrv == EAP_TYPE_NONE)
++		sm->eap_type_authsrv = sm->eap->currentMethod;
+ 	eapol_auth_vlogger(sm->eapol, sm->addr, EAPOL_LOGGER_INFO,
+ 			   "authenticated - EAP type: %d (%s)%s",
+ 			   sm->eap_type_authsrv,

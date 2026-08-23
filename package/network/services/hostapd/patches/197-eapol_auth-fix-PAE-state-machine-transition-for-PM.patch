@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Alexander Astrovsky <astrouski@google.com>
+Date: Sun, 23 Aug 2026 21:10:00 +0000
+Subject: [PATCH] eapol_auth: fix PAE state machine transition for PMKSA cache
+
+When a station reconnects or roams using a cached PMKSA entry
+(EAPOL_SM_FROM_PMKSA_CACHE), full EAP authentication is bypassed, so
+sm->authSuccess and sm->portValid are not set by the EAP state machine.
+
+As a result, in the AUTH_PAE_AUTHENTICATING state, the condition
+(sm->authSuccess && sm->portValid) evaluates to false, which can cause
+the state machine to either fail to enter AUTH_PAE_AUTHENTICATED or
+transition to AUTH_PAE_HELD upon (sm->keyDone && !sm->portValid).
+
+Allow transitioning to AUTH_PAE_AUTHENTICATED when
+sm->flags & EAPOL_SM_FROM_PMKSA_CACHE is set, and ensure sm->portValid
+is marked true upon entering AUTHENTICATED.
+
+Signed-off-by: Alexander Astrovsky <astrouski@google.com>
+---
+ src/eapol_auth/eapol_auth_sm.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+--- a/src/eapol_auth/eapol_auth_sm.c
++++ b/src/eapol_auth/eapol_auth_sm.c
+@@ -315,6 +315,7 @@ SM_STATE(AUTH_PAE, AUTHENTICATED)
+ 
+ 	sm->authPortStatus = Authorized;
+ 	setPortAuthorized();
++	sm->portValid = true;
+ 	sm->reAuthCount = 0;
+ 	sm->reAuthenticate = false;
+ 	if (sm->flags & EAPOL_SM_PREAUTH)
+@@ -436,7 +437,8 @@ static void eapol_auth_step_auth_pae(str
+ 				SM_ENTER(AUTH_PAE, DISCONNECTED);
+ 			break;
+ 		case AUTH_PAE_AUTHENTICATING:
+-			if (sm->authSuccess && sm->portValid)
++			if ((sm->authSuccess && sm->portValid) ||
++			    (sm->flags & EAPOL_SM_FROM_PMKSA_CACHE))
+ 				SM_ENTER(AUTH_PAE, AUTHENTICATED);
+ 			else if (sm->authFail ||
+ 				 (sm->keyDone && !sm->portValid))
