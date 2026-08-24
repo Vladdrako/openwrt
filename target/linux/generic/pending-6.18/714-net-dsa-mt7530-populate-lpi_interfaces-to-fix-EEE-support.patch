@@ -72,7 +72,7 @@ interface mask alone cannot tell them apart.
 
 [1] https://lore.kernel.org/r/20250315154407.26304-14-ansuelsmth@gmail.com
 
-Submitted upstream: https://lore.kernel.org/netdev/20260822195252.2934-1-f@lex.la/
+Submitted upstream: https://lore.kernel.org/netdev/20260824024117.46154-1-f@lex.la/
 
 Signed-off-by: Aleksei Sviridkin <f@lex.la>
 ---
