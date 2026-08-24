@@ -63,6 +63,11 @@ PHY_INTERFACE_MODE_INTERNAL is the only interface it supports. Nothing
 changes there: it is a fixed link port with no PHY, so phylink had no
 EEE to manage on it before this patch either.
 
+The `for` loop above needs `i`, which upstream declares in this same
+patch; here the declaration hunk drops out because
+795-05-net-ethernet-mtk_eth_soc-add-per-conduit-DSA-user-po.patch
+already widens mtk_add_mac()'s `int id, err, count;` to include it.
+
 Submitted upstream: https://lore.kernel.org/netdev/20260822195252.2934-1-f@lex.la/
 
 Signed-off-by: Aleksei Sviridkin <f@lex.la>
@@ -75,9 +80,9 @@ Signed-off-by: Aleksei Sviridkin <f@lex.la>
  		MAC_10 | MAC_100 | MAC_1000 | MAC_2500FD;
 -	mac->phylink_config.lpi_capabilities = MAC_100FD | MAC_1000FD |
 -		MAC_2500FD;
-+	/* MAC_MCR only has EEE force bits for 100 Mbps and 1 Gbps, and
-+	 * MAC_EEECR only has wakeup times for those two speeds, so the MAC
-+	 * cannot signal LPI at 2.5 Gbps.
++	/* MAC_MCR folds SPEED_2500 onto MAC_MCR_SPEED_1000, so LPI above
++	 * 1 Gbps would be governed by MAC_MCR_EEE1G and is unvalidated
++	 * rather than unsupported.
 +	 */
 +	mac->phylink_config.lpi_capabilities = MAC_100FD | MAC_1000FD;
  	mac->phylink_config.lpi_timer_default = 1000;
