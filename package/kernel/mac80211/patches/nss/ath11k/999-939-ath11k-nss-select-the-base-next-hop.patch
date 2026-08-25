@@ -1,0 +1,47 @@
+Let the interface wifili hands a decapped frame to be chosen at load time
+rather than fixed at the ethernet receive node.
+
+The ethernet receive node delivers to the host. The EDMA node transmits a
+frame with no destination port set, which is the descriptor the firmware
+builds when the PPE is to process a frame rather than forward it to a
+port, so a frame handed there enters the PPE ingress pipeline and is
+matched against the flow tables.
+
+The default is unchanged.
+
+Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
+
+diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
+index 0ecdab4..82ef9f6 100644
+--- a/drivers/net/wireless/ath/ath11k/nss.c
++++ b/drivers/net/wireless/ath/ath11k/nss.c
+@@ -14,6 +14,16 @@
+ #include "wmi.h"
+ #include "../../../../../net/mac80211/sta_info.h"
+ 
++/* Interface the firmware hands a decapped frame to once wifili is done with it.
++ * The ethernet receive node is the one that reaches the host; the EDMA node
++ * transmits with no destination port, which puts the frame through the PPE
++ * ingress pipeline instead.
++ */
++static bool nss_edma_next_hop;
++module_param(nss_edma_next_hop, bool, 0444);
++MODULE_PARM_DESC(nss_edma_next_hop,
++		 "deliver wifili frames to the EDMA node instead of the host");
++
+ /*-----------------------------ATH11K-NSS Helpers--------------------------*/
+ 
+ static enum ath11k_nss_opmode
+@@ -3590,8 +3600,10 @@ int ath11k_nss_setup(struct ath11k_base *ab)
+ 		goto pdev_deinit;
+ 	}
+ 
+-	/* Default nexthop interface is set to ETH RX */
+-	ret = nss_wifi_vdev_base_set_next_hop(ab->nss.ctx, NSS_ETH_RX_INTERFACE);
++	ret = nss_wifi_vdev_base_set_next_hop(ab->nss.ctx,
++					      nss_edma_next_hop ?
++					      NSS_EDMA_INTERFACE :
++					      NSS_ETH_RX_INTERFACE);
+ 	if (ret != NSS_TX_SUCCESS) {
+ 		ath11k_warn(ab, "Failure to set default next hop : %d\n", ret);
+ 		goto stop;
