@@ -561,8 +561,11 @@ static int qca_uniphy_pcs_config_mode(struct phylink_pcs *pcs,
 	msleep(100);
 
 	/* Second assert XPCS... */
-	if (uniphy->rst_xpcs)
-		reset_control_assert(uniphy->rst_xpcs);
+	if (uniphy->rst_xpcs) {
+		ret = reset_control_assert(uniphy->rst_xpcs);
+		if (ret)
+			return ret;
+	}
 
 	/* ...and disable PHY clock */
 	if (upcs->clks_enabled) {
@@ -586,9 +589,13 @@ static int qca_uniphy_pcs_config_mode(struct phylink_pcs *pcs,
 	 * lots of testing it has been verified that operating
 	 * on the single reset is problematic)
 	 */
-	reset_control_assert(uniphy->rst_soft);
+	ret = reset_control_assert(uniphy->rst_soft);
+	if (ret)
+		goto err_clks;
 	msleep(100);
-	reset_control_deassert(uniphy->rst_soft);
+	ret = reset_control_deassert(uniphy->rst_soft);
+	if (ret)
+		goto err_clks;
 
 	/* ...and wait for calibration */
 	ret = regmap_read_poll_timeout(uniphy->regmap, UNIPHY_OFFSET_CALIB_4,
@@ -597,13 +604,8 @@ static int qca_uniphy_pcs_config_mode(struct phylink_pcs *pcs,
 				       UNIPHY_CALIBRATION_TIMEOUT_US);
 	if (ret) {
 		dev_err(uniphy->dev, "PCS calibration timeout\n");
-		/* Once another channel configures the same mode the sequence
-		 * is skipped, so nothing else re-enables these.
-		 */
-		if (!clk_bulk_enable(QCA_UNIPHY_PORT_CLKS,
-				     &uniphy->clks[port_rx_clk_idx(upcs)]))
-			upcs->clks_enabled = true;
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_clks;
 	}
 
 	/* Trigger UNIPHY ref clock to recal rate */
@@ -645,6 +647,20 @@ static int qca_uniphy_pcs_config_mode(struct phylink_pcs *pcs,
 	uniphy->interface = interface;
 
 	return 0;
+
+err_clks:
+	/* Once another channel configures the same mode the sequence is
+	 * skipped, so nothing else re-enables these.
+	 */
+	if (clk_bulk_enable(QCA_UNIPHY_PORT_CLKS,
+			    &uniphy->clks[port_rx_clk_idx(upcs)]))
+		dev_err(uniphy->dev,
+			"Failed to re-enable clocks for channel %d\n",
+			upcs->channel);
+	else
+		upcs->clks_enabled = true;
+
+	return ret;
 }
 
 static int qca_uniphy_pcs_config_usxgmii(struct phylink_pcs *pcs,
@@ -883,14 +899,23 @@ static int qca_uniphy_pcs_validate(struct phylink_pcs *pcs, unsigned long *suppo
 	}
 }
 
+/*
+ * phylink ignores what pcs_enable() returns and calls pcs_disable() either way,
+ * so the reference it holds is tracked separately from the one the mode
+ * sequence takes: dropping a reference that was never acquired underflows the
+ * clock enable count.
+ */
 static void qca_uniphy_pcs_disable(struct phylink_pcs *pcs)
 {
 	struct qca_uniphy_pcs *upcs = to_qca_uniphy_pcs(pcs);
 	struct qca_uniphy *uniphy = upcs->uniphy;
 
-	if (uniphy->data->uniphy_type == UNIPHY_IPQ5018)
-		clk_bulk_disable(QCA_UNIPHY_PORT_CLKS,
-				 &uniphy->clks[port_rx_clk_idx(upcs)]);
+	if (!upcs->phylink_clks_enabled)
+		return;
+
+	clk_bulk_disable(QCA_UNIPHY_PORT_CLKS,
+			 &uniphy->clks[port_rx_clk_idx(upcs)]);
+	upcs->phylink_clks_enabled = false;
 }
 
 static int qca_uniphy_pcs_enable(struct phylink_pcs *pcs)
@@ -904,11 +929,15 @@ static int qca_uniphy_pcs_enable(struct phylink_pcs *pcs)
 
 	ret = clk_bulk_enable(QCA_UNIPHY_PORT_CLKS,
 			      &uniphy->clks[port_rx_clk_idx(upcs)]);
-	if (ret)
+	if (ret) {
 		dev_err(uniphy->dev, "Failed to enable clocks for channel %d\n",
 			upcs->channel);
+		return ret;
+	}
 
-	return ret;
+	upcs->phylink_clks_enabled = true;
+
+	return 0;
 }
 
 static void qca_uniphy_pcs_an_restart(struct phylink_pcs *pcs) { }

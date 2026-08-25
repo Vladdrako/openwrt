@@ -123,7 +123,10 @@ struct qca_uniphy_pcs {
 	struct phylink_pcs pcs;
 	struct qca_uniphy *uniphy;
 	int channel;
+	/* Clock pair the mode sequence left enabled on this channel */
 	bool clks_enabled;
+	/* Clock pair phylink's .pcs_enable left enabled on this channel */
+	bool phylink_clks_enabled;
 };
 
 struct qca_uniphy_match_data {
