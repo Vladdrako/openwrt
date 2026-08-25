@@ -140,7 +140,7 @@ Signed-off-by: Kevin Darbyshire-Bryant <ldir@darbyshire-bryant.me.uk>
       my_syslog(LOG_ERR, _("failed to update ipset %s: %s"), setname, strerror(errno));
 --- a/src/util.c
 +++ b/src/util.c
-@@ -928,25 +928,6 @@ int wildcard_matchn(const char* wildcard
+@@ -928,25 +928,6 @@
    return (!num) || (*wildcard == *match);
  }
  
@@ -166,3 +166,5 @@ Signed-off-by: Kevin Darbyshire-Bryant <ldir@darbyshire-bryant.me.uk>
  #define hash_ptr(x) (((uintptr_t)(x)) & 0xffffff)
  
  void *whine_malloc_real(const char *func, unsigned int line, size_t size)
+
+

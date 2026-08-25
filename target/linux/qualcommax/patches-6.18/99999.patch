@@ -567,10 +567,10 @@ Signed-off-by: Mantas Pucka <mantas@8devices.com>
 
 --- a/drivers/remoteproc/qcom_q6v5_wcss.c
 +++ b/drivers/remoteproc/qcom_q6v5_wcss.c
-@@ -1201,7 +1201,7 @@ static const struct wcss_data wcss_ipq60
+@@ -1372,7 +1372,7 @@
+ 	.crash_reason_smem = WCSS_CRASH_REASON,
  	.aon_reset_required = true,
  	.wcss_q6_reset_required = true,
- 	.bcr_reset_required = false,
 -	.ssr_name = "q6wcss",
 +	.ssr_name = "wcnss",
  	.ops = &q6v5_wcss_ipq8074_ops,
@@ -603,45 +603,21 @@ Signed-off-by: Mantas Pucka <mantas@8devices.com>
  				      "sleep_clk",
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-@@ -215,17 +215,20 @@
+@@ -233,12 +233,12 @@
  			no-map;
  		};
  
--		tz: memory@4a600000 {
--			reg = <0x0 0x4a600000 0x0 0x400000>;
-+		smem@4aa00000 {
-+			compatible = "qcom,smem";
-+			reg = <0x0 0x4aa00000 0x0 0x100000>;
- 			no-map;
-+
-+			hwlocks = <&tcsr_mutex 3>;
- 		};
- 
--		smem_region: memory@4aa00000 {
--			reg = <0x0 0x4aa00000 0x0 0x100000>;
-+		tzapp_region: tzapp@4a600000 {
-+			reg = <0x0 0x4a600000 0x0 0x400000>;
+-		q6_etr_region: q6_etr_dump@1 {
++		q6_etr_region: q6_etr_region@50000000 {
+ 			reg = <0x0 0x50000000 0x0 0x00100000>;
  			no-map;
  		};
  
--		q6_region: memory@4ab00000 {
-+		q6_region: wcnss@4ab00000 {
- 			reg = <0x0 0x4ab00000 0x0 0x5500000>;
+-		m3_dump_region: m3_dump@50100000 {
++		m3_dump_region: m3_dump_region@50100000 {
+ 			reg = <0x0 0x50100000 0x0 0x00100000>;
  			no-map;
  		};
-@@ -241,12 +244,6 @@
- 		};
- 	};
- 
--	smem {
--		compatible = "qcom,smem";
--		memory-region = <&smem_region>;
--		hwlocks = <&tcsr_mutex 3>;
--	};
--
- 	soc: soc@0 {
- 		#address-cells = <2>;
- 		#size-cells = <2>;
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 @@ -232,7 +232,7 @@
@@ -682,96 +658,6 @@ Signed-off-by: Mantas Pucka <mantas@8devices.com>
  					  "reo2host-status",
  					  "reo2host-destination-ring4",
  					  "reo2host-destination-ring3",
-
-From 19be13369d8e32f1ade15cf75dd7d534661b0098 Mon Sep 17 00:00:00 2001
-From: Robert Marko <robimarko@gmail.com>
-Date: Mon, 29 Jul 2024 13:39:17 +0200
-Subject: [PATCH] regulator: cpr: Convert to platform remove callback returning
- void
-
-The .remove() callback for a platform driver returns an int which makes
-many driver authors wrongly assume it's possible to do error handling by
-returning an error code. However the value returned is ignored (apart
-from emitting a warning) and this typically results in resource leaks.
-
-To improve here there is a quest to make the remove callback return
-void. In the first step of this quest all drivers are converted to
-.remove_new(), which already returns void. Eventually after all drivers
-are converted, .remove_new() will be renamed to .remove().
-
-Trivially convert this driver from always returning zero in the remove
-callback to the void returning variant.
-
-Signed-off-by: Robert Marko <robimarko@gmail.com>
----
- drivers/regulator/cpr3-npu-regulator.c  | 6 +++---
- drivers/regulator/cpr4-apss-regulator.c | 6 +++---
- 2 files changed, 6 insertions(+), 6 deletions(-)
-
-diff --git a/drivers/regulator/cpr3-npu-regulator.c b/drivers/regulator/cpr3-npu-regulator.c
-index 6f4abb83c9287f..eab0904a395580 100644
---- a/drivers/regulator/cpr3-npu-regulator.c
-+++ b/drivers/regulator/cpr3-npu-regulator.c
-@@ -682,7 +682,7 @@ static struct platform_driver cpr3_npu_regulator_driver = {
- 		.owner		= THIS_MODULE,
- 	},
- 	.probe		= cpr3_npu_regulator_probe,
--	.remove		= cpr3_npu_regulator_remove,
-+	.remove_new	= cpr3_npu_regulator_remove,
- };
- 
- static int cpr3_regulator_init(void)
-diff --git a/drivers/regulator/cpr4-apss-regulator.c b/drivers/regulator/cpr4-apss-regulator.c
-index 98f1cd9cfc148c..4d4982bf8ddb2f 100644
---- a/drivers/regulator/cpr4-apss-regulator.c
-+++ b/drivers/regulator/cpr4-apss-regulator.c
-@@ -1797,7 +1797,7 @@ static struct platform_driver cpr4_apss_regulator_driver = {
- 		.owner		= THIS_MODULE,
- 	},
- 	.probe		= cpr4_apss_regulator_probe,
--	.remove		= cpr4_apss_regulator_remove,
-+	.remove_new	= cpr4_apss_regulator_remove,
- 	.suspend	= cpr4_apss_regulator_suspend,
- 	.resume		= cpr4_apss_regulator_resume,
- };
-
-From 2ae0ed9e1172a6b3a1b26482e754ebaa44032998 Mon Sep 17 00:00:00 2001
-From: Robert Marko <robimarko@gmail.com>
-Date: Mon, 29 Jul 2024 13:40:02 +0200
-Subject: [PATCH] power: apm: Convert to platform remove callback returning
- void
-
-The .remove() callback for a platform driver returns an int which makes
-many driver authors wrongly assume it's possible to do error handling by
-returning an error code. However the value returned is ignored (apart
-from emitting a warning) and this typically results in resource leaks.
-
-To improve here there is a quest to make the remove callback return
-void. In the first step of this quest all drivers are converted to
-.remove_new(), which already returns void. Eventually after all drivers
-are converted, .remove_new() will be renamed to .remove().
-
-Trivially convert this driver from always returning zero in the remove
-callback to the void returning variant.
-
-Signed-off-by: Robert Marko <robimarko@gmail.com>
----
- drivers/power/qcom/apm.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
-
-diff --git a/drivers/power/qcom/apm.c b/drivers/power/qcom/apm.c
-index bd93358e3d34cb..7846e1b539f406 100644
---- a/drivers/power/qcom/apm.c
-+++ b/drivers/power/qcom/apm.c
-@@ -922,7 +920,7 @@ static struct platform_driver msm_apm_driver = {
- 		.owner		= THIS_MODULE,
- 	},
- 	.probe		= msm_apm_probe,
--	.remove		= msm_apm_remove,
-+	.remove_new	= msm_apm_remove,
- };
- 
- static int __init msm_apm_init(void)
 
 From f9e7b3bea6d498c30e51fdcc3f55099e21391e11 Mon Sep 17 00:00:00 2001
 From: BrainSlayer <s.gottschall@dd-wrt.com>
@@ -843,28 +729,6 @@ index 51318cad4ae..58602570e52 100644
  
  /*
  * Used by test_cipher_speed()
---- a/drivers/clk/qcom/gcc-ipq6018.c
-+++ b/drivers/clk/qcom/gcc-ipq6018.c
-@@ -4194,10 +4194,9 @@ static const struct alpha_pll_config ubi32_pll_config = {
- 	.test_ctl_hi_val = 0x4000,
- };
- 
-+/* 1200 MHz configuration */
- static const struct alpha_pll_config nss_crypto_pll_config = {
- 	.l = 0x32,
--	.alpha = 0x0,
--	.alpha_hi = 0x0,
- 	.config_ctl_val = 0x4001055b,
- 	.main_output_mask = BIT(0),
- 	.pre_div_val = 0x0,
-@@ -4206,7 +4205,6 @@ static const struct alpha_pll_config nss_crypto_pll_config = {
- 	.post_div_mask = GENMASK(11, 8),
- 	.vco_mask = GENMASK(21, 20),
- 	.vco_val = 0x0,
--	.alpha_en_mask = BIT(24),
- };
- 
- static struct clk_hw *gcc_ipq6018_hws[] = {
 
 From 0f3a6fc93f4d838076959758ca0d14bd695b254b Mon Sep 17 00:00:00 2001
 From: BrainSlayer <s.gottschall@dd-wrt.com>
@@ -1082,51 +946,6 @@ index dd6a14392da6..b3ee9ce25c22 100644
  		#address-cells = <2>;
  		#size-cells = <2>;
  		ranges;
-@@ -215,7 +216,7 @@
- 			no-map;
- 		};
- 
--		nss_region: nss@40000000 {
-+		nss_region: nss_region@40000000 {
- 			reg = <0x0 0x40000000 0x0 0x01000000>;
- 			no-map;
- 		};
-@@ -230,7 +231,7 @@
- 			no-map;
- 		};
- 
--		smem@4aa00000 {
-+		smem_region: memory@4aa00000 {
- 			compatible = "qcom,smem";
- 			reg = <0x0 0x4aa00000 0x0 0x00100000>;
- 			no-map;
-@@ -238,22 +239,22 @@
- 			hwlocks = <&tcsr_mutex 3>;
- 		};
- 
--		tzapp_region: tzapp@4a600000 {
-+		tz: memory@4a600000 {
- 			reg = <0x0 0x4a600000 0x0 0x400000>;
- 			no-map;
- 		};
- 
--		q6_region: wcnss@4ab00000 {
-+		q6_region: memory@4ab00000 {
- 			reg = <0x0 0x4ab00000 0x0 0x5500000>;
- 			no-map;
- 		};
- 
--		q6_etr_region: q6_etr_dump@1 {
-+		q6_etr_region: q6_etr_region@50000000 {
- 			reg = <0x0 0x50000000 0x0 0x00100000>;
- 			no-map;
- 		};
- 
--		m3_dump_region: m3_dump@50100000 {
-+		m3_dump_region: m3_dump_region@50100000 {
- 			reg = <0x0 0x50100000 0x0 0x00100000>;
- 			no-map;
- 		};
 @@ -351,6 +352,7 @@
  
  			clock-output-names = "gcc_pcie0_pipe_clk_src";
@@ -1152,44 +971,6 @@ index dd6a14392da6..b3ee9ce25c22 100644
  		};
  
  		sram@8600000 {
-@@ -1079,9 +1080,13 @@
- 			max-link-speed = <3>;
- 			#address-cells = <3>;
- 			#size-cells = <2>;
-+			axi-halt-val = <0x1e>; /* increase halt window size to 1GB */
- 
- 			phys = <&pcie_phy>;
- 			phy-names = "pciephy";
-+
-+/*			ranges = <0x81000000 0x0 0x20200000 0x0 0x20200000 0x0 0x100000>,
-+				 <0x82000000 0x0 0x20300000 0x0 0x20300000 0x0 0x10000000>;*/
- 
- 			ranges = <0x81000000 0x0 0x00000000 0x0 0x20200000 0x0 0x10000>,
- 				 <0x82000000 0x0 0x20220000 0x0 0x20220000 0x0 0xfde0000>;
-@@ -1118,10 +1118,11 @@
- 				      "ahb",
- 				      "axi_m_sticky",
- 				      "axi_s_sticky";
--
--			status = "disabled";
--
--			pcie@0 {
-+/*			msi-parent = <&v2m0>;*/
-+			perst-gpios = <&tlmm 60 GPIO_ACTIVE_LOW>;
-+			status = "disabled";
-+
-+/*			pcie@0 {
- 				device_type = "pci";
- 				reg = <0x0 0x0 0x0 0x0 0x0>;
- 				bus-range = <0x01 0xff>;
-@@ -1129,7 +1130,7 @@
- 				#address-cells = <3>;
- 				#size-cells = <2>;
- 				ranges;
--			};
-+			};*/
- 		};
- 	};
  
 --- a/arch/arm64/boot/dts/qcom/ipq6018-mp5496.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018-mp5496.dtsi
@@ -1313,12 +1094,13 @@ diff --git a/Documentation/devicetree/bindings/sram/qcom,imem.yaml b/Documentati
 index 72d35e30c439ccf4901d937f838fe7c7a81f33b1..7286014e698f99184c1d6871f9a012c25c9147f6 100644
 --- a/Documentation/devicetree/bindings/sram/qcom,imem.yaml
 +++ b/Documentation/devicetree/bindings/sram/qcom,imem.yaml
-@@ -18,6 +18,11 @@ properties:
+@@ -18,7 +18,12 @@
      items:
        - enum:
            - qcom,apq8064-imem
 +          - qcom,ipq5018-imem
 +          - qcom,ipq5332-imem
+           - qcom,ipq5424-imem
 +          - qcom,ipq6018-imem
 +          - qcom,ipq8074-imem
 +          - qcom,ipq9574-imem

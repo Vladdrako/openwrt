@@ -1,16 +1,16 @@
 --- a/src/dnsmasq.c
 +++ b/src/dnsmasq.c
-@@ -2184,6 +2184,10 @@ static void do_tcp_connection(struct lis
+@@ -2201,6 +2201,10 @@
        daemon->pipe_to_parent = pipefd[1];
-     }
  
+     }
++
 +#ifdef HAVE_UBUS
 +	  drop_ubus_listeners();
 +#endif
-+
+   
    /* The connected socket inherits non-blocking
       attribute from the listening socket. 
-      Reset that here. */
 --- a/src/dnsmasq.h
 +++ b/src/dnsmasq.h
 @@ -1747,14 +1747,26 @@ void emit_dbus_signal(int action, struct
