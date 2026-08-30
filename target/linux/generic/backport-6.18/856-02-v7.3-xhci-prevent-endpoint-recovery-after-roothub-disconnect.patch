@@ -26,7 +26,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 ---
 --- a/drivers/usb/host/xhci.h
 +++ b/drivers/usb/host/xhci.h
-@@ -1463,6 +1463,7 @@ struct xhci_port {
+@@ -1462,6 +1462,7 @@ struct xhci_port {
  	struct xhci_hub		*rhub;
  	struct xhci_port_cap	*port_cap;
  	unsigned int		link_inactive:1;
