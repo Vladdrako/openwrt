@@ -356,10 +356,6 @@
 	};
 };
 
-&dwc_0 {
-	dr_mode = "host";
-};
-
 &mdio {
 	status = "okay";
 
@@ -498,6 +494,8 @@
 };
 
 &usb_0 {
+	dr_mode = "host";
+
 	status = "okay";
 };
 

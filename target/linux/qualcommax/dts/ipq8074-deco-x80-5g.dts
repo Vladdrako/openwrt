@@ -380,10 +380,6 @@ to suit the TP-Link Deco X80-5G target */
 	status = "okay";
 };
 
-&dwc_0 {
-	dr_mode = "host";
-};
-
 &prng {
 	status = "okay";
 };
@@ -417,6 +413,8 @@ to suit the TP-Link Deco X80-5G target */
 };
 
 &usb_0 {
+	dr_mode = "host";
+
 	status = "okay";
 };
 
