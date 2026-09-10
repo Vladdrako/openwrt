@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=openssl
 PKG_VERSION:=3.5.8
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 PKG_BUILD_FLAGS:=no-lto
 
 PKG_BUILD_PARALLEL:=1
@@ -95,7 +95,7 @@ $(call Package/openssl/Default)
   DEPENDS:=+OPENSSL_WITH_COMPRESSION:zlib \
 	   +OPENSSL_ENGINE_BUILTIN_DEVCRYPTO:kmod-cryptodev \
 	   +OPENSSL_ENGINE_BUILTIN_PADLOCK:kmod-crypto-hw-padlock \
-	   +(arm||armeb||mips||mipsel||powerpc):libatomic
+	   $(ATOMIC64_DEPENDS)
   TITLE+= (libraries)
   ABI_VERSION:=$(firstword $(subst .,$(space),$(PKG_VERSION)))
   MENU:=1
@@ -356,6 +356,7 @@ OPENSSL_TARGET:=linux-$(call qstrip,$(CONFIG_ARCH))-openwrt
 STAMP_CONFIGURED := $(STAMP_CONFIGURED)_$(shell echo $(OPENSSL_OPTIONS) | $(MKHASH) md5)
 
 TARGET_CFLAGS += $(FPIC)
+TARGET_LDFLAGS += -Wl,--as-needed
 
 define Build/Configure
 	(cd $(PKG_BUILD_DIR); \
