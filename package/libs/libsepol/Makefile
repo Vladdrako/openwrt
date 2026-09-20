@@ -16,6 +16,8 @@ PKG_HASH:=d555586797fa9f38344496d2a7ec1147b6caaf3fcc44c42d8d5173edd7a79a71
 PKG_MAINTAINER:=Thomas Petazzoni <thomas.petazzoni@bootlin.com>
 PKG_CPE_ID:=cpe:/a:selinuxproject:libsepol
 
+PKG_BUILD_PARALLEL:=1
+
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/host-build.mk
 
