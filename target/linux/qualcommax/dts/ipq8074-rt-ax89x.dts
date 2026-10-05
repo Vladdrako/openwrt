@@ -462,18 +462,30 @@
 			partition@3e0000 {
 				label = "0:appsblenv";
 				reg = <0x003e0000 0x20000>;
-
-				nvmem-layout {
-					compatible = "u-boot,env";
-
-					macaddr_ubootenv_ethaddr: ethaddr {};
-				};
 			};
 
 			partition@400000 {
 				compatible = "linux,ubi";
 				label = "UBI_DEV";
 				reg = <0x00400000 0xfc00000>;
+
+				volumes {
+					ubi-volume-factory {
+						volname = "Factory";
+
+						nvmem-layout {
+							compatible = "fixed-layout";
+							#address-cells = <1>;
+							#size-cells = <1>;
+
+							macaddr: macaddr@1014 {
+								compatible = "mac-base";
+								reg = <0x100e 0x6>;
+								#nvmem-cell-cells = <1>;
+							};
+						};
+					};
+				};
 			};
 		};
 	};
@@ -583,7 +595,7 @@
 				reg = <1>;
 				label = "lan7";
 				phy-handle = <&qca8337_0>;
-				nvmem-cells = <&macaddr_ubootenv_ethaddr>;
+				nvmem-cells = <&macaddr 1>;
 				nvmem-cell-names = "mac-address";
 			};
 
@@ -591,7 +603,7 @@
 				reg = <2>;
 				label = "lan6";
 				phy-handle = <&qca8337_1>;
-				nvmem-cells = <&macaddr_ubootenv_ethaddr>;
+				nvmem-cells = <&macaddr 1>;
 				nvmem-cell-names = "mac-address";
 			};
 
@@ -599,7 +611,7 @@
 				reg = <3>;
 				label = "lan5";
 				phy-handle = <&qca8337_2>;
-				nvmem-cells = <&macaddr_ubootenv_ethaddr>;
+				nvmem-cells = <&macaddr 1>;
 				nvmem-cell-names = "mac-address";
 			};
 
@@ -607,7 +619,7 @@
 				reg = <4>;
 				label = "lan4";
 				phy-handle = <&qca8337_3>;
-				nvmem-cells = <&macaddr_ubootenv_ethaddr>;
+				nvmem-cells = <&macaddr 1>;
 				nvmem-cell-names = "mac-address";
 			};
 
@@ -615,7 +627,7 @@
 				reg = <5>;
 				label = "lan3";
 				phy-handle = <&qca8337_4>;
-				nvmem-cells = <&macaddr_ubootenv_ethaddr>;
+				nvmem-cells = <&macaddr 1>;
 				nvmem-cell-names = "mac-address";
 			};
 
@@ -626,7 +638,7 @@
 				phy-handle = <&qca8033>;
 				managed = "in-band-status";
 				qca,sgmii-enable-pll;
-				nvmem-cells = <&macaddr_ubootenv_ethaddr>;
+				nvmem-cells = <&macaddr 1>;
 				nvmem-cell-names = "mac-address";
 			};
 		};
@@ -691,7 +703,7 @@
 			phy-handle = <&qca8075_8>;
 			phy-mode = "qsgmii";
 			pcs-handle = <&uniphy0 0>;
-			nvmem-cells = <&macaddr_ubootenv_ethaddr>;
+			nvmem-cells = <&macaddr 1>;
 			nvmem-cell-names = "mac-address";
 		};
 
@@ -701,7 +713,7 @@
 			phy-handle = <&qca8075_9>;
 			phy-mode = "qsgmii";
 			pcs-handle = <&uniphy0 1>;
-			nvmem-cells = <&macaddr_ubootenv_ethaddr>;
+			nvmem-cells = <&macaddr 1>;
 			nvmem-cell-names = "mac-address";
 		};
 
@@ -711,7 +723,7 @@
 			phy-handle = <&qca8075_a>;
 			phy-mode = "qsgmii";
 			pcs-handle = <&uniphy0 2>;
-			nvmem-cells = <&macaddr_ubootenv_ethaddr>;
+			nvmem-cells = <&macaddr 1>;
 			nvmem-cell-names = "mac-address";
 		};
 
@@ -721,7 +733,7 @@
 			phy-handle = <&qca8075_b>;
 			phy-mode = "qsgmii";
 			pcs-handle = <&uniphy0 3>;
-			nvmem-cells = <&macaddr_ubootenv_ethaddr>;
+			nvmem-cells = <&macaddr 1>;
 			nvmem-cell-names = "mac-address";
 		};
 
@@ -732,7 +744,7 @@
 			phy-mode = "10gbase-r";
 			managed = "in-band-status";
 			pcs-handle = <&uniphy1 0>;
-			nvmem-cells = <&macaddr_ubootenv_ethaddr>;
+			nvmem-cells = <&macaddr 1>;
 			nvmem-cell-names = "mac-address";
 		};
 
@@ -743,7 +755,7 @@
 			phy-mode = "usxgmii";
 			managed = "in-band-status";
 			pcs-handle = <&uniphy2 0>;
-			nvmem-cells = <&macaddr_ubootenv_ethaddr>;
+			nvmem-cells = <&macaddr 1>;
 			nvmem-cell-names = "mac-address";
 		};
 	};
