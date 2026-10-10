@@ -743,22 +743,6 @@ endef
 $(eval $(call KernelPackage,sched-core))
 
 
-define KernelPackage/sched-act-pedit
-  SUBMENU:=$(NETWORK_SUPPORT_MENU)
-  TITLE:=Traffic Packet Editing
-  DEPENDS:=+kmod-sched-core
-  KCONFIG:=CONFIG_NET_ACT_PEDIT
-  FILES:=$(LINUX_DIR)/net/sched/act_pedit.ko
-  AUTOLOAD:=$(call AutoProbe,act_pedit)
-endef
-
-define KernelPackage/sched-act-pedit/description
- Allows to configure rules to rewrite header fields, such as the DSCP.
-endef
-
-$(eval $(call KernelPackage,sched-act-pedit))
-
-
 define KernelPackage/sched-act-police
   SUBMENU:=$(NETWORK_SUPPORT_MENU)
   TITLE:=Traffic Policing
@@ -892,20 +876,21 @@ endef
 $(eval $(call KernelPackage,sched-drr))
 
 
-define KernelPackage/sched-ets
+define KernelPackage/sched-etf
   SUBMENU:=$(NETWORK_SUPPORT_MENU)
-  TITLE:=Enhanced Transmission Selection scheduler
+  TITLE:=Earliest TxTime First scheduler (ETF)
   DEPENDS:=+kmod-sched-core
-  KCONFIG:=CONFIG_NET_SCH_ETS
-  FILES:=$(LINUX_DIR)/net/sched/sch_ets.ko
-  AUTOLOAD:=$(call AutoProbe,sch_ets)
+  KCONFIG:=CONFIG_NET_SCH_ETF
+  FILES:=$(LINUX_DIR)/net/sched/sch_etf.ko
+  AUTOLOAD:=$(call AutoProbe,sch_etf)
 endef
 
-define KernelPackage/sched-ets/description
- Strict priority and weighted round-robin bands, offloadable to a switch.
+define KernelPackage/sched-etf/description
+ Earliest TxTime First scheduler, sends packets at the time set with
+ SO_TXTIME. Used for Time-Sensitive Networking.
 endef
 
-$(eval $(call KernelPackage,sched-ets))
+$(eval $(call KernelPackage,sched-etf))
 
 
 define KernelPackage/sched-flower
@@ -1017,22 +1002,6 @@ endef
 $(eval $(call KernelPackage,sched-prio))
 
 
-define KernelPackage/sched-gred
-  SUBMENU:=$(NETWORK_SUPPORT_MENU)
-  TITLE:=Generic Random Early Detection (GRED)
-  DEPENDS:=+kmod-sched-core
-  KCONFIG:=CONFIG_NET_SCH_GRED
-  FILES:=$(LINUX_DIR)/net/sched/sch_gred.ko
-  AUTOLOAD:=$(call AutoProbe,sch_gred)
-endef
-
-define KernelPackage/sched-gred/description
- RED with up to sixteen drop precedences, offloadable to a switch.
-endef
-
-$(eval $(call KernelPackage,sched-gred))
-
-
 define KernelPackage/sched-red
   SUBMENU:=$(NETWORK_SUPPORT_MENU)
   TITLE:=Random Early Detection (RED)
@@ -1087,20 +1056,22 @@ endef
 $(eval $(call KernelPackage,bpf-test))
 
 
-SCHED_MODULES_EXTRA = sch_codel sch_multiq sch_sfq sch_teql sch_fq act_simple act_skbmod act_csum em_cmp em_nbyte em_meta em_text
+SCHED_MODULES_EXTRA = sch_codel sch_gred sch_multiq sch_sfq sch_teql sch_fq sch_ets act_pedit act_simple act_skbmod act_csum em_cmp em_nbyte em_meta em_text
 SCHED_FILES_EXTRA = $(foreach mod,$(SCHED_MODULES_EXTRA),$(LINUX_DIR)/net/sched/$(mod).ko)
 
 define KernelPackage/sched
   SUBMENU:=$(NETWORK_SUPPORT_MENU)
   TITLE:=Extra traffic schedulers
-  DEPENDS:=+kmod-sched-core +kmod-sched-ets +kmod-sched-act-pedit +kmod-sched-gred \
-	+LINUX_6_12:kmod-lib-crc32c +kmod-lib-textsearch
+  DEPENDS:=+kmod-sched-core +LINUX_6_12:kmod-lib-crc32c +kmod-lib-textsearch
   KCONFIG:= \
 	CONFIG_NET_SCH_CODEL \
+	CONFIG_NET_SCH_GRED \
 	CONFIG_NET_SCH_MULTIQ \
 	CONFIG_NET_SCH_SFQ \
 	CONFIG_NET_SCH_TEQL \
 	CONFIG_NET_SCH_FQ \
+	CONFIG_NET_SCH_ETS \
+	CONFIG_NET_ACT_PEDIT \
 	CONFIG_NET_ACT_SIMP \
 	CONFIG_NET_ACT_SKBMOD \
 	CONFIG_NET_ACT_CSUM \
