@@ -1,0 +1,62 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Alexander Astrovsky <astrouski@google.com>
+Date: Sun, 23 Aug 2026 21:40:00 +0000
+Subject: [PATCH] wifi: mac80211: support MLO link STA lookup and link_id in
+ mgmt_tx
+
+In an AP MLD, management frames (such as Action frames, BSS Transition,
+and TWT frames) are frequently sent to a peer station's Link MAC address
+rather than its MLD MAC address.
+
+Previously, ieee80211_mgmt_tx() only called sta_info_get_bss(sdata, mgmt->da),
+which only looks up stations by MLD MAC address. When mgmt->da is a link
+address, sta lookup failed (sta == NULL), causing mlo_sta to evaluate to
+false.
+
+Fix this by adding a fallback to link_sta_info_get_bss(sdata, mgmt->da)
+when sta_info_get_bss() fails. Furthermore, honor params->link_id when
+explicitly provided by user-space (via NL80211_ATTR_MLO_LINK_ID) to select
+the designated link for transmission.
+
+Signed-off-by: Alexander Astrovsky <astrouski@google.com>
+---
+ net/mac80211/offchannel.c | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+--- a/net/mac80211/offchannel.c
++++ b/net/mac80211/offchannel.c
+@@ -858,6 +858,11 @@ int ieee80211_mgmt_tx(struct wiphy *wiph
+ 
+ 		rcu_read_lock();
+ 		sta = sta_info_get_bss(sdata, mgmt->da);
++		if (!sta) {
++			struct link_sta_info *link_sta = link_sta_info_get_bss(sdata, mgmt->da);
++			if (link_sta)
++				sta = link_sta->sta;
++		}
+ 		mlo_sta = sta && sta->sta.mlo;
+ 
+ 		if (!ieee80211_is_action(mgmt->frame_control) ||
+@@ -922,7 +927,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiph
+ 
+ 		rcu_read_lock();
+ 
+-		if (ieee80211_vif_is_mld(&sdata->vif) && mlo_sta &&
++		if (ieee80211_vif_is_mld(&sdata->vif) &&
+ 		    ether_addr_equal(sdata->vif.addr, mgmt->sa)) {
+ 			unsigned long links = sdata->vif.active_links;
+ 
+@@ -934,7 +939,12 @@ int ieee80211_mgmt_tx(struct wiphy *wiph
+ 				if (!chanctx_conf)
+ 					continue;
+ 
+-				if (params->chan == chanctx_conf->def.chan) {
++				if (params->link_id >= 0) {
++					if (params->link_id == link) {
++						link_id = link;
++						break;
++					}
++				} else if (params->chan == chanctx_conf->def.chan) {
+ 					link_id = link;
+ 					break;
+ 				}
