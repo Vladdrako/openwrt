@@ -37,6 +37,23 @@ get_num_cpus() {
   echo "${num_cpus:-1}"
 }
 
+# The core's top frequency step, which differs across the family. The
+# driver accepts only a value already in its scaling table and reports
+# success for one that is not, so a constant from the wrong SoC is a
+# silent underclock.
+nss_dt_max_freq() {
+  local f hex
+  for f in /proc/device-tree/soc*/nss@*/qcom,max-frequency; do
+    [ -r "$f" ] || continue
+    # Device tree cells are big-endian u32; busybox has hexdump, not od.
+    hex=$(hexdump -v -n 4 -e '4/1 "%02x"' "$f" 2>/dev/null)
+    [ ${#hex} -eq 8 ] || continue
+    printf '%u\n' "$((0x$hex))"
+    return 0
+  done
+  return 1
+}
+
 apply_sysctl() {
   [ "$(sysctl -n -e dev.nss.general.redirect)" -eq 0 ] && /etc/init.d/qca-nss-ecm start
 
@@ -100,9 +117,13 @@ apply_nss_config() {
   # configured maximum in the same step so no later stage has to correct it.
   if [ "$auto_scale" -eq 0 ]; then
     local max_freq
-    config_get max_freq opt max_freq 1689600000
-    logger -t $NAME "auto_scale off - pinning NSS clock to $max_freq"
-    sysctl -w dev.nss.clock.current_freq="$max_freq" > /dev/null 2>&1
+    config_get max_freq opt max_freq "$(nss_dt_max_freq)"
+    if [ -z "$max_freq" ]; then
+      logger -t $NAME "auto_scale off but no qcom,max-frequency in DT - leaving the NSS clock alone"
+    else
+      logger -t $NAME "auto_scale off - pinning NSS clock to $max_freq"
+      sysctl -w dev.nss.clock.current_freq="$max_freq" > /dev/null 2>&1
+    fi
   fi
 
   sysctl -w dev.nss.n2hcfg.n2h_queue_limit_core0="$n2h_queue_limit_core0" > /dev/null 2>&1

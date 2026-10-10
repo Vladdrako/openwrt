@@ -24,7 +24,7 @@ the release, and there is only one release that matches.
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 
 diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
-index b91fcfe..5e80248 100644
+index 99daa9a..cc356ba 100644
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
 @@ -129,7 +129,7 @@ static void ath11k_nss_wifili_link_desc_return(struct ath11k_base *ab,

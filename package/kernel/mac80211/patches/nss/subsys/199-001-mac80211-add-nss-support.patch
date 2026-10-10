@@ -28,10 +28,10 @@ index ffb40bc..2f6df3e 100644
  static inline int _bp_netdev_upper_dev_link(struct net_device *dev,
  					    struct net_device *upper_dev)
 diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 55b69c6..99668e5 100644
+index b0e50c5..ff97637 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
-@@ -406,6 +406,20 @@ enum ieee80211_bss_change {
+@@ -417,6 +417,20 @@ enum ieee80211_bss_change {
  	/* when adding here, make sure to change ieee80211_reconfig */
  };
  
@@ -52,23 +52,24 @@ index 55b69c6..99668e5 100644
  /*
   * The maximum number of IPv4 addresses listed for ARP filtering. If the number
   * of addresses for an interface increase beyond this value, hardware ARP
-@@ -760,6 +774,7 @@ struct ieee80211_parsed_tpe {
-  *	(as opposed to hearing its value from another link's beacon).
+@@ -793,6 +807,7 @@ struct ieee80211_bss_npca_params {
   * @s1g_long_beacon_period: number of beacon intervals between each long
   *	beacon transmission.
+  * @npca: NPCA parameters
 + * @nss_ap_isolate: Used for notifying the NSS host about AP isolate feature
   */
  struct ieee80211_bss_conf {
  	struct ieee80211_vif *vif;
-@@ -861,6 +876,7 @@ struct ieee80211_bss_conf {
- 	u8 bss_param_ch_cnt_link_id;
- 
+@@ -898,6 +913,8 @@ struct ieee80211_bss_conf {
  	u8 s1g_long_beacon_period;
+ 
+ 	struct ieee80211_bss_npca_params npca;
++
 +	bool nss_ap_isolate;
  };
  
- /**
-@@ -2179,6 +2195,16 @@ static inline bool lockdep_vif_wiphy_mutex_held(struct ieee80211_vif *vif)
+ #define IEEE80211_NAN_MAX_CHANNELS 3
+@@ -2338,6 +2355,16 @@ static inline bool lockdep_vif_wiphy_mutex_held(struct ieee80211_vif *vif)
  	rcu_dereference_check((vif)->link_conf[link_id],	\
  			      lockdep_vif_wiphy_mutex_held(vif))
  
@@ -85,24 +86,23 @@ index 55b69c6..99668e5 100644
  /**
   * enum ieee80211_key_flags - key flags
   *
-@@ -2892,6 +2918,8 @@ struct ieee80211_txq {
-  *	HW flag so drivers can opt in according to their own control, e.g. in
-  *	testing.
+@@ -3073,6 +3100,7 @@ struct ieee80211_txq {
   *
+  * @IEEE80211_HW_SUPPORTS_NDP_BLOCKACK: HW can transmit/receive S1G NDP
+  *	BlockAck frames.
 + * @IEEE80211_HW_SUPPORTS_NSS_OFFLOAD: Hardware/driver supports NSS offload
-+ *
+  *
   * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
   */
- enum ieee80211_hw_flags {
-@@ -2952,6 +2980,7 @@ enum ieee80211_hw_flags {
- 	IEEE80211_HW_DISALLOW_PUNCTURING,
+@@ -3135,6 +3163,7 @@ enum ieee80211_hw_flags {
  	IEEE80211_HW_HANDLES_QUIET_CSA,
  	IEEE80211_HW_STRICT,
+ 	IEEE80211_HW_SUPPORTS_NDP_BLOCKACK,
 +	IEEE80211_HW_SUPPORTS_NSS_OFFLOAD,
  
  	/* keep last, obviously */
  	NUM_IEEE80211_HW_FLAGS
-@@ -3984,6 +4013,10 @@ struct ieee80211_prep_tx_info {
+@@ -4167,6 +4196,10 @@ struct ieee80211_prep_tx_info {
   *	non-MLO connections.
   *	The callback can sleep.
   *
@@ -113,7 +113,7 @@ index 55b69c6..99668e5 100644
   * @prepare_multicast: Prepare for multicast filter configuration.
   *	This callback is optional, and its return value is passed
   *	to configure_filter(). This callback must be atomic.
-@@ -4571,6 +4604,9 @@ struct ieee80211_ops {
+@@ -4760,6 +4793,9 @@ struct ieee80211_ops {
  				  struct ieee80211_bss_conf *info,
  				  u64 changed);
  
@@ -124,10 +124,10 @@ index 55b69c6..99668e5 100644
  			struct ieee80211_bss_conf *link_conf);
  	void (*stop_ap)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 diff --git a/local-symbols b/local-symbols
-index 07dbcbf..6329988 100644
+index 7bf0dd9..26cefdd 100644
 --- a/local-symbols
 +++ b/local-symbols
-@@ -53,6 +53,7 @@ MAC80211_MESH_PS_DEBUG=
+@@ -55,6 +55,7 @@ MAC80211_MESH_PS_DEBUG=
  MAC80211_TDLS_DEBUG=
  MAC80211_DEBUG_COUNTERS=
  MAC80211_STA_HASH_MAX_SIZE=
@@ -136,7 +136,7 @@ index 07dbcbf..6329988 100644
  QCOM_COMMAND_DB=
  QCOM_GENI_SE=
 diff --git a/net/mac80211/Kconfig b/net/mac80211/Kconfig
-index 116e4d2..efb96b7 100644
+index 43b3ec1..8784de6 100644
 --- a/net/mac80211/Kconfig
 +++ b/net/mac80211/Kconfig
 @@ -115,6 +115,15 @@ menuconfig MAC80211_DEBUG_MENU
@@ -156,10 +156,10 @@ index 116e4d2..efb96b7 100644
  	bool "Do not inline TX/RX handlers"
  	depends on MAC80211_DEBUG_MENU
 diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 234184d..6a753db 100644
+index 9907199..fc3f09b 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -2954,7 +2954,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
+@@ -3342,7 +3342,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
  	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
  	struct ieee80211_link_data *link;
  	struct ieee80211_supported_band *sband;
@@ -168,7 +168,7 @@ index 234184d..6a753db 100644
  
  	link = ieee80211_link_or_deflink(sdata, params->link_id, true);
  	if (IS_ERR(link))
-@@ -3004,6 +3004,8 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
+@@ -3391,6 +3391,8 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
  			sdata->flags |= IEEE80211_SDATA_DONT_BRIDGE_PACKETS;
  		else
  			sdata->flags &= ~IEEE80211_SDATA_DONT_BRIDGE_PACKETS;
@@ -177,7 +177,7 @@ index 234184d..6a753db 100644
  		ieee80211_check_fast_rx_iface(sdata);
  	}
  
-@@ -3032,6 +3034,8 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
+@@ -3419,6 +3421,8 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
  
  	ieee80211_link_info_change_notify(sdata, link, changed);
  
@@ -187,19 +187,19 @@ index 234184d..6a753db 100644
  }
  
 diff --git a/net/mac80211/debugfs.c b/net/mac80211/debugfs.c
-index ab543bf..9c00f6e 100644
+index 622d710..aaa4089 100644
 --- a/net/mac80211/debugfs.c
 +++ b/net/mac80211/debugfs.c
-@@ -503,6 +503,7 @@ static const char *hw_flag_names[] = {
- 	FLAG(DISALLOW_PUNCTURING),
+@@ -483,6 +483,7 @@ static const char *hw_flag_names[] = {
  	FLAG(HANDLES_QUIET_CSA),
  	FLAG(STRICT),
+ 	FLAG(SUPPORTS_NDP_BLOCKACK),
 +	FLAG(SUPPORTS_NSS_OFFLOAD),
  #undef FLAG
  };
  
 diff --git a/net/mac80211/driver-ops.h b/net/mac80211/driver-ops.h
-index f7e0662..ead0252 100644
+index 59cef2e..22b0ad3 100644
 --- a/net/mac80211/driver-ops.h
 +++ b/net/mac80211/driver-ops.h
 @@ -182,6 +182,23 @@ void drv_link_info_changed(struct ieee80211_local *local,
@@ -227,10 +227,10 @@ index f7e0662..ead0252 100644
  					struct netdev_hw_addr_list *mc_list)
  {
 diff --git a/net/mac80211/ieee80211_i.h b/net/mac80211/ieee80211_i.h
-index 21e100b..d38c825 100644
+index 551eb2d..8bdf858 100644
 --- a/net/mac80211/ieee80211_i.h
 +++ b/net/mac80211/ieee80211_i.h
-@@ -1932,6 +1932,8 @@ void ieee80211_vif_cfg_change_notify(struct ieee80211_sub_if_data *sdata,
+@@ -1988,6 +1988,8 @@ void ieee80211_vif_cfg_change_notify(struct ieee80211_sub_if_data *sdata,
  void ieee80211_link_info_change_notify(struct ieee80211_sub_if_data *sdata,
  				       struct ieee80211_link_data *link,
  				       u64 changed);
@@ -240,10 +240,10 @@ index 21e100b..d38c825 100644
  u64 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata);
  
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index ba782c3..92d07ff 100644
+index 43460a7..c262ff2 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
-@@ -1037,7 +1037,8 @@ static bool ieee80211_set_sdata_offload_flags(struct ieee80211_sub_if_data *sdat
+@@ -1082,7 +1082,8 @@ static bool ieee80211_set_sdata_offload_flags(struct ieee80211_sub_if_data *sdat
  		    local->hw.wiphy->frag_threshold != (u32)-1)
  			flags &= ~IEEE80211_OFFLOAD_ENCAP_ENABLED;
  
@@ -254,10 +254,10 @@ index ba782c3..92d07ff 100644
  	} else {
  		flags &= ~IEEE80211_OFFLOAD_ENCAP_ENABLED;
 diff --git a/net/mac80211/main.c b/net/mac80211/main.c
-index 7c858f1..007e245 100644
+index f9324fc..1338948 100644
 --- a/net/mac80211/main.c
 +++ b/net/mac80211/main.c
-@@ -428,6 +428,17 @@ void ieee80211_link_info_change_notify(struct ieee80211_sub_if_data *sdata,
+@@ -427,6 +427,17 @@ void ieee80211_link_info_change_notify(struct ieee80211_sub_if_data *sdata,
  	drv_link_info_changed(local, sdata, link->conf, link->link_id, changed);
  }
  
@@ -275,7 +275,7 @@ index 7c858f1..007e245 100644
  u64 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata)
  {
  	sdata->vif.bss_conf.use_cts_prot = false;
-@@ -883,12 +894,6 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
+@@ -886,12 +897,6 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
  			   NL80211_FEATURE_USERSPACE_MPM |
  			   NL80211_FEATURE_FULL_AP_CLIENT_STATE;
  	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_FILS_STA);
@@ -288,7 +288,7 @@ index 7c858f1..007e245 100644
  	wiphy_ext_feature_set(wiphy,
  			      NL80211_EXT_FEATURE_SCAN_FREQ_KHZ);
  	wiphy_ext_feature_set(wiphy,
-@@ -1188,6 +1193,18 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
+@@ -1207,6 +1212,18 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
  			return -EINVAL;
  	}
  
@@ -308,10 +308,10 @@ index 7c858f1..007e245 100644
  	if (hw->wiphy->wowlan && (!local->ops->suspend || !local->ops->resume))
  		return -EINVAL;
 diff --git a/net/mac80211/sta_info.c b/net/mac80211/sta_info.c
-index 785d782..9e7a741 100644
+index b5b9994..a3b619a 100644
 --- a/net/mac80211/sta_info.c
 +++ b/net/mac80211/sta_info.c
-@@ -2505,6 +2505,9 @@ sta_get_last_rx_stats(struct sta_info *sta, int link_id)
+@@ -2565,6 +2565,9 @@ sta_get_last_rx_stats(struct sta_info *sta, int link_id)
  
  	stats = &link_sta_info->rx_stats;
  
@@ -322,10 +322,10 @@ index 785d782..9e7a741 100644
  		return stats;
  
 diff --git a/net/mac80211/trace.h b/net/mac80211/trace.h
-index 1e49e02..88329c1 100644
+index 6aa658b..4994a1f 100644
 --- a/net/mac80211/trace.h
 +++ b/net/mac80211/trace.h
-@@ -430,6 +430,38 @@ TRACE_EVENT(drv_config,
+@@ -418,6 +418,38 @@ TRACE_EVENT(drv_config,
  		LOCAL_PR_ARG, __entry->radio_idx, __entry->changed, CHANDEF_PR_ARG
  	)
  );
@@ -365,10 +365,10 @@ index 1e49e02..88329c1 100644
  TRACE_EVENT(drv_vif_cfg_changed,
  	TP_PROTO(struct ieee80211_local *local,
 diff --git a/net/mac80211/tx.c b/net/mac80211/tx.c
-index f213c6d..e289257 100644
+index f55c0c1..0529032 100644
 --- a/net/mac80211/tx.c
 +++ b/net/mac80211/tx.c
-@@ -1029,11 +1029,23 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
+@@ -1028,11 +1028,23 @@ ieee80211_tx_h_stats(struct ieee80211_tx_data *tx)
  {
  	struct sk_buff *skb;
  	int ac = -1;
@@ -392,7 +392,7 @@ index f213c6d..e289257 100644
  		ac = skb_get_queue_mapping(skb);
  		tx->sta->deflink.tx_stats.bytes[ac] += skb->len;
  	}
-@@ -2881,7 +2893,9 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
+@@ -2942,7 +2954,9 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
  
  	if (unlikely(!multicast &&
  		     (sk_requests_wifi_status(skb->sk) ||
@@ -403,7 +403,7 @@ index f213c6d..e289257 100644
  		info_id = ieee80211_store_ack_skb(local, skb, &info_flags,
  						  cookie);
  
-@@ -4695,7 +4709,8 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
+@@ -4761,7 +4775,8 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
  			memcpy(IEEE80211_SKB_CB(seg), info, sizeof(*info));
  	}
  
@@ -413,26 +413,22 @@ index f213c6d..e289257 100644
  		info->status_data = ieee80211_store_ack_skb(local, skb,
  							    &info->flags, NULL);
  		if (info->status_data)
-@@ -4703,8 +4718,10 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
- 	}
+@@ -4770,7 +4785,7 @@ static void ieee80211_8023_xmit(struct ieee80211_sub_if_data *sdata,
  
  	dev_sw_netstats_tx_add(dev, skbs, len);
--	sta->deflink.tx_stats.packets[queue] += skbs;
--	sta->deflink.tx_stats.bytes[queue] += len;
-+	if (!ieee80211_hw_check(&local->hw, SUPPORTS_NSS_OFFLOAD)) {
-+		sta->deflink.tx_stats.packets[queue] += skbs;
-+		sta->deflink.tx_stats.bytes[queue] += len;
-+	}
  
- 	ieee80211_tpt_led_trig_tx(local, len);
- 
+-	if (sta) {
++	if (sta && !ieee80211_hw_check(&local->hw, SUPPORTS_NSS_OFFLOAD)) {
+ 		sta->deflink.tx_stats.packets[queue] += skbs;
+ 		sta->deflink.tx_stats.bytes[queue] += len;
+ 	}
 diff --git a/net/mac80211/util.c b/net/mac80211/util.c
-index e4f92b9..dc2912d 100644
+index 59f73da..3dbaa41 100644
 --- a/net/mac80211/util.c
 +++ b/net/mac80211/util.c
-@@ -941,6 +941,22 @@ u32 ieee80211_chandef_radio_mask(struct ieee80211_local *local,
- 	return mask;
+@@ -938,6 +938,22 @@ struct wireless_dev *ieee80211_vif_to_wdev(struct ieee80211_vif *vif)
  }
+ EXPORT_SYMBOL_GPL(ieee80211_vif_to_wdev);
  
 +struct wireless_dev *ieee80211_vif_to_wdev_relaxed(struct ieee80211_vif *vif)
 +{
@@ -454,16 +450,16 @@ index e4f92b9..dc2912d 100644
   * Nothing should have been stuffed into the workqueue during
   * the suspend->resume cycle. Since we can't check each caller
 diff --git a/net/wireless/util.c b/net/wireless/util.c
-index 906713f..9af20e2 100644
+index 24527bf..3b3d57f 100644
 --- a/net/wireless/util.c
 +++ b/net/wireless/util.c
-@@ -2666,6 +2666,9 @@ EXPORT_SYMBOL(cfg80211_link_sinfo_alloc_tid_stats);
+@@ -2764,6 +2764,9 @@ EXPORT_SYMBOL(cfg80211_link_sinfo_alloc_tid_stats);
  
  int cfg80211_sinfo_alloc_tid_stats(struct station_info *sinfo, gfp_t gfp)
  {
-+	if(sinfo->pertid)
++	if (sinfo->pertid)
 +		return 0;
 +
- 	sinfo->pertid = kcalloc(IEEE80211_NUM_TIDS + 1,
- 				sizeof(*(sinfo->pertid)),
- 				gfp);
+ 	sinfo->pertid = kzalloc_objs(*(sinfo->pertid), IEEE80211_NUM_TIDS + 1,
+ 				     gfp);
+ 	if (!sinfo->pertid)

@@ -15,7 +15,7 @@ Signed-off-by: Tamizh Chelvam Raja <quic_tamizhr@quicinc.com>
  1 file changed, 43 insertions(+)
 
 diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
-index 658c246..93c4881 100644
+index 99e448a..8f4c813 100644
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
 @@ -71,6 +71,43 @@ static void ath11k_nss_wifili_stats_sync(struct ath11k_base *ab,

@@ -36,7 +36,7 @@ Signed-off-by: Tamizh Chelvam Raja <quic_tamizhr@quicinc.com>
 [julius: cross-cutting hardening layer, kept standalone on purpose: its hunks patch code from four origins (999-233's dot11-hdr reconstruction, 113's 8023 undecap, stock backports code in deliver_msdu, and the h_mpdu path) - blame-verified, so folding it into any one parent would misattribute the rest.]
 
 diff --git a/drivers/net/wireless/ath/ath11k/dp_rx.c b/drivers/net/wireless/ath/ath11k/dp_rx.c
-index 8208a97..ab99551 100644
+index 1762cf6..a05f6aa 100644
 --- a/drivers/net/wireless/ath/ath11k/dp_rx.c
 +++ b/drivers/net/wireless/ath/ath11k/dp_rx.c
 @@ -2282,16 +2282,27 @@ static void ath11k_get_dot11_hdr_from_rx_desc(struct ath11k *ar,

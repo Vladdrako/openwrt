@@ -12,7 +12,7 @@ Signed-off-by: Sathishkumar Muruganandam <murugana@codeaurora.org>
  2 files changed, 473 insertions(+), 28 deletions(-)
 
 diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
-index c8d49eb..e6bac3c 100644
+index c90662c..a406350 100644
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
 @@ -319,6 +319,22 @@ void ath11k_nss_wifili_event_receive(struct ath11k_base *ab, struct nss_wifili_m

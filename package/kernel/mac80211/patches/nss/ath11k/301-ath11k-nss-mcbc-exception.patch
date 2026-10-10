@@ -15,7 +15,7 @@ Change-Id: I4a6ac67a1c2cf3ab7a219d0953907191606a5e70
  create mode 100644 mac80211/patches/301-ath11k-nss-mcbc-exception.patch
 
 diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
-index d0786d2..01b763a 100644
+index 38c4647..6433e5d 100644
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
 @@ -580,7 +580,7 @@ static int ath11k_nss_undecap_nwifi(struct ath11k_vif *arvif, struct sk_buff *sk

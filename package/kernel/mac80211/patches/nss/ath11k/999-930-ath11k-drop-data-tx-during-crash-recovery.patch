@@ -19,7 +19,7 @@ ath11k_ce_send() already has for the WMI path.
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 
 diff --git a/drivers/net/wireless/ath/ath11k/dp_tx.c b/drivers/net/wireless/ath/ath11k/dp_tx.c
-index e1fd2b7..7072dad 100644
+index cdc4853..03ce89b 100644
 --- a/drivers/net/wireless/ath/ath11k/dp_tx.c
 +++ b/drivers/net/wireless/ath/ath11k/dp_tx.c
 @@ -142,6 +142,17 @@ int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
@@ -37,6 +37,6 @@ index e1fd2b7..7072dad 100644
 +	if (unlikely(test_bit(ATH11K_FLAG_CRASH_FLUSH, &ab->dev_flags)))
 +		return -ESHUTDOWN;
 +
- 	max_tx_ring = ab->hw_params.max_tx_ring;
+ 	max_tx_ring = num_tx_rings;
  
  #ifdef CPTCFG_ATH11K_MEM_PROFILE_512M

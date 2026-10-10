@@ -23,7 +23,7 @@ Signed-off-by: P Praneesh <ppranees@codeaurora.org>
  4 files changed, 66 insertions(+), 8 deletions(-)
 
 diff --git a/drivers/net/wireless/ath/ath11k/dp_tx.c b/drivers/net/wireless/ath/ath11k/dp_tx.c
-index 104f4ff..560449d 100644
+index 1559b50..1d95e0c 100644
 --- a/drivers/net/wireless/ath/ath11k/dp_tx.c
 +++ b/drivers/net/wireless/ath/ath11k/dp_tx.c
 @@ -770,6 +770,7 @@ void ath11k_dp_tx_completion_handler(struct ath11k_base *ab, int ring_id)
@@ -55,10 +55,10 @@ index 104f4ff..560449d 100644
  		       desc, sizeof(struct hal_wbm_release_ring));
  		tx_ring->tx_status_head =
 diff --git a/drivers/net/wireless/ath/ath11k/hal.c b/drivers/net/wireless/ath/ath11k/hal.c
-index 5f815e9..449975b 100644
+index 4c17ea9..954a53f 100644
 --- a/drivers/net/wireless/ath/ath11k/hal.c
 +++ b/drivers/net/wireless/ath/ath11k/hal.c
-@@ -670,7 +670,8 @@ u32 *ath11k_hal_srng_dst_get_next_entry(struct ath11k_base *ab,
+@@ -669,7 +669,8 @@ u32 *ath11k_hal_srng_dst_get_next_entry(struct ath11k_base *ab,
  
  	desc = srng->ring_base_vaddr + srng->u.dst_ring.tp;
  
@@ -68,7 +68,7 @@ index 5f815e9..449975b 100644
  
  	/* wrap around to start of ring*/
  	if (srng->u.dst_ring.tp == srng->ring_size)
-@@ -683,8 +684,63 @@ u32 *ath11k_hal_srng_dst_get_next_entry(struct ath11k_base *ab,
+@@ -682,8 +683,63 @@ u32 *ath11k_hal_srng_dst_get_next_entry(struct ath11k_base *ab,
  	return desc;
  }
  
@@ -134,7 +134,7 @@ index 5f815e9..449975b 100644
  	u32 tp, hp;
  
 diff --git a/drivers/net/wireless/ath/ath11k/hal.h b/drivers/net/wireless/ath/ath11k/hal.h
-index f1f6d0d..0300159 100644
+index ed04004..a38e51f 100644
 --- a/drivers/net/wireless/ath/ath11k/hal.h
 +++ b/drivers/net/wireless/ath/ath11k/hal.h
 @@ -946,8 +946,12 @@ void ath11k_hal_srng_get_params(struct ath11k_base *ab, struct hal_srng *srng,

@@ -21,10 +21,10 @@ already controls.
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 
 diff --git a/drivers/net/wireless/ath/ath11k/debugfs_sta.c b/drivers/net/wireless/ath/ath11k/debugfs_sta.c
-index c30c89e..5038a81 100644
+index f71dc02..7d59ed7 100644
 --- a/drivers/net/wireless/ath/ath11k/debugfs_sta.c
 +++ b/drivers/net/wireless/ath/ath11k/debugfs_sta.c
-@@ -1092,11 +1092,84 @@ static const struct file_operations fops_reset_rx_stats = {
+@@ -1225,11 +1225,84 @@ static const struct file_operations fops_reset_rx_stats = {
  	.llseek = default_llseek,
  };
  
@@ -110,7 +110,7 @@ index c30c89e..5038a81 100644
  		debugfs_create_file("tx_stats", 0400, dir, sta,
  				    &fops_tx_stats);
 diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
-index 907a000..0d21d97 100644
+index d06ab33..059252d 100644
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
 @@ -204,6 +204,29 @@ static void ath11k_nss_get_peer_stats(struct ath11k_base *ab, struct nss_wifili_

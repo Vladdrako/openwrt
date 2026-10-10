@@ -11,10 +11,10 @@ to unsubscribe rx_pkt_header tlv for rxdma ring.
 Signed-off-by: Ramya Gnanasekar <rgnanase@codeaurora.org>
 
 diff --git a/drivers/net/wireless/ath/ath11k/debugfs.c b/drivers/net/wireless/ath/ath11k/debugfs.c
-index 13b9287..03078e1 100644
+index e03f298..abc46d2 100644
 --- a/drivers/net/wireless/ath/ath11k/debugfs.c
 +++ b/drivers/net/wireless/ath/ath11k/debugfs.c
-@@ -547,6 +547,7 @@ static ssize_t ath11k_write_extd_rx_stats(struct file *file,
+@@ -546,6 +546,7 @@ static ssize_t ath11k_write_extd_rx_stats(struct file *file,
  	}
  
  	ar->debug.rx_filter = tlv_filter.rx_filter;
@@ -22,7 +22,7 @@ index 13b9287..03078e1 100644
  
  	for (i = 0; i < ab->hw_params.num_rxdma_per_pdev; i++) {
  		ring_id = ar->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
-@@ -1091,6 +1092,7 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
+@@ -1090,6 +1091,7 @@ static ssize_t ath11k_write_pktlog_filter(struct file *file,
  	}
  
  	/* Clear rx filter set for monitor mode and rx status */
@@ -31,10 +31,10 @@ index 13b9287..03078e1 100644
  		ring_id = ar->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
  		ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id, ar->dp.mac_id,
 diff --git a/drivers/net/wireless/ath/ath11k/dp.h b/drivers/net/wireless/ath/ath11k/dp.h
-index c504ae5..4c51d38 100644
+index 3e81dc7..54418da 100644
 --- a/drivers/net/wireless/ath/ath11k/dp.h
 +++ b/drivers/net/wireless/ath/ath11k/dp.h
-@@ -238,7 +238,8 @@ struct ath11k_pdev_dp {
+@@ -237,7 +237,8 @@ struct ath11k_pdev_dp {
  #define DP_REO_CMD_RING_SIZE		256
  #define DP_REO_STATUS_RING_SIZE		2048
  #define DP_RXDMA_BUF_RING_SIZE		4096
@@ -44,7 +44,7 @@ index c504ae5..4c51d38 100644
  #define DP_RXDMA_ERR_DST_RING_SIZE	1024
  #define DP_RXDMA_MON_STATUS_RING_SIZE	ATH11K_DP_RXDMA_MON_STATUS_RING_SIZE
  #define DP_RXDMA_MONITOR_BUF_RING_SIZE	ATH11K_DP_RXDMA_MONITOR_BUF_RING_SIZE
-@@ -673,7 +674,7 @@ enum htt_stats_internal_ppdu_frametype {
+@@ -672,7 +673,7 @@ enum htt_stats_internal_ppdu_frametype {
   *
   *    |31       26|25|24|23            16|15             8|7             0|
   *    |-----------------+----------------+----------------+---------------|
@@ -53,7 +53,7 @@ index c504ae5..4c51d38 100644
   *    |-------------------------------------------------------------------|
   *    |              rsvd2               |           ring_buffer_size     |
   *    |-------------------------------------------------------------------|
-@@ -687,6 +688,14 @@ enum htt_stats_internal_ppdu_frametype {
+@@ -686,6 +687,14 @@ enum htt_stats_internal_ppdu_frametype {
   *    |-------------------------------------------------------------------|
   *    |                         tlv_filter_in_flags                       |
   *    |-------------------------------------------------------------------|
@@ -68,7 +68,7 @@ index c504ae5..4c51d38 100644
   * Where:
   *     PS = pkt_swap
   *     SS = status_swap
-@@ -700,7 +709,10 @@ enum htt_stats_internal_ppdu_frametype {
+@@ -699,7 +708,10 @@ enum htt_stats_internal_ppdu_frametype {
   *                    More details can be got from enum htt_srng_ring_id
   *          b'24    - status_swap: 1 is to swap status TLV
   *          b'25    - pkt_swap:  1 is to swap packet TLV
@@ -80,7 +80,7 @@ index c504ae5..4c51d38 100644
   * dword1 - b'0:16  - ring_buffer_size: size of buffers referenced by rx ring,
   *                    in byte units.
   *                    Valid only for HW_TO_SW_RING and SW_TO_HW_RING
-@@ -729,6 +741,42 @@ enum htt_stats_internal_ppdu_frametype {
+@@ -728,6 +740,42 @@ enum htt_stats_internal_ppdu_frametype {
   * dword6 - b'0:31 -  tlv_filter_in_flags:
   *                    Filter in Attention/MPDU/PPDU/Header/User tlvs
   *                    Refer to CFG_TLV_FILTER_IN_FLAG defs
@@ -123,7 +123,7 @@ index c504ae5..4c51d38 100644
   */
  
  #define HTT_RX_RING_SELECTION_CFG_CMD_INFO0_MSG_TYPE	GENMASK(7, 0)
-@@ -736,8 +784,16 @@ enum htt_stats_internal_ppdu_frametype {
+@@ -735,8 +783,16 @@ enum htt_stats_internal_ppdu_frametype {
  #define HTT_RX_RING_SELECTION_CFG_CMD_INFO0_RING_ID	GENMASK(23, 16)
  #define HTT_RX_RING_SELECTION_CFG_CMD_INFO0_SS		BIT(24)
  #define HTT_RX_RING_SELECTION_CFG_CMD_INFO0_PS		BIT(25)
@@ -140,7 +140,7 @@ index c504ae5..4c51d38 100644
  
  enum htt_rx_filter_tlv_flags {
  	HTT_RX_FILTER_TLV_FLAGS_MPDU_START		= BIT(0),
-@@ -1041,6 +1097,14 @@ enum htt_rx_data_pkt_filter_tlv_flasg3 {
+@@ -1040,6 +1096,14 @@ enum htt_rx_data_pkt_filter_tlv_flasg3 {
  		HTT_RX_FILTER_TLV_FLAGS_PER_MSDU_HEADER | \
  		HTT_RX_FILTER_TLV_FLAGS_ATTENTION)
  
@@ -155,7 +155,7 @@ index c504ae5..4c51d38 100644
  struct htt_rx_ring_selection_cfg_cmd {
  	u32 info0;
  	u32 info1;
-@@ -1049,6 +1113,10 @@ struct htt_rx_ring_selection_cfg_cmd {
+@@ -1048,6 +1112,10 @@ struct htt_rx_ring_selection_cfg_cmd {
  	u32 pkt_type_en_flags2;
  	u32 pkt_type_en_flags3;
  	u32 rx_filter_tlv;
@@ -166,7 +166,7 @@ index c504ae5..4c51d38 100644
  } __packed;
  
  struct htt_rx_ring_tlv_filter {
-@@ -1057,6 +1125,14 @@ struct htt_rx_ring_tlv_filter {
+@@ -1056,6 +1124,14 @@ struct htt_rx_ring_tlv_filter {
  	u32 pkt_filter_flags1; /* MGMT */
  	u32 pkt_filter_flags2; /* CTRL */
  	u32 pkt_filter_flags3; /* DATA */
@@ -182,7 +182,7 @@ index c504ae5..4c51d38 100644
  
  #define HTT_RX_FULL_MON_MODE_CFG_CMD_INFO0_MSG_TYPE	GENMASK(7, 0)
 diff --git a/drivers/net/wireless/ath/ath11k/dp_rx.c b/drivers/net/wireless/ath/ath11k/dp_rx.c
-index 78568e5..8208a97 100644
+index b3e648e..1762cf6 100644
 --- a/drivers/net/wireless/ath/ath11k/dp_rx.c
 +++ b/drivers/net/wireless/ath/ath11k/dp_rx.c
 @@ -74,6 +74,12 @@ static inline bool ath11k_dp_rx_h_mpdu_start_fc_valid(struct ath11k_base *ab,
@@ -381,7 +381,7 @@ index 78568e5..8208a97 100644
  	hdr = (struct ieee80211_hdr *)first_hdr;
  	hdr_len = ieee80211_hdrlen(hdr->frame_control);
  
-@@ -2944,6 +3051,20 @@ static int ath11k_dp_rx_process_msdu(struct ath11k *ar,
+@@ -2967,6 +3074,20 @@ static int ath11k_dp_rx_process_msdu(struct ath11k *ar,
  		goto free_out;
  	}
  
@@ -402,7 +402,7 @@ index 78568e5..8208a97 100644
  	rxcb = ATH11K_SKB_RXCB(msdu);
  	rxcb->rx_desc = rx_desc;
  	msdu_len = ath11k_dp_rx_h_msdu_start_msdu_len(ab, rx_desc);
-@@ -2956,8 +3077,9 @@ static int ath11k_dp_rx_process_msdu(struct ath11k *ar,
+@@ -2979,8 +3100,9 @@ static int ath11k_dp_rx_process_msdu(struct ath11k *ar,
  			hdr_status = ath11k_dp_rx_h_80211_hdr(ab, rx_desc);
  			ret = -EINVAL;
  			ath11k_warn(ab, "invalid msdu len %u\n", msdu_len);
@@ -414,7 +414,7 @@ index 78568e5..8208a97 100644
  			ath11k_dbg_dump(ab, ATH11K_DBG_DATA, NULL, "", rx_desc,
  					sizeof(struct hal_rx_desc));
  			goto free_out;
-@@ -3783,6 +3905,7 @@ static int ath11k_dp_rx_h_verify_tkip_mic(struct ath11k *ar, struct ath11k_peer
+@@ -3765,6 +3887,7 @@ static int ath11k_dp_rx_h_verify_tkip_mic(struct ath11k *ar, struct ath11k_peer
  
  	hdr = (struct ieee80211_hdr *)(msdu->data + hal_rx_desc_sz);
  	hdr_len = ieee80211_hdrlen(hdr->frame_control);
@@ -422,7 +422,7 @@ index 78568e5..8208a97 100644
  	head_len = hdr_len + hal_rx_desc_sz + IEEE80211_TKIP_IV_LEN;
  	tail_len = IEEE80211_CCMP_MIC_LEN + IEEE80211_TKIP_ICV_LEN + FCS_LEN;
  
-@@ -4063,8 +4186,8 @@ static void ath11k_dp_rx_h_sort_frags(struct ath11k *ar,
+@@ -4051,8 +4174,8 @@ static void ath11k_dp_rx_h_sort_frags(struct ath11k *ar,
  
  static u64 ath11k_dp_rx_h_get_pn(struct ath11k *ar, struct sk_buff *skb)
  {
@@ -432,7 +432,7 @@ index 78568e5..8208a97 100644
  	u8 *ehdr;
  	u32 hal_rx_desc_sz = ar->ab->hw_params.hal_desc_sz;
  
-@@ -4294,8 +4417,9 @@ ath11k_dp_process_rx_err_buf(struct ath11k *ar, u32 *ring_desc, int buf_id, bool
+@@ -4282,8 +4405,9 @@ ath11k_dp_process_rx_err_buf(struct ath11k *ar, u32 *ring_desc, int buf_id, bool
  	if ((msdu_len + hal_rx_desc_sz) > DP_RX_BUFFER_SIZE) {
  		hdr_status = ath11k_dp_rx_h_80211_hdr(ar->ab, rx_desc);
  		ath11k_warn(ar->ab, "invalid msdu leng %u", msdu_len);
@@ -444,7 +444,7 @@ index 78568e5..8208a97 100644
  		ath11k_dbg_dump(ar->ab, ATH11K_DBG_DATA, NULL, "", rx_desc,
  				sizeof(struct hal_rx_desc));
  		dev_kfree_skb_any(msdu);
-@@ -4921,6 +5045,47 @@ void ath11k_dp_rx_pdev_free(struct ath11k_base *ab, int mac_id)
+@@ -4928,6 +5052,47 @@ void ath11k_dp_rx_pdev_free(struct ath11k_base *ab, int mac_id)
  	ath11k_dp_rxdma_pdev_buf_free(ar);
  }
  
@@ -492,7 +492,7 @@ index 78568e5..8208a97 100644
  int ath11k_dp_rx_pdev_alloc(struct ath11k_base *ab, int mac_id)
  {
  	struct ath11k *ar = ab->pdevs[mac_id].ar;
-@@ -5014,6 +5179,12 @@ config_refill_ring:
+@@ -5021,6 +5186,12 @@ config_refill_ring:
  		}
  	}
  
@@ -506,10 +506,10 @@ index 78568e5..8208a97 100644
  }
  
 diff --git a/drivers/net/wireless/ath/ath11k/dp_tx.c b/drivers/net/wireless/ath/ath11k/dp_tx.c
-index 30143e4..f6c8c88 100644
+index 6b2871a..9b4e10e 100644
 --- a/drivers/net/wireless/ath/ath11k/dp_tx.c
 +++ b/drivers/net/wireless/ath/ath11k/dp_tx.c
-@@ -1290,6 +1290,8 @@ int ath11k_dp_tx_htt_rx_filter_setup(struct ath11k_base *ab, u32 ring_id,
+@@ -1289,6 +1289,8 @@ int ath11k_dp_tx_htt_rx_filter_setup(struct ath11k_base *ab, u32 ring_id,
  				 !!(params.flags & HAL_SRNG_FLAGS_MSI_SWAP));
  	cmd->info0 |= FIELD_PREP(HTT_RX_RING_SELECTION_CFG_CMD_INFO0_PS,
  				 !!(params.flags & HAL_SRNG_FLAGS_DATA_TLV_SWAP));
@@ -518,7 +518,7 @@ index 30143e4..f6c8c88 100644
  
  	cmd->info1 = FIELD_PREP(HTT_RX_RING_SELECTION_CFG_CMD_INFO1_BUF_SIZE,
  				rx_buf_size);
-@@ -1299,6 +1301,26 @@ int ath11k_dp_tx_htt_rx_filter_setup(struct ath11k_base *ab, u32 ring_id,
+@@ -1298,6 +1300,26 @@ int ath11k_dp_tx_htt_rx_filter_setup(struct ath11k_base *ab, u32 ring_id,
  	cmd->pkt_type_en_flags3 = tlv_filter->pkt_filter_flags3;
  	cmd->rx_filter_tlv = tlv_filter->rx_filter;
  
@@ -545,7 +545,7 @@ index 30143e4..f6c8c88 100644
  	ret = ath11k_htc_send(&ab->htc, ab->dp.eid, skb);
  	if (ret)
  		goto err_free;
-@@ -1377,6 +1399,7 @@ int ath11k_dp_tx_htt_monitor_mode_ring_config(struct ath11k *ar, bool reset)
+@@ -1376,6 +1398,7 @@ int ath11k_dp_tx_htt_monitor_mode_ring_config(struct ath11k *ar, bool reset)
  	}
  
  	ring_id = dp->rxdma_mon_buf_ring.refill_buf_ring.ring_id;
@@ -554,7 +554,7 @@ index 30143e4..f6c8c88 100644
  	if (!reset) {
  		tlv_filter.rx_filter = HTT_RX_MON_FILTER_TLV_FLAGS_MON_BUF_RING;
 diff --git a/drivers/net/wireless/ath/ath11k/hw.c b/drivers/net/wireless/ath/ath11k/hw.c
-index 60b92dc..732c939 100644
+index 7c63d2f..9749e07 100644
 --- a/drivers/net/wireless/ath/ath11k/hw.c
 +++ b/drivers/net/wireless/ath/ath11k/hw.c
 @@ -260,7 +260,11 @@ static u8 ath11k_hw_ipq8074_rx_desc_get_l3_pad_bytes(struct hal_rx_desc *desc)
@@ -892,7 +892,7 @@ index 60b92dc..732c939 100644
  
  const struct ath11k_hw_ops wcn6855_ops = {
 diff --git a/drivers/net/wireless/ath/ath11k/hw.h b/drivers/net/wireless/ath/ath11k/hw.h
-index b549f21..148a6df 100644
+index 6502fac..52aace8 100644
 --- a/drivers/net/wireless/ath/ath11k/hw.h
 +++ b/drivers/net/wireless/ath/ath11k/hw.h
 @@ -22,6 +22,11 @@
@@ -926,7 +926,7 @@ index b549f21..148a6df 100644
  struct ath11k_hw_ring_mask {
  	u8 tx[ATH11K_EXT_IRQ_GRP_NUM_MAX];
  	u8 rx_mon_status[ATH11K_EXT_IRQ_GRP_NUM_MAX];
-@@ -294,6 +304,16 @@ struct ath11k_hw_ops {
+@@ -297,6 +307,16 @@ struct ath11k_hw_ops {
  	u8* (*rx_desc_mpdu_start_addr2)(struct hal_rx_desc *desc);
  	u32 (*get_ring_selector)(struct sk_buff *skb);
  	u32 (*rx_desc_get_hal_mpdu_len)(struct hal_rx_mpdu_info *mpdu_info);
@@ -944,10 +944,10 @@ index b549f21..148a6df 100644
  
  extern const struct ath11k_hw_ops ipq8074_ops;
 diff --git a/drivers/net/wireless/ath/ath11k/mac.c b/drivers/net/wireless/ath/ath11k/mac.c
-index 6f928b1..689f32a 100644
+index 1658cfe..a4b354e 100644
 --- a/drivers/net/wireless/ath/ath11k/mac.c
 +++ b/drivers/net/wireless/ath/ath11k/mac.c
-@@ -6657,6 +6657,7 @@ static int ath11k_mac_config_mon_status_default(struct ath11k *ar, bool enable)
+@@ -6977,6 +6977,7 @@ static int ath11k_mac_config_mon_status_default(struct ath11k *ar, bool enable)
  			tlv_filter.rx_filter = ath11k_debugfs_rx_filter(ar);
  	}
  
@@ -956,7 +956,7 @@ index 6f928b1..689f32a 100644
  		ring_id = ar->dp.rx_mon_status_refill_ring[i].refill_buf_ring.ring_id;
  		ret = ath11k_dp_tx_htt_rx_filter_setup(ar->ab, ring_id,
 diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
-index 93c4881..ae6d466 100644
+index 8f4c813..ef8f717 100644
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
 @@ -2869,7 +2869,7 @@ static int ath11k_nss_init(struct ath11k_base *ab)
@@ -969,7 +969,7 @@ index 93c4881..ae6d466 100644
  	/* fill hal srng message */
  	wim->hssm.dev_base_addr = (u32)ab->mem_pa;
 diff --git a/drivers/net/wireless/ath/ath11k/rx_desc.h b/drivers/net/wireless/ath/ath11k/rx_desc.h
-index afe003f..98fa3ff 100644
+index 008ee44..0f285d1 100644
 --- a/drivers/net/wireless/ath/ath11k/rx_desc.h
 +++ b/drivers/net/wireless/ath/ath11k/rx_desc.h
 @@ -1508,4 +1508,16 @@ struct hal_rx_desc {

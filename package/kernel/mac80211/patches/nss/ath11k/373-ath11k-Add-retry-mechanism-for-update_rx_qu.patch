@@ -40,10 +40,10 @@ Signed-off-by: Tamizh Chelvam Raja <quic_tamizhr@quicinc.com>
  5 files changed, 161 insertions(+), 38 deletions(-)
 
 diff --git a/drivers/net/wireless/ath/ath11k/core.h b/drivers/net/wireless/ath/ath11k/core.h
-index 87f0ef4..db0861e 100644
+index f215fb6..05a1641 100644
 --- a/drivers/net/wireless/ath/ath11k/core.h
 +++ b/drivers/net/wireless/ath/ath11k/core.h
-@@ -962,6 +962,9 @@ struct ath11k_soc_dp_stats {
+@@ -979,6 +979,9 @@ struct ath11k_soc_dp_stats {
  	u32 rxdma_error[HAL_REO_ENTR_RING_RXDMA_ECODE_MAX];
  	u32 reo_error[HAL_REO_DEST_RING_ERROR_CODE_MAX];
  	u32 hal_reo_error[DP_REO_DST_RING_MAX];
@@ -54,10 +54,10 @@ index 87f0ef4..db0861e 100644
  	struct ath11k_dp_ring_bp_stats bp_stats;
  };
 diff --git a/drivers/net/wireless/ath/ath11k/debugfs.c b/drivers/net/wireless/ath/ath11k/debugfs.c
-index b8a6301..13b9287 100644
+index c2a69e6..e03f298 100644
 --- a/drivers/net/wireless/ath/ath11k/debugfs.c
 +++ b/drivers/net/wireless/ath/ath11k/debugfs.c
-@@ -727,6 +727,18 @@ static ssize_t ath11k_debugfs_dump_soc_dp_stats(struct file *file,
+@@ -726,6 +726,18 @@ static ssize_t ath11k_debugfs_dump_soc_dp_stats(struct file *file,
  			 "\nNSS Transmit Failures: %d\n",
  			 atomic_read(&soc_stats->tx_err.nss_tx_fail));
  
@@ -77,10 +77,10 @@ index b8a6301..13b9287 100644
  
  	if (len > size)
 diff --git a/drivers/net/wireless/ath/ath11k/dp.c b/drivers/net/wireless/ath/ath11k/dp.c
-index debeedb..ba86877 100644
+index 0a6347a..49a7823 100644
 --- a/drivers/net/wireless/ath/ath11k/dp.c
 +++ b/drivers/net/wireless/ath/ath11k/dp.c
-@@ -1108,8 +1108,10 @@ int ath11k_dp_alloc(struct ath11k_base *ab)
+@@ -1100,8 +1100,10 @@ int ath11k_dp_alloc(struct ath11k_base *ab)
  
  	INIT_LIST_HEAD(&dp->reo_cmd_list);
  	INIT_LIST_HEAD(&dp->reo_cmd_cache_flush_list);
@@ -92,7 +92,7 @@ index debeedb..ba86877 100644
  	dp->reo_cmd_cache_flush_count = 0;
  
 diff --git a/drivers/net/wireless/ath/ath11k/dp.h b/drivers/net/wireless/ath/ath11k/dp.h
-index 648c2dc..c17d281 100644
+index 9ecf4a5..282fe6d 100644
 --- a/drivers/net/wireless/ath/ath11k/dp.h
 +++ b/drivers/net/wireless/ath/ath11k/dp.h
 @@ -23,6 +23,7 @@ struct dp_rx_tid {
@@ -118,7 +118,7 @@ index 648c2dc..c17d281 100644
  struct dp_reo_cmd {
  	struct list_head list;
  	struct dp_rx_tid data;
-@@ -296,6 +305,12 @@ struct ath11k_dp {
+@@ -295,6 +304,12 @@ struct ath11k_dp {
  	 * - reo_cmd_cache_flush_count
  	 */
  	spinlock_t reo_cmd_lock;
@@ -132,7 +132,7 @@ index 648c2dc..c17d281 100644
  	struct ath11k_hp_update_timer tx_ring_timer[DP_TCL_NUM_RING_MAX];
  };
 diff --git a/drivers/net/wireless/ath/ath11k/dp_rx.c b/drivers/net/wireless/ath/ath11k/dp_rx.c
-index 6127db9..24c9d61 100644
+index 0448de0..10edf23 100644
 --- a/drivers/net/wireless/ath/ath11k/dp_rx.c
 +++ b/drivers/net/wireless/ath/ath11k/dp_rx.c
 @@ -22,6 +22,9 @@
@@ -296,7 +296,7 @@ index 6127db9..24c9d61 100644
 +	}
 +	spin_unlock_bh(&dp->reo_cmd_update_queue_lock);
 +
- 	elem = kzalloc(sizeof(*elem), GFP_ATOMIC);
+ 	elem = kzalloc_obj(*elem, GFP_ATOMIC);
  	if (!elem)
  		goto free_desc;
 @@ -798,13 +868,20 @@ static void ath11k_dp_rx_tid_del_func(struct ath11k_dp *dp, void *ctx,

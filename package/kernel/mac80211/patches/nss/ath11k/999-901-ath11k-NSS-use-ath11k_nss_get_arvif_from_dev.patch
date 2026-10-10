@@ -5,7 +5,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 [julius: carries the ath11k_nss_get_arvif_from_dev definition (originally introduced by the mesh offload patch); the non-mesh ext-vdev path this patch converts needs it, so it belongs on the non-mesh side of the mesh split.]
 
 diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
-index 0e80b60..27dfd70 100644
+index 4b3c525..b0641cc 100644
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
 @@ -32,6 +32,30 @@ ath11k_nss_get_vdev_opmode(struct ath11k_vif *arvif)

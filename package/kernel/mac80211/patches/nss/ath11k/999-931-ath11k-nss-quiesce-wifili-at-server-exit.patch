@@ -34,10 +34,10 @@ deinit, reset and tx descriptor free.
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 
 diff --git a/drivers/net/wireless/ath/ath11k/core.c b/drivers/net/wireless/ath/ath11k/core.c
-index 313dc7b..24389f5 100644
+index ce3f5ca..ba04535 100644
 --- a/drivers/net/wireless/ath/ath11k/core.c
 +++ b/drivers/net/wireless/ath/ath11k/core.c
-@@ -2535,6 +2535,8 @@ void ath11k_core_pre_reconfigure_recovery(struct ath11k_base *ab)
+@@ -2560,6 +2560,8 @@ void ath11k_core_pre_reconfigure_recovery(struct ath11k_base *ab)
  
  	wake_up(&ab->wmi_ab.tx_credits_wq);
  
@@ -47,7 +47,7 @@ index 313dc7b..24389f5 100644
  }
  
 diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
-index 0d21d97..b91fcfe 100644
+index 059252d..99daa9a 100644
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
 @@ -3384,6 +3384,13 @@ static int ath11k_nss_stop(struct ath11k_base *ab)

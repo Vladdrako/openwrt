@@ -3,7 +3,7 @@ ath11k-add-fw-11-4-check
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 
 diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
-index ae6d466..00d8536 100644
+index ef8f717..b8d992d 100644
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
 @@ -793,9 +793,11 @@ ath11k_nss_vdev_special_data_receive(struct net_device *dev, struct sk_buff *skb

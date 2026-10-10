@@ -3,7 +3,7 @@ ath11k-adding-support-for-mgmt-frame-stats
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 
 diff --git a/drivers/net/wireless/ath/ath11k/core.h b/drivers/net/wireless/ath/ath11k/core.h
-index d04a785..9cea16b 100644
+index f4b84e1..672f9da 100644
 --- a/drivers/net/wireless/ath/ath11k/core.h
 +++ b/drivers/net/wireless/ath/ath11k/core.h
 @@ -19,6 +19,7 @@
@@ -20,9 +20,9 @@ index d04a785..9cea16b 100644
  #include "rx_desc.h"
 -#include "fw.h"
  #include "coredump.h"
+ #include "cfr.h"
  
- #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
-@@ -364,6 +364,16 @@ struct ath11k_reg_tpc_power_info {
+@@ -365,6 +365,16 @@ struct ath11k_reg_tpc_power_info {
  	struct ath11k_chan_power_info chan_power_info[ATH11K_NUM_PWR_LEVELS];
  };
  
@@ -39,7 +39,7 @@ index d04a785..9cea16b 100644
  struct ath11k_vif {
  	u32 vdev_id;
  	enum wmi_vdev_type vdev_type;
-@@ -422,7 +432,7 @@ struct ath11k_vif {
+@@ -423,7 +433,7 @@ struct ath11k_vif {
  	bool reinstall_group_keys;
  
  	struct ath11k_reg_tpc_power_info reg_tpc_info;
@@ -49,10 +49,10 @@ index d04a785..9cea16b 100644
  	 *
  	 * FIXME: Driver should not copy struct ieee80211_chanctx_conf,
 diff --git a/drivers/net/wireless/ath/ath11k/debugfs.c b/drivers/net/wireless/ath/ath11k/debugfs.c
-index 977f945..0bce93f 100644
+index 7092261..82ef9be 100644
 --- a/drivers/net/wireless/ath/ath11k/debugfs.c
 +++ b/drivers/net/wireless/ath/ath11k/debugfs.c
-@@ -1469,6 +1469,87 @@ static const struct file_operations fops_ps_state_enable = {
+@@ -1466,6 +1466,87 @@ static const struct file_operations fops_ps_state_enable = {
  	.llseek = default_llseek,
  };
  
@@ -140,7 +140,7 @@ index 977f945..0bce93f 100644
  int ath11k_debugfs_register(struct ath11k *ar)
  {
  	struct ath11k_base *ab = ar->ab;
-@@ -1501,6 +1582,9 @@ int ath11k_debugfs_register(struct ath11k *ar)
+@@ -1498,6 +1579,9 @@ int ath11k_debugfs_register(struct ath11k *ar)
  	debugfs_create_file("fw_dbglog_config", 0600,
  			    ar->debug.debugfs_pdev, ar,
  			    &fops_fw_dbglog);
@@ -151,10 +151,10 @@ index 977f945..0bce93f 100644
  	if (ar->hw->wiphy->bands[NL80211_BAND_5GHZ]) {
  		debugfs_create_file("dfs_simulate_radar", 0200,
 diff --git a/drivers/net/wireless/ath/ath11k/mac.c b/drivers/net/wireless/ath/ath11k/mac.c
-index af0f8c9..940d7d1 100644
+index 52fca97..51c99ec 100644
 --- a/drivers/net/wireless/ath/ath11k/mac.c
 +++ b/drivers/net/wireless/ath/ath11k/mac.c
-@@ -6192,9 +6192,11 @@ static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
+@@ -6512,9 +6512,11 @@ static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
  	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
  	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
  	struct ieee80211_key_conf *key = info->control.hw_key;
@@ -166,7 +166,7 @@ index af0f8c9..940d7d1 100644
  	int ret;
  
  	memset(skb_cb, 0, sizeof(*skb_cb));
-@@ -6208,12 +6210,21 @@ static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
+@@ -6528,12 +6530,21 @@ static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
  	if (info_flags & IEEE80211_TX_CTL_HW_80211_ENCAP) {
  		skb_cb->flags |= ATH11K_SKB_HW_80211_ENCAP;
  	} else if (ieee80211_is_mgmt(hdr->frame_control)) {
@@ -191,7 +191,7 @@ index af0f8c9..940d7d1 100644
  		return;
  	}
 diff --git a/drivers/net/wireless/ath/ath11k/peer.c b/drivers/net/wireless/ath/ath11k/peer.c
-index 6d0126c..d050e61 100644
+index b30a906..9a85cc8 100644
 --- a/drivers/net/wireless/ath/ath11k/peer.c
 +++ b/drivers/net/wireless/ath/ath11k/peer.c
 @@ -444,6 +444,7 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
@@ -203,7 +203,7 @@ index 6d0126c..d050e61 100644
  	if (sta) {
  		arsta = ath11k_sta_to_arsta(sta);
 diff --git a/drivers/net/wireless/ath/ath11k/peer.h b/drivers/net/wireless/ath/ath11k/peer.h
-index b9ecff8..a996608 100644
+index 750c62c..022879c 100644
 --- a/drivers/net/wireless/ath/ath11k/peer.h
 +++ b/drivers/net/wireless/ath/ath11k/peer.h
 @@ -21,6 +21,7 @@ struct ppdu_user_delayba {
@@ -215,10 +215,10 @@ index b9ecff8..a996608 100644
  	u8 addr[ETH_ALEN];
  	int peer_id;
 diff --git a/drivers/net/wireless/ath/ath11k/wmi.c b/drivers/net/wireless/ath/ath11k/wmi.c
-index dc30dd5..3f1192a 100644
+index 0964b42..b732d57 100644
 --- a/drivers/net/wireless/ath/ath11k/wmi.c
 +++ b/drivers/net/wireless/ath/ath11k/wmi.c
-@@ -5948,6 +5948,12 @@ static int wmi_process_mgmt_tx_comp(struct ath11k *ar,
+@@ -5999,6 +5999,12 @@ static int wmi_process_mgmt_tx_comp(struct ath11k *ar,
  	struct sk_buff *msdu;
  	struct ieee80211_tx_info *info;
  	struct ath11k_skb_cb *skb_cb;
@@ -231,7 +231,7 @@ index dc30dd5..3f1192a 100644
  	int num_mgmt;
  
  	spin_lock_bh(&ar->txmgmt_idr_lock);
-@@ -5978,6 +5984,31 @@ static int wmi_process_mgmt_tx_comp(struct ath11k *ar,
+@@ -6029,6 +6035,31 @@ static int wmi_process_mgmt_tx_comp(struct ath11k *ar,
  			info->status.ack_signal = tx_compl_param->ack_rssi;
  	}
  
@@ -263,7 +263,7 @@ index dc30dd5..3f1192a 100644
  	ieee80211_tx_status_irqsafe(ar->hw, msdu);
  
  	num_mgmt = atomic_dec_if_positive(&ar->num_pending_mgmt_tx);
-@@ -7557,6 +7588,11 @@ static void ath11k_mgmt_rx_event(struct ath11k_base *ab, struct sk_buff *skb)
+@@ -7608,6 +7639,11 @@ static void ath11k_mgmt_rx_event(struct ath11k_base *ab, struct sk_buff *skb)
  	struct ieee80211_hdr *hdr;
  	u16 fc;
  	struct ieee80211_supported_band *sband;
@@ -275,7 +275,7 @@ index dc30dd5..3f1192a 100644
  
  	if (ath11k_pull_mgmt_rx_params_tlv(ab, skb, &rx_ev) != 0) {
  		ath11k_warn(ab, "failed to extract mgmt rx event");
-@@ -7622,7 +7658,34 @@ static void ath11k_mgmt_rx_event(struct ath11k_base *ab, struct sk_buff *skb)
+@@ -7673,7 +7709,34 @@ static void ath11k_mgmt_rx_event(struct ath11k_base *ab, struct sk_buff *skb)
  
  	hdr = (struct ieee80211_hdr *)skb->data;
  	fc = le16_to_cpu(hdr->frame_control);

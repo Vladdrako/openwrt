@@ -14,7 +14,7 @@ Signed-off-by: Sathishkumar Muruganandam <murugana@codeaurora.org>
  2 files changed, 109 insertions(+), 9 deletions(-)
 
 diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
-index ebd55f9..d0786d2 100644
+index 83f43a1..38c4647 100644
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
 @@ -1542,14 +1542,11 @@ static int ath11k_nss_ext_vdev_register(struct ath11k_vif *arvif,

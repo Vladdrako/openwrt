@@ -20,10 +20,10 @@ Signed-off-by: Seevalamuthu Mariappan <seevalam@codeaurora.org>
  4 files changed, 279 insertions(+), 3 deletions(-)
 
 diff --git a/drivers/net/wireless/ath/ath11k/core.h b/drivers/net/wireless/ath/ath11k/core.h
-index c229e74..70323ae 100644
+index 17f46cb..6a5d5c5 100644
 --- a/drivers/net/wireless/ath/ath11k/core.h
 +++ b/drivers/net/wireless/ath/ath11k/core.h
-@@ -128,6 +128,7 @@ struct ath11k_skb_cb {
+@@ -129,6 +129,7 @@ struct ath11k_skb_cb {
  	u32 cipher;
  	struct ath11k *ar;
  	struct ieee80211_vif *vif;
@@ -32,10 +32,10 @@ index c229e74..70323ae 100644
  
  struct ath11k_skb_rxcb {
 diff --git a/drivers/net/wireless/ath/ath11k/dp_tx.c b/drivers/net/wireless/ath/ath11k/dp_tx.c
-index 2633ae5..83c4037 100644
+index d346217..f4ba36f 100644
 --- a/drivers/net/wireless/ath/ath11k/dp_tx.c
 +++ b/drivers/net/wireless/ath/ath11k/dp_tx.c
-@@ -80,6 +80,43 @@ enum hal_encrypt_type ath11k_dp_tx_get_encrypt_type(u32 cipher)
+@@ -79,6 +79,43 @@ enum hal_encrypt_type ath11k_dp_tx_get_encrypt_type(u32 cipher)
  	}
  }
  
@@ -165,7 +165,7 @@ index 2633ae5..83c4037 100644
  
  	if (ts->acked) {
 diff --git a/drivers/net/wireless/ath/ath11k/dp_tx.h b/drivers/net/wireless/ath/ath11k/dp_tx.h
-index c02b1ea..dbdca7e 100644
+index d122433..d205cb1 100644
 --- a/drivers/net/wireless/ath/ath11k/dp_tx.h
 +++ b/drivers/net/wireless/ath/ath11k/dp_tx.h
 @@ -17,6 +17,204 @@ struct ath11k_dp_htt_wbm_tx_status {
@@ -374,10 +374,10 @@ index c02b1ea..dbdca7e 100644
  int ath11k_dp_tx_htt_h2t_ver_req_msg(struct ath11k_base *ab);
  int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
 diff --git a/drivers/net/wireless/ath/ath11k/mac.c b/drivers/net/wireless/ath/ath11k/mac.c
-index a04a143..ea1c7ae 100644
+index 68e0327..832a5e0 100644
 --- a/drivers/net/wireless/ath/ath11k/mac.c
 +++ b/drivers/net/wireless/ath/ath11k/mac.c
-@@ -10618,6 +10618,9 @@ static int __ath11k_mac_register(struct ath11k *ar)
+@@ -10800,6 +10800,9 @@ static int __ath11k_mac_register(struct ath11k *ar)
  		 */
  		ar->hw->wiphy->interface_modes &= ~BIT(NL80211_IFTYPE_MONITOR);
  

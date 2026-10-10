@@ -20,9 +20,11 @@ the wifili path itself, where the callback lives.
 
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 
+diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
+index cc356ba..b8b52f6 100644
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
-@@ -534,7 +534,7 @@ ath11k_nss_wifili_ext_callback_fn(struct
+@@ -534,7 +534,7 @@ ath11k_nss_wifili_ext_callback_fn(struct ath11k_base *ab, struct sk_buff *skb,
  		ath11k_nss_process_mic_error(ab, skb);
  		break;
  	default:

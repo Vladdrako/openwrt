@@ -20,10 +20,10 @@ unaffected.
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 
 diff --git a/net/mac80211/iface.c b/net/mac80211/iface.c
-index 17f5d4c..6611ecf 100644
+index 2598c4a..3f7e604 100644
 --- a/net/mac80211/iface.c
 +++ b/net/mac80211/iface.c
-@@ -2280,9 +2280,28 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
+@@ -2362,9 +2362,28 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
  			txq_size += sizeof(struct txq_info) +
  				    local->hw.txq_data_size;
  

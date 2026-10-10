@@ -13,10 +13,10 @@ registered.
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 
 diff --git a/drivers/net/wireless/ath/ath11k/dp.c b/drivers/net/wireless/ath/ath11k/dp.c
-index ba86877..5696b00 100644
+index 49a7823..c656deb 100644
 --- a/drivers/net/wireless/ath/ath11k/dp.c
 +++ b/drivers/net/wireless/ath/ath11k/dp.c
-@@ -1063,6 +1063,44 @@ static int ath11k_dp_tx_pending_cleanup(struct ath11k_base *ab, void *skb)
+@@ -1055,6 +1055,44 @@ static int ath11k_dp_tx_pending_cleanup(struct ath11k_base *ab, void *skb)
  	return 0;
  }
  
@@ -62,10 +62,10 @@ index ba86877..5696b00 100644
  {
  	struct ath11k_dp *dp = &ab->dp;
 diff --git a/drivers/net/wireless/ath/ath11k/dp.h b/drivers/net/wireless/ath/ath11k/dp.h
-index c17d281..c504ae5 100644
+index 282fe6d..3e81dc7 100644
 --- a/drivers/net/wireless/ath/ath11k/dp.h
 +++ b/drivers/net/wireless/ath/ath11k/dp.h
-@@ -1766,6 +1766,7 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
+@@ -1765,6 +1765,7 @@ int ath11k_dp_service_srng(struct ath11k_base *ab,
  			   int budget);
  int ath11k_dp_htt_connect(struct ath11k_dp *dp);
  void ath11k_dp_vdev_tx_attach(struct ath11k *ar, struct ath11k_vif *arvif);
@@ -74,10 +74,10 @@ index c17d281..c504ae5 100644
  int ath11k_dp_alloc(struct ath11k_base *ab);
  int ath11k_dp_pdev_alloc(struct ath11k_base *ab);
 diff --git a/drivers/net/wireless/ath/ath11k/mac.c b/drivers/net/wireless/ath/ath11k/mac.c
-index efe2a4e..6f928b1 100644
+index c80f7d9..1658cfe 100644
 --- a/drivers/net/wireless/ath/ath11k/mac.c
 +++ b/drivers/net/wireless/ath/ath11k/mac.c
-@@ -6847,6 +6847,7 @@ static void ath11k_mac_op_stop(struct ieee80211_hw *hw, bool suspend)
+@@ -7167,6 +7167,7 @@ static void ath11k_mac_op_stop(struct ieee80211_hw *hw, bool suspend)
  	int ret;
  
  	ath11k_mac_drain_tx(ar);

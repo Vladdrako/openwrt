@@ -13,10 +13,10 @@ Signed-off-by: Aloka Dixit <quic_alokad@quicinc.com>
  1 file changed, 40 insertions(+)
 
 diff --git a/net/mac80211/tx.c b/net/mac80211/tx.c
-index ea92820..394fe15 100644
+index 7c256f4..527b59c 100644
 --- a/net/mac80211/tx.c
 +++ b/net/mac80211/tx.c
-@@ -4799,6 +4799,67 @@ out_free:
+@@ -4866,6 +4866,67 @@ out_free:
  	kfree_skb(skb);
  }
  
@@ -81,10 +81,10 @@ index ea92820..394fe15 100644
 +
 +}
 +
- netdev_tx_t ieee80211_subif_start_xmit_8023(struct sk_buff *skb,
- 					    struct net_device *dev)
+ static bool ieee80211_check_mcast_offload(struct ieee80211_sub_if_data *sdata,
+ 					  struct sk_buff *skb)
  {
-@@ -4839,6 +4900,11 @@ netdev_tx_t ieee80211_subif_start_xmit_8023(struct sk_buff *skb,
+@@ -4937,6 +4998,11 @@ static void __ieee80211_subif_start_xmit_8023(struct sk_buff *skb,
  		    key->conf.cipher == WLAN_CIPHER_SUITE_TKIP))
  		goto skip_offload;
  

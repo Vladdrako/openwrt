@@ -47,10 +47,10 @@ server or vlan_file rather than by an attacker.
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 
 diff --git a/drivers/net/wireless/ath/ath11k/core.h b/drivers/net/wireless/ath/ath11k/core.h
-index 444d1b6..aea3a81 100644
+index cefae9b..e51ae63 100644
 --- a/drivers/net/wireless/ath/ath11k/core.h
 +++ b/drivers/net/wireless/ath/ath11k/core.h
-@@ -108,6 +108,11 @@ enum ath11k_crypt_mode {
+@@ -109,6 +109,11 @@ enum ath11k_crypt_mode {
  	ATH11K_CRYPT_MODE_SW,
  };
  
@@ -62,7 +62,7 @@ index 444d1b6..aea3a81 100644
  static inline enum wme_ac ath11k_tid_to_ac(u32 tid)
  {
  	return (((tid == 0) || (tid == 3)) ? WME_AC_BE :
-@@ -376,6 +381,20 @@ struct ath11k_mgmt_frame_stats {
+@@ -377,6 +382,20 @@ struct ath11k_mgmt_frame_stats {
  	u32 tx_compl_fail[ATH11K_STATS_MGMT_FRM_TYPE_MAX];
  };
  
@@ -83,7 +83,7 @@ index 444d1b6..aea3a81 100644
  struct ath11k_vif {
  	u32 vdev_id;
  	enum wmi_vdev_type vdev_type;
-@@ -439,6 +458,11 @@ struct ath11k_vif {
+@@ -440,6 +459,11 @@ struct ath11k_vif {
  	struct arvif_nss nss;
  #endif
  	struct list_head ap_vlan_arvifs;
@@ -96,7 +96,7 @@ index 444d1b6..aea3a81 100644
  	 *
  	 * FIXME: Driver should not copy struct ieee80211_chanctx_conf,
 diff --git a/drivers/net/wireless/ath/ath11k/mac.c b/drivers/net/wireless/ath/ath11k/mac.c
-index 354c57e..50a3b55 100644
+index eaee920..a2a9440 100644
 --- a/drivers/net/wireless/ath/ath11k/mac.c
 +++ b/drivers/net/wireless/ath/ath11k/mac.c
 @@ -7,6 +7,7 @@
@@ -152,7 +152,7 @@ index 354c57e..50a3b55 100644
  static void ath11k_pdev_caps_update(struct ath11k *ar)
  {
  	struct ath11k_base *ab = ar->ab;
-@@ -4275,6 +4307,9 @@ static int ath11k_install_key(struct ath11k_vif *arvif,
+@@ -4416,6 +4448,9 @@ static int ath11k_install_key(struct ath11k_vif *arvif,
  	if (test_bit(ATH11K_FLAG_HW_CRYPTO_DISABLED, &ar->ab->dev_flags))
  		return 0;
  
@@ -162,7 +162,7 @@ index 354c57e..50a3b55 100644
  	if (cmd == DISABLE_KEY) {
  		arg.key_cipher = WMI_CIPHER_NONE;
  		arg.key_data = NULL;
-@@ -4397,15 +4432,40 @@ static int ath11k_set_group_keys(struct ath11k_vif *arvif)
+@@ -4538,15 +4573,40 @@ static int ath11k_set_group_keys(struct ath11k_vif *arvif)
  	return first_errno;
  }
  
@@ -205,7 +205,7 @@ index 354c57e..50a3b55 100644
  	bool is_ap_with_no_sta;
  	const u8 *peer_addr;
  	int ret = 0;
-@@ -4424,17 +4484,38 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -4565,17 +4625,38 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  	if (key->keyidx > WMI_MAX_KEY_INDEX)
  		return -ENOSPC;
  
@@ -248,7 +248,7 @@ index 354c57e..50a3b55 100644
  	/* the peer should not disappear in mid-way (unless FW goes awry) since
  	 * we already hold conf_mutex. we just make sure its there now.
  	 */
-@@ -4520,6 +4601,74 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -4661,6 +4742,74 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  			arvif->reinstall_group_keys = true;
  	}
  
@@ -323,7 +323,7 @@ index 354c57e..50a3b55 100644
  	spin_lock_bh(&ab->base_lock);
  	peer = ath11k_peer_find(ab, arvif->vdev_id, peer_addr);
  
-@@ -4542,6 +4691,27 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -4683,6 +4832,27 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  		goto unlock;
  	}
  
@@ -351,7 +351,7 @@ index 354c57e..50a3b55 100644
  	if (peer && cmd == SET_KEY) {
  		peer->keys[key->keyidx] = key;
  		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
-@@ -4551,18 +4721,23 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+@@ -4692,18 +4862,23 @@ static int ath11k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
  			peer->mcast_keyidx = key->keyidx;
  			peer->sec_type_grp = ath11k_dp_tx_get_encrypt_type(key->cipher);
  		}
@@ -378,7 +378,7 @@ index 354c57e..50a3b55 100644
  
  		switch (key->cipher) {
  		case WLAN_CIPHER_SUITE_TKIP:
-@@ -7038,7 +7213,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
+@@ -7358,7 +7533,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
  	if ((vif->type == NL80211_IFTYPE_AP_VLAN ||
  	     vif->type == NL80211_IFTYPE_STATION) && ab->nss.enabled) {
  		if (ath11k_frame_mode == ATH11K_HW_TXRX_ETHERNET &&
@@ -387,7 +387,7 @@ index 354c57e..50a3b55 100644
  			vif->offload_flags |= IEEE80211_OFFLOAD_ENCAP_4ADDR;
  			arvif->nss.encap = ATH11K_HW_TXRX_ETHERNET;
  			arvif->nss.decap = ATH11K_HW_TXRX_ETHERNET;
-@@ -7051,6 +7226,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
+@@ -7371,6 +7546,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
  					    vif->addr, ret);
  				goto err;
  			}
@@ -395,7 +395,7 @@ index 354c57e..50a3b55 100644
  			mutex_unlock(&ar->conf_mutex);
  			return ret;
  		}
-@@ -7076,6 +7252,22 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
+@@ -7396,6 +7572,22 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
  	arvif->vdev_id = bit;
  	arvif->vdev_subtype = WMI_VDEV_SUBTYPE_NONE;
  
@@ -418,7 +418,7 @@ index 354c57e..50a3b55 100644
  	switch (vif->type) {
  	case NL80211_IFTYPE_UNSPECIFIED:
  	case NL80211_IFTYPE_STATION:
-@@ -7125,7 +7317,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
+@@ -7445,7 +7637,7 @@ static int ath11k_mac_op_add_interface(struct ieee80211_hw *hw,
  	if (ret) {
  		ath11k_warn(ab, "failed to create WMI vdev %d: %d\n",
  			    arvif->vdev_id, ret);
@@ -427,7 +427,7 @@ index 354c57e..50a3b55 100644
  	}
  
  	ar->num_created_vdevs++;
-@@ -7289,7 +7481,7 @@ err_peer_del:
+@@ -7609,7 +7801,7 @@ err_peer_del:
  		if (fbret) {
  			ath11k_warn(ar->ab, "fallback fail to delete peer addr %pM vdev_id %d ret %d\n",
  				    vif->addr, arvif->vdev_id, fbret);
@@ -436,7 +436,7 @@ index 354c57e..50a3b55 100644
  		}
  	}
  
-@@ -7300,6 +7492,8 @@ err_vdev_del:
+@@ -7620,6 +7812,8 @@ err_vdev_del:
  	list_del(&arvif->list);
  	spin_unlock_bh(&ar->data_lock);
  
@@ -445,7 +445,7 @@ index 354c57e..50a3b55 100644
  err:
  	mutex_unlock(&ar->conf_mutex);
  
-@@ -7398,6 +7592,7 @@ err_vdev_del:
+@@ -7718,6 +7912,7 @@ err_vdev_del:
  	list_del(&arvif->list);
  	spin_unlock_bh(&ar->data_lock);
  
@@ -453,7 +453,7 @@ index 354c57e..50a3b55 100644
  	ath11k_peer_cleanup(ar, arvif->vdev_id);
  
  	idr_for_each(&ar->txmgmt_idr,
-@@ -10096,6 +10291,33 @@ static int ath11k_mac_station_remove(struct ath11k *ar,
+@@ -10274,6 +10469,33 @@ static int ath11k_mac_station_remove(struct ath11k *ar,
  	return ret;
  }
  
@@ -487,7 +487,7 @@ index 354c57e..50a3b55 100644
  static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
  				   struct ieee80211_vif *vif,
  				   struct ieee80211_sta *sta,
-@@ -10185,6 +10407,34 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
+@@ -10365,6 +10587,34 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
  			if (ret)
  				ath11k_warn(ar->ab, "Unable to authorize peer %pM vdev %d: %d\n",
  					    sta->addr, arvif->vdev_id, ret);
@@ -522,7 +522,7 @@ index 354c57e..50a3b55 100644
  		}
  
  		if (!ret &&
-@@ -10805,8 +11055,11 @@ static int __ath11k_mac_register(struct ath11k *ar)
+@@ -10987,8 +11237,11 @@ static int __ath11k_mac_register(struct ath11k *ar)
  	    ab->hw_params.bios_sar_capa)
  		ar->hw->wiphy->sar_capa = ab->hw_params.bios_sar_capa;
  
@@ -536,10 +536,10 @@ index 354c57e..50a3b55 100644
  	ret = ieee80211_register_hw(ar->hw);
  	if (ret) {
 diff --git a/drivers/net/wireless/ath/ath11k/wmi.c b/drivers/net/wireless/ath/ath11k/wmi.c
-index fd0a239..b35378d 100644
+index 7abdcc7..a62b426 100644
 --- a/drivers/net/wireless/ath/ath11k/wmi.c
 +++ b/drivers/net/wireless/ath/ath11k/wmi.c
-@@ -1980,6 +1980,7 @@ int ath11k_wmi_vdev_install_key(struct ath11k *ar,
+@@ -1992,6 +1992,7 @@ int ath11k_wmi_vdev_install_key(struct ath11k *ar,
  	cmd->key_len = arg->key_len;
  	cmd->key_txmic_len = arg->key_txmic_len;
  	cmd->key_rxmic_len = arg->key_rxmic_len;
@@ -547,7 +547,7 @@ index fd0a239..b35378d 100644
  
  	if (arg->key_rsc_counter)
  		memcpy(&cmd->key_rsc_counter, &arg->key_rsc_counter,
-@@ -4325,6 +4326,7 @@ ath11k_wmi_copy_resource_config(struct wmi_resource_config *wmi_cfg,
+@@ -4378,6 +4379,7 @@ ath11k_wmi_copy_resource_config(struct wmi_resource_config *wmi_cfg,
  	wmi_cfg->flags2 = WMI_RSRC_CFG_FLAG2_CALC_NEXT_DTIM_COUNT_SET;
  	wmi_cfg->ema_max_vap_cnt = tg_cfg->ema_max_vap_cnt;
  	wmi_cfg->ema_max_profile_period = tg_cfg->ema_max_profile_period;
@@ -555,7 +555,7 @@ index fd0a239..b35378d 100644
  }
  
  static int ath11k_init_cmd_send(struct ath11k_pdev_wmi *wmi,
-@@ -4547,6 +4549,9 @@ int ath11k_wmi_cmd_init(struct ath11k_base *ab)
+@@ -4600,6 +4602,9 @@ int ath11k_wmi_cmd_init(struct ath11k_base *ab)
  	memset(&init_param, 0, sizeof(init_param));
  	memset(&config, 0, sizeof(config));
  
@@ -566,10 +566,10 @@ index fd0a239..b35378d 100644
  
  	if (test_bit(WMI_TLV_SERVICE_REG_CC_EXT_EVENT_SUPPORT,
 diff --git a/drivers/net/wireless/ath/ath11k/wmi.h b/drivers/net/wireless/ath/ath11k/wmi.h
-index 38af2d1..b85e657 100644
+index fc14b5b..3b46a4d 100644
 --- a/drivers/net/wireless/ath/ath11k/wmi.h
 +++ b/drivers/net/wireless/ath/ath11k/wmi.h
-@@ -3753,6 +3753,7 @@ struct wmi_vdev_install_key_arg {
+@@ -3746,6 +3746,7 @@ struct wmi_vdev_install_key_arg {
  	u32 vdev_id;
  	const u8 *macaddr;
  	u32 key_idx;
@@ -577,7 +577,7 @@ index 38af2d1..b85e657 100644
  	u32 key_flags;
  	u32 key_cipher;
  	u32 key_len;
-@@ -5806,6 +5807,7 @@ struct target_resource_config {
+@@ -5880,6 +5881,7 @@ struct target_resource_config {
  	u32 bpf_instruction_size;
  	u32 max_bssid_rx_filters;
  	u32 use_pdev_id;

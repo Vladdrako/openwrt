@@ -18,7 +18,7 @@ None of it landed on cpu0.
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 
 diff --git a/drivers/net/wireless/ath/ath11k/ahb.c b/drivers/net/wireless/ath/ath11k/ahb.c
-index 424b360..8d10eaa 100644
+index 06cf3cd..bb5da05 100644
 --- a/drivers/net/wireless/ath/ath11k/ahb.c
 +++ b/drivers/net/wireless/ath/ath11k/ahb.c
 @@ -387,6 +387,7 @@ static void ath11k_ahb_ext_irq_enable(struct ath11k_base *ab)
@@ -57,10 +57,10 @@ index 424b360..8d10eaa 100644
  }
  
 diff --git a/drivers/net/wireless/ath/ath11k/pcic.c b/drivers/net/wireless/ath/ath11k/pcic.c
-index bd6b57a..240d566 100644
+index 3a86477..7c7be1e 100644
 --- a/drivers/net/wireless/ath/ath11k/pcic.c
 +++ b/drivers/net/wireless/ath/ath11k/pcic.c
-@@ -498,6 +498,7 @@ void ath11k_pcic_ext_irq_enable(struct ath11k_base *ab)
+@@ -497,6 +497,7 @@ void ath11k_pcic_ext_irq_enable(struct ath11k_base *ab)
  		struct ath11k_ext_irq_grp *irq_grp = &ab->ext_irq_grp[i];
  
  		if (!irq_grp->napi_enabled) {
@@ -68,7 +68,7 @@ index bd6b57a..240d566 100644
  			napi_enable(&irq_grp->napi);
  			irq_grp->napi_enabled = true;
  		}
-@@ -585,6 +586,7 @@ static int ath11k_pcic_ext_irq_config(struct ath11k_base *ab)
+@@ -584,6 +585,7 @@ static int ath11k_pcic_ext_irq_config(struct ath11k_base *ab)
  	u32 user_base_data = 0, base_vector = 0;
  	struct ath11k_ext_irq_grp *irq_grp;
  	unsigned long irq_flags;
@@ -76,7 +76,7 @@ index bd6b57a..240d566 100644
  
  	ret = ath11k_pcic_get_user_msi_assignment(ab, "DP", &num_vectors,
  						  &user_base_data,
-@@ -608,6 +610,9 @@ static int ath11k_pcic_ext_irq_config(struct ath11k_base *ab)
+@@ -607,6 +609,9 @@ static int ath11k_pcic_ext_irq_config(struct ath11k_base *ab)
  			goto fail_allocate;
  		}
  
@@ -86,7 +86,7 @@ index bd6b57a..240d566 100644
  		netif_napi_add(irq_grp->napi_ndev, &irq_grp->napi,
  			       ath11k_pcic_ext_grp_napi_poll);
  
-@@ -662,6 +667,8 @@ static int ath11k_pcic_ext_irq_config(struct ath11k_base *ab)
+@@ -661,6 +666,8 @@ static int ath11k_pcic_ext_irq_config(struct ath11k_base *ab)
  		ath11k_pcic_ext_grp_disable(irq_grp);
  	}
  

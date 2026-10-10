@@ -18,7 +18,7 @@ Signed-off-by: Raj Kumar Bhagat <quic_rajkbhag@quicinc.com>
  3 files changed, 8 insertions(+), 6 deletions(-)
 
 diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
-index 6827ab2..658c246 100644
+index ffb6110..99e448a 100644
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
 @@ -2425,13 +2425,14 @@ msg_free:
@@ -78,7 +78,7 @@ index 98709ca..28e3cc7 100644
  	return 0;
  }
 diff --git a/drivers/net/wireless/ath/ath11k/peer.c b/drivers/net/wireless/ath/ath11k/peer.c
-index 421d23f..6143bf3 100644
+index 9753acd..cffe026 100644
 --- a/drivers/net/wireless/ath/ath11k/peer.c
 +++ b/drivers/net/wireless/ath/ath11k/peer.c
 @@ -359,8 +359,7 @@ void ath11k_peer_map_ast(struct ath11k *ar, struct ath11k_peer *peer,

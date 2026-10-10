@@ -20,10 +20,10 @@ Signed-off-by: P Praneesh <ppranees@codeaurora.org>
  6 files changed, 218 insertions(+), 9 deletions(-)
 
 diff --git a/drivers/net/wireless/ath/ath11k/core.h b/drivers/net/wireless/ath/ath11k/core.h
-index aea3a81..80634a6 100644
+index e51ae63..088b8fa 100644
 --- a/drivers/net/wireless/ath/ath11k/core.h
 +++ b/drivers/net/wireless/ath/ath11k/core.h
-@@ -152,6 +152,7 @@ struct ath11k_skb_rxcb {
+@@ -153,6 +153,7 @@ struct ath11k_skb_rxcb {
  	u8 tid;
  	u16 peer_id;
  	u16 seq_no;
@@ -31,7 +31,7 @@ index aea3a81..80634a6 100644
  };
  
  enum ath11k_hw_rev {
-@@ -1163,6 +1164,7 @@ struct ath11k_base {
+@@ -1180,6 +1181,7 @@ struct ath11k_base {
  	u32 max_ast_index;
  	u32 num_ast_entries;
  
@@ -40,10 +40,10 @@ index aea3a81..80634a6 100644
  	u8 drv_priv[] __aligned(sizeof(void *));
  };
 diff --git a/drivers/net/wireless/ath/ath11k/debugfs.c b/drivers/net/wireless/ath/ath11k/debugfs.c
-index 1d9babc..c431c98 100644
+index c6f7e31..07de040 100644
 --- a/drivers/net/wireless/ath/ath11k/debugfs.c
 +++ b/drivers/net/wireless/ath/ath11k/debugfs.c
-@@ -852,6 +852,79 @@ static const struct file_operations fops_sram_dump = {
+@@ -851,6 +851,79 @@ static const struct file_operations fops_sram_dump = {
  	.llseek = default_llseek,
  };
  
@@ -123,7 +123,7 @@ index 1d9babc..c431c98 100644
  int ath11k_debugfs_pdev_create(struct ath11k_base *ab)
  {
  	if (test_bit(ATH11K_FLAG_REGISTERED, &ab->dev_flags))
-@@ -903,6 +976,8 @@ int ath11k_debugfs_soc_create(struct ath11k_base *ab)
+@@ -902,6 +975,8 @@ int ath11k_debugfs_soc_create(struct ath11k_base *ab)
  		ret = PTR_ERR(ab->debugfs_soc);
  		goto out;
  	}
@@ -133,7 +133,7 @@ index 1d9babc..c431c98 100644
  	ret = 0;
  
 diff --git a/drivers/net/wireless/ath/ath11k/dp_rx.c b/drivers/net/wireless/ath/ath11k/dp_rx.c
-index 99bbb19..0f2a263 100644
+index 538b010..07c5aba 100644
 --- a/drivers/net/wireless/ath/ath11k/dp_rx.c
 +++ b/drivers/net/wireless/ath/ath11k/dp_rx.c
 @@ -341,6 +341,12 @@ static int ath11k_dp_purge_mon_ring(struct ath11k_base *ab)
@@ -158,7 +158,7 @@ index 99bbb19..0f2a263 100644
  				   tlv_tag, ptr - begin, len, tlv_len);
  			return -EINVAL;
  		}
-@@ -2452,10 +2458,60 @@ ath11k_dp_rx_h_find_peer(struct ath11k_base *ab, struct sk_buff *msdu)
+@@ -2454,10 +2460,60 @@ ath11k_dp_rx_h_find_peer(struct ath11k_base *ab, struct sk_buff *msdu)
  	return peer;
  }
  
@@ -220,7 +220,7 @@ index 99bbb19..0f2a263 100644
  {
  	bool  fill_crypto_hdr;
  	enum hal_encrypt_type enctype;
-@@ -2466,9 +2522,13 @@ static void ath11k_dp_rx_h_mpdu(struct ath11k *ar,
+@@ -2468,9 +2524,13 @@ static void ath11k_dp_rx_h_mpdu(struct ath11k *ar,
  	struct rx_attention *rx_attention;
  	u32 err_bitmap;
  
@@ -235,7 +235,7 @@ index 99bbb19..0f2a263 100644
  	rxcb->is_mcbc = fill_crypto_hdr;
  
  	if (rxcb->is_mcbc) {
-@@ -2479,6 +2539,26 @@ static void ath11k_dp_rx_h_mpdu(struct ath11k *ar,
+@@ -2481,6 +2541,26 @@ static void ath11k_dp_rx_h_mpdu(struct ath11k *ar,
  	spin_lock_bh(&ar->ab->base_lock);
  	peer = ath11k_dp_rx_h_find_peer(ar->ab, msdu);
  	if (peer) {
@@ -262,7 +262,7 @@ index 99bbb19..0f2a263 100644
  		if (rxcb->is_mcbc)
  			enctype = peer->sec_type_grp;
  		else
-@@ -2488,6 +2568,8 @@ static void ath11k_dp_rx_h_mpdu(struct ath11k *ar,
+@@ -2490,6 +2570,8 @@ static void ath11k_dp_rx_h_mpdu(struct ath11k *ar,
  	}
  	spin_unlock_bh(&ar->ab->base_lock);
  
@@ -271,7 +271,7 @@ index 99bbb19..0f2a263 100644
  	rx_attention = ath11k_dp_rx_get_attention(ar->ab, rx_desc);
  	err_bitmap = ath11k_dp_rx_h_attn_mpdu_err(rx_attention);
  	if (enctype != HAL_ENCRYPT_TYPE_OPEN && !err_bitmap)
-@@ -2729,7 +2811,8 @@ static void ath11k_dp_rx_deliver_msdu(struct ath11k *ar, struct napi_struct *nap
+@@ -2754,7 +2836,8 @@ static bool ath11k_dp_rx_check_nwifi_hdr_len_valid(struct ath11k_base *ab,
  static int ath11k_dp_rx_process_msdu(struct ath11k *ar,
  				     struct sk_buff *msdu,
  				     struct sk_buff_head *msdu_list,
@@ -281,8 +281,8 @@ index 99bbb19..0f2a263 100644
  {
  	struct ath11k_base *ab = ar->ab;
  	struct hal_rx_desc *rx_desc, *lrx_desc;
-@@ -2796,8 +2879,13 @@ static int ath11k_dp_rx_process_msdu(struct ath11k *ar,
- 		}
+@@ -2826,8 +2909,13 @@ static int ath11k_dp_rx_process_msdu(struct ath11k *ar,
+ 		goto free_out;
  	}
  
 +	ath11k_dp_rx_h_mpdu(ar, msdu, rx_desc, rx_status, fast_rx);
@@ -296,7 +296,7 @@ index 99bbb19..0f2a263 100644
  
  	rx_status->flag |= RX_FLAG_SKIP_MONITOR | RX_FLAG_DUP_VALIDATED;
  
-@@ -2812,10 +2900,12 @@ static void ath11k_dp_rx_process_received_packets(struct ath11k_base *ab,
+@@ -2842,10 +2930,12 @@ static void ath11k_dp_rx_process_received_packets(struct ath11k_base *ab,
  						  struct sk_buff_head *msdu_list,
  						  int mac_id)
  {
@@ -309,7 +309,7 @@ index 99bbb19..0f2a263 100644
  
  	if (skb_queue_empty(msdu_list))
  		return;
-@@ -2832,7 +2922,12 @@ static void ath11k_dp_rx_process_received_packets(struct ath11k_base *ab,
+@@ -2862,7 +2952,12 @@ static void ath11k_dp_rx_process_received_packets(struct ath11k_base *ab,
  	}
  
  	while ((msdu = __skb_dequeue(msdu_list))) {
@@ -323,7 +323,7 @@ index 99bbb19..0f2a263 100644
  		if (unlikely(ret)) {
  			ath11k_dbg(ab, ATH11K_DBG_DATA,
  				   "Unable to process msdu %d", ret);
-@@ -2840,7 +2935,10 @@ static void ath11k_dp_rx_process_received_packets(struct ath11k_base *ab,
+@@ -2870,7 +2965,10 @@ static void ath11k_dp_rx_process_received_packets(struct ath11k_base *ab,
  			continue;
  		}
  
@@ -335,7 +335,7 @@ index 99bbb19..0f2a263 100644
  	}
  }
  
-@@ -2849,11 +2947,12 @@ void ath11k_dp_rx_from_nss(struct ath11k *ar, struct sk_buff *msdu,
+@@ -2879,11 +2977,12 @@ void ath11k_dp_rx_from_nss(struct ath11k *ar, struct sk_buff *msdu,
  {
  	struct ieee80211_rx_status rx_status = {0};
  	struct ath11k_skb_rxcb *rxcb;
@@ -349,7 +349,7 @@ index 99bbb19..0f2a263 100644
  
  	rx_status.flag |= RX_FLAG_SKIP_MONITOR | RX_FLAG_DUP_VALIDATED;
  
-@@ -4261,6 +4360,7 @@ static int ath11k_dp_rx_h_null_q_desc(struct ath11k *ar, struct sk_buff *msdu,
+@@ -4251,6 +4350,7 @@ static int ath11k_dp_rx_h_null_q_desc(struct ath11k *ar, struct sk_buff *msdu,
  				      struct ieee80211_rx_status *status,
  				      struct sk_buff_head *msdu_list)
  {
@@ -357,8 +357,8 @@ index 99bbb19..0f2a263 100644
  	u16 msdu_len;
  	struct hal_rx_desc *desc = (struct hal_rx_desc *)msdu->data;
  	struct rx_attention *rx_attention;
-@@ -4310,7 +4410,8 @@ static int ath11k_dp_rx_h_null_q_desc(struct ath11k *ar, struct sk_buff *msdu,
- 	}
+@@ -4304,7 +4404,8 @@ static int ath11k_dp_rx_h_null_q_desc(struct ath11k *ar, struct sk_buff *msdu,
+ 
  	ath11k_dp_rx_h_ppdu(ar, desc, status);
  
 -	ath11k_dp_rx_h_mpdu(ar, msdu, desc, status);
@@ -368,7 +368,7 @@ index 99bbb19..0f2a263 100644
  	rxcb->tid = ath11k_dp_rx_h_mpdu_start_tid(ar->ab, desc);
  
 diff --git a/drivers/net/wireless/ath/ath11k/hw.c b/drivers/net/wireless/ath/ath11k/hw.c
-index 2585d4f..60b92dc 100644
+index 21488e6..7c63d2f 100644
 --- a/drivers/net/wireless/ath/ath11k/hw.c
 +++ b/drivers/net/wireless/ath/ath11k/hw.c
 @@ -293,6 +293,16 @@ static bool ath11k_hw_ipq8074_rx_desc_get_ldpc_support(struct hal_rx_desc *desc)
@@ -446,10 +446,10 @@ index 2585d4f..60b92dc 100644
  	.rx_desc_get_mpdu_seq_ctl_vld = ath11k_hw_qcn9074_rx_desc_get_mpdu_seq_ctl_vld,
  	.rx_desc_get_mpdu_fc_valid = ath11k_hw_qcn9074_rx_desc_get_mpdu_fc_valid,
 diff --git a/drivers/net/wireless/ath/ath11k/hw.h b/drivers/net/wireless/ath/ath11k/hw.h
-index 74ff632..b549f21 100644
+index 43eabdd..6502fac 100644
 --- a/drivers/net/wireless/ath/ath11k/hw.h
 +++ b/drivers/net/wireless/ath/ath11k/hw.h
-@@ -267,6 +267,7 @@ struct ath11k_hw_ops {
+@@ -270,6 +270,7 @@ struct ath11k_hw_ops {
  	u32 (*rx_desc_get_encrypt_type)(struct hal_rx_desc *desc);
  	u8 (*rx_desc_get_decap_type)(struct hal_rx_desc *desc);
  	u8 (*rx_desc_get_mesh_ctl)(struct hal_rx_desc *desc);
@@ -458,10 +458,10 @@ index 74ff632..b549f21 100644
  	bool (*rx_desc_get_mpdu_seq_ctl_vld)(struct hal_rx_desc *desc);
  	bool (*rx_desc_get_mpdu_fc_valid)(struct hal_rx_desc *desc);
 diff --git a/drivers/net/wireless/ath/ath11k/mac.c b/drivers/net/wireless/ath/ath11k/mac.c
-index 50a3b55..f0c4f65 100644
+index a2a9440..039559b 100644
 --- a/drivers/net/wireless/ath/ath11k/mac.c
 +++ b/drivers/net/wireless/ath/ath11k/mac.c
-@@ -10459,6 +10459,14 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
+@@ -10639,6 +10639,14 @@ static int ath11k_mac_op_sta_state(struct ieee80211_hw *hw,
  						    power_type);
  			}
  		}

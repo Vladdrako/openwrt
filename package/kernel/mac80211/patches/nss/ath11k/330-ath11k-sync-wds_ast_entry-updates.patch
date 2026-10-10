@@ -45,10 +45,10 @@ Signed-off-by: Rameshkumar Sundaram <ramess@codeaurora.org>
  8 files changed, 144 insertions(+), 54 deletions(-)
 
 diff --git a/drivers/net/wireless/ath/ath11k/ahb.c b/drivers/net/wireless/ath/ath11k/ahb.c
-index 976a5cf..424b360 100644
+index d091e7c..06cf3cd 100644
 --- a/drivers/net/wireless/ath/ath11k/ahb.c
 +++ b/drivers/net/wireless/ath/ath11k/ahb.c
-@@ -1321,6 +1321,7 @@ static void ath11k_ahb_remove_prepare(struct ath11k_base *ab)
+@@ -1318,6 +1318,7 @@ static void ath11k_ahb_remove_prepare(struct ath11k_base *ab)
  	set_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags);
  	cancel_work_sync(&ab->restart_work);
  	cancel_work_sync(&ab->qmi.event_work);
@@ -57,10 +57,10 @@ index 976a5cf..424b360 100644
  
  static void ath11k_ahb_free_resources(struct ath11k_base *ab)
 diff --git a/drivers/net/wireless/ath/ath11k/core.c b/drivers/net/wireless/ath/ath11k/core.c
-index 999a61c..4a2ccb9 100644
+index 54f39b3..b421456 100644
 --- a/drivers/net/wireless/ath/ath11k/core.c
 +++ b/drivers/net/wireless/ath/ath11k/core.c
-@@ -2876,6 +2876,7 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
+@@ -2898,6 +2898,7 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
  
  	mutex_init(&ab->core_lock);
  	mutex_init(&ab->tbl_mtx_lock);
@@ -68,7 +68,7 @@ index 999a61c..4a2ccb9 100644
  	spin_lock_init(&ab->base_lock);
  	mutex_init(&ab->vdev_id_11d_lock);
  	init_completion(&ab->reset_complete);
-@@ -2890,6 +2891,8 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
+@@ -2912,6 +2913,8 @@ struct ath11k_base *ath11k_core_alloc(struct device *dev, size_t priv_size,
  	INIT_WORK(&ab->update_11d_work, ath11k_update_11d);
  	INIT_WORK(&ab->reset_work, ath11k_core_reset);
  	INIT_WORK(&ab->dump_work, ath11k_coredump_upload);
@@ -78,18 +78,18 @@ index 999a61c..4a2ccb9 100644
  	init_completion(&ab->htc_suspend);
  	init_completion(&ab->wow.wakeup_completed);
 diff --git a/drivers/net/wireless/ath/ath11k/core.h b/drivers/net/wireless/ath/ath11k/core.h
-index e853017..87f0ef4 100644
+index 123ffe6..f215fb6 100644
 --- a/drivers/net/wireless/ath/ath11k/core.h
 +++ b/drivers/net/wireless/ath/ath11k/core.h
-@@ -36,6 +36,7 @@
- #include "rx_desc.h"
+@@ -37,6 +37,7 @@
  #include "coredump.h"
+ #include "cfr.h"
  #include "nss.h"
 +#include "peer.h"
  #include "fw.h"
  
  #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
-@@ -1167,6 +1168,9 @@ struct ath11k_base {
+@@ -1184,6 +1185,9 @@ struct ath11k_base {
  
  	u32 max_ast_index;
  	u32 num_ast_entries;
@@ -100,7 +100,7 @@ index e853017..87f0ef4 100644
  	bool stats_disable;
  	/* must be last */
 diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
-index 01b763a..6827ab2 100644
+index 6433e5d..ffb6110 100644
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
 @@ -621,8 +621,9 @@ static void ath11k_nss_wds_type_rx(struct ath11k *ar, struct net_device *dev,
@@ -192,10 +192,10 @@ index 23030b9..98709ca 100644
  	return 0;
  }
 diff --git a/drivers/net/wireless/ath/ath11k/pci.c b/drivers/net/wireless/ath/ath11k/pci.c
-index 4a14432..fe5ade0 100644
+index a16bad4..6d82779 100644
 --- a/drivers/net/wireless/ath/ath11k/pci.c
 +++ b/drivers/net/wireless/ath/ath11k/pci.c
-@@ -1211,6 +1211,7 @@ static void ath11k_pci_remove(struct pci_dev *pdev)
+@@ -1215,6 +1215,7 @@ static void ath11k_pci_remove(struct pci_dev *pdev)
  	}
  
  	set_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags);
@@ -204,7 +204,7 @@ index 4a14432..fe5ade0 100644
  	cancel_work_sync(&ab->reset_work);
  	cancel_work_sync(&ab->dump_work);
 diff --git a/drivers/net/wireless/ath/ath11k/peer.c b/drivers/net/wireless/ath/ath11k/peer.c
-index 05ba6cf..421d23f 100644
+index 0ee53be..9753acd 100644
 --- a/drivers/net/wireless/ath/ath11k/peer.c
 +++ b/drivers/net/wireless/ath/ath11k/peer.c
 @@ -146,49 +146,68 @@ struct ath11k_ast_entry *ath11k_peer_ast_find_by_pdev_idx(struct ath11k *ar,
@@ -506,7 +506,7 @@ index 05ba6cf..421d23f 100644
  	ret = ath11k_wmi_send_peer_delete_cmd(ar, addr, vdev_id);
  	if (ret) {
 diff --git a/drivers/net/wireless/ath/ath11k/peer.h b/drivers/net/wireless/ath/ath11k/peer.h
-index 62727f4..18db4c8 100644
+index 72697e8..3e52eaa 100644
 --- a/drivers/net/wireless/ath/ath11k/peer.h
 +++ b/drivers/net/wireless/ath/ath11k/peer.h
 @@ -42,9 +42,7 @@ enum ath11k_wds_wmi_action {
@@ -530,7 +530,7 @@ index 62727f4..18db4c8 100644
  };
  
  struct ath11k_peer {
-@@ -97,6 +95,7 @@ struct ath11k_peer {
+@@ -96,6 +94,7 @@ struct ath11k_peer {
  	bool dp_setup_done;
  	struct ppdu_user_delayba ppdu_stats_delayba;
  	bool delayba_flag;

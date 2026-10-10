@@ -44,7 +44,7 @@ ce_irq_enable/ce_irq_disable ops and keep only the remoteproc-state gate
 from item 2, which is local to this tree.
 
 diff --git a/drivers/net/wireless/ath/ath11k/ahb.c b/drivers/net/wireless/ath/ath11k/ahb.c
-index 8d10eaa..fe9f451 100644
+index bb5da05..9d61651 100644
 --- a/drivers/net/wireless/ath/ath11k/ahb.c
 +++ b/drivers/net/wireless/ath/ath11k/ahb.c
 @@ -371,6 +371,20 @@ static void ath11k_ahb_ce_irqs_disable(struct ath11k_base *ab)

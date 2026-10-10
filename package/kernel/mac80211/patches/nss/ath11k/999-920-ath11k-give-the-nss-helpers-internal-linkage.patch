@@ -16,7 +16,7 @@ nothing it does: none of its hunks is kernel-version dependent.
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 
 diff --git a/drivers/net/wireless/ath/ath11k/dp_rx.c b/drivers/net/wireless/ath/ath11k/dp_rx.c
-index 62b8af6..939ade2 100644
+index 14c300d..9e05860 100644
 --- a/drivers/net/wireless/ath/ath11k/dp_rx.c
 +++ b/drivers/net/wireless/ath/ath11k/dp_rx.c
 @@ -1741,7 +1741,7 @@ struct htt_ppdu_stats_info *ath11k_dp_htt_get_ppdu_desc(struct ath11k *ar,
@@ -38,7 +38,7 @@ index 62b8af6..939ade2 100644
  {
  	usr_stats->rate.reserved0 = peer->ppdu_stats_delayba.reserved0;
 diff --git a/drivers/net/wireless/ath/ath11k/mac.c b/drivers/net/wireless/ath/ath11k/mac.c
-index b5abce3..cd4f988 100644
+index 4b80867..b2f5b06 100644
 --- a/drivers/net/wireless/ath/ath11k/mac.c
 +++ b/drivers/net/wireless/ath/ath11k/mac.c
 @@ -720,7 +720,7 @@ u8 ath11k_mac_get_target_pdev_id(struct ath11k *ar)
@@ -51,7 +51,7 @@ index b5abce3..cd4f988 100644
  {
  	int i;
 diff --git a/drivers/net/wireless/ath/ath11k/nss.c b/drivers/net/wireless/ath/ath11k/nss.c
-index 27dfd70..907a000 100644
+index b0641cc..d06ab33 100644
 --- a/drivers/net/wireless/ath/ath11k/nss.c
 +++ b/drivers/net/wireless/ath/ath11k/nss.c
 @@ -318,7 +318,7 @@ static void ath11k_nss_peer_mem_free(struct ath11k_base *ab, u32 peer_id)
