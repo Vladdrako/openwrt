@@ -219,9 +219,10 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  /* We return to original Alan's scheme. Hash table of resolved
   * entries is changed only in process context and protected
   * with weak lock mrt_lock. Queue of unresolved entries is protected
-@@ -114,6 +117,9 @@ static void mroute_netlink_event(struct
+@@ -118,6 +121,9 @@ static void mroute_netlink_event(struct
  static void igmpmsg_netlink_event(const struct mr_table *mrt, struct sk_buff *pkt);
- static void mroute_clean_tables(struct mr_table *mrt, int flags);
+ static void mroute_clean_tables(struct mr_table *mrt, int flags,
+ 				struct list_head *dev_kill_list);
  static void ipmr_expire_process(struct timer_list *t);
 +static struct mfc_cache *ipmr_cache_find(struct mr_table *mrt, __be32 origin,
 +					 __be32 mcastgrp);
@@ -536,12 +537,11 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  		return 0;
  	}
  
-@@ -1299,6 +1537,7 @@ static void mroute_clean_tables(struct m
+@@ -1555,6 +1794,7 @@ static void mroute_clean_tables(struct m
  	struct net *net = read_pnet(&mrt->net);
- 	struct mr_mfc *c, *tmp;
  	struct mfc_cache *cache;
+ 	struct mr_mfc *c, *tmp;
 +	u32 origin, group; /* QCA ECM qca-mcs support */
- 	LIST_HEAD(list);
  	int i;
  
 @@ -1323,10 +1562,18 @@ static void mroute_clean_tables(struct m

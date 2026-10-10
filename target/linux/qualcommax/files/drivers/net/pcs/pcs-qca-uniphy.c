@@ -55,15 +55,11 @@ qca_uniphy_clk_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	 * PHY mode.
 	 */
 	regmap_read(uniphy->regmap, UNIPHY_MODE_CTRL, &val);
-	if (val & UNIPHY_SGMII_MODE ||
-	    val & UNIPHY_CH0_PSGMII_QSGMII ||
-	    val & UNIPHY_CH0_QSGMII_SGMII)
-		return 125000000;
-	else if (val & UNIPHY_SGPLUS_MODE ||
-		 val & UNIPHY_XPCS_MODE)
+	if (val & UNIPHY_SGPLUS_MODE ||
+	    val & UNIPHY_XPCS_MODE)
 		return 312500000;
 
-	return 0;
+	return 125000000;
 }
 
 static const struct clk_ops qca_uniphy_clk_ops = {
@@ -453,6 +449,26 @@ static void qca_uniphy_pcs_get_state(struct phylink_pcs *pcs,
 	}
 }
 
+/* A fixed link carries no in-band negotiation for the channel to take its
+ * speed from, so the channel is forced and reads UNIPHY_CH_CTRL instead.
+ */
+static bool uniphy_ch_forced(struct phylink_pcs *pcs, unsigned int neg_mode)
+{
+	return neg_mode == PHYLINK_PCS_NEG_OUTBAND &&
+	       !phylink_expects_phy(pcs->phylink);
+}
+
+/* The PSGMII instance, the only one with a clock pair per channel, runs
+ * SGMII on channel 0 with every mode select bit clear.
+ */
+static u32 uniphy_sgmii_mode(struct qca_uniphy *uniphy)
+{
+	if (uniphy->num_clks == 2 + 2 * QCA_UNIPHY_CHANNELS)
+		return 0;
+
+	return UNIPHY_SGMII_MODE;
+}
+
 static int qca_uniphy_pcs_config_mode(struct phylink_pcs *pcs,
 				      unsigned int neg_mode,
 				      phy_interface_t interface,
@@ -462,7 +478,6 @@ static int qca_uniphy_pcs_config_mode(struct phylink_pcs *pcs,
 	struct qca_uniphy_pcs *upcs = to_qca_uniphy_pcs(pcs);
 	struct qca_uniphy *uniphy = upcs->uniphy;
 	u32 misc2_phy_mode, mode_ctrl, val;
-	bool force;
 	int ret;
 
 	dev_dbg(uniphy->dev, "Configuring PCS: chan=%d, interface=%s, neg_mode=0x%x\n",
@@ -476,11 +491,11 @@ static int qca_uniphy_pcs_config_mode(struct phylink_pcs *pcs,
 	switch (interface) {
 	case PHY_INTERFACE_MODE_1000BASEX:
 		misc2_phy_mode = UNIPHY_MISC2_SGMII;
-		mode_ctrl = UNIPHY_SGMII_MODE;
+		mode_ctrl = uniphy_sgmii_mode(uniphy);
 		break;
 	case PHY_INTERFACE_MODE_SGMII:
 		misc2_phy_mode = UNIPHY_MISC2_SGMII;
-		mode_ctrl = UNIPHY_SGMII_MODE;
+		mode_ctrl = uniphy_sgmii_mode(uniphy);
 		mode_ctrl |= FIELD_PREP(UNIPHY_CH0_MODE_CTRL_25M, UNIPHY_CH0_MODE_MAC);
 		mode_ctrl |= UNIPHY_AUTONEG_MODE_ATH;
 		break;
@@ -522,17 +537,15 @@ static int qca_uniphy_pcs_config_mode(struct phylink_pcs *pcs,
 			clk_prepare_enable(uniphy->ref_clk.hw.clk);
 	}
 
-	/* A fixed link carries no in-band negotiation for the channel to take
-	 * its speed from, so the channel has to be forced. The XPCS modes
-	 * drive the channel from the XPCS and never read the bit.
+	/* The XPCS modes drive the channel from the XPCS and never read the
+	 * force bit.
 	 */
 	if (mode_ctrl != UNIPHY_XPCS_MODE) {
-		force = neg_mode == PHYLINK_PCS_NEG_OUTBAND &&
-			!phylink_expects_phy(pcs->phylink);
 		ret = regmap_update_bits(uniphy->regmap,
 					 UNIPHY_CH_CTRL(upcs->channel),
 					 UNIPHY_CH_FORCE_MODE,
-					 force ? UNIPHY_CH_FORCE_MODE : 0);
+					 uniphy_ch_forced(pcs, neg_mode) ?
+					 UNIPHY_CH_FORCE_MODE : 0);
 		if (ret)
 			return ret;
 	}
@@ -715,6 +728,7 @@ static int qca_uniphy_pcs_config(struct phylink_pcs *pcs,
 }
 
 static int uniphy_link_up_sgmii(struct phylink_pcs *pcs,
+				unsigned int neg_mode,
 				phy_interface_t interface,
 				int speed)
 {
@@ -779,14 +793,18 @@ static int uniphy_link_up_sgmii(struct phylink_pcs *pcs,
 	clk_set_rate(uniphy->clks[port_rx_clk_idx(upcs)].clk, uniphy_rate);
 	clk_set_rate(uniphy->clks[port_tx_clk_idx(upcs)].clk, uniphy_rate);
 
-	/* A forced channel takes its speed from here instead of from an
-	 * in-band word.
+	/* Only a forced channel takes its speed from here; otherwise the
+	 * in-band word carries it and the field is not consumed.
 	 */
-	ret = regmap_update_bits(uniphy->regmap, UNIPHY_CH_CTRL(upcs->channel),
-				 UNIPHY_CH_SPEED_MODE,
-				 FIELD_PREP(UNIPHY_CH_SPEED_MODE, speed_mode));
-	if (ret)
-		return ret;
+	if (uniphy_ch_forced(pcs, neg_mode)) {
+		ret = regmap_update_bits(uniphy->regmap,
+					 UNIPHY_CH_CTRL(upcs->channel),
+					 UNIPHY_CH_SPEED_MODE,
+					 FIELD_PREP(UNIPHY_CH_SPEED_MODE,
+						    speed_mode));
+		if (ret)
+			return ret;
+	}
 
 	ret = regmap_clear_bits(uniphy->regmap, UNIPHY_CH_CTRL(upcs->channel),
 				UNIPHY_CH_ADP_SW_RSTN);
@@ -864,7 +882,7 @@ static void qca_uniphy_pcs_link_up(struct phylink_pcs *pcs,
 	case PHY_INTERFACE_MODE_PSGMII:
 	case PHY_INTERFACE_MODE_1000BASEX:
 	case PHY_INTERFACE_MODE_2500BASEX:
-		ret = uniphy_link_up_sgmii(pcs, interface, speed);
+		ret = uniphy_link_up_sgmii(pcs, neg_mode, interface, speed);
 		break;
 	case PHY_INTERFACE_MODE_USXGMII:
 	case PHY_INTERFACE_MODE_10GBASER:
