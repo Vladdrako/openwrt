@@ -1,4 +1,5 @@
 From: Rosen Penev <rosenp@gmail.com>
+Date: Sat, 10 Oct 2026 14:27:28 -0700
 Subject: [PATCH] MIPS: lib: use maddu and prefetch in csum_partial()
 
 csum_partial() reads every byte of the buffer once and keeps the carry
@@ -27,12 +28,13 @@ Cores like the 74K have no hardware prefetcher, so every line is a
 demand miss, and after a non-coherent DMA the received data is never in
 the cache. With the faster loop the load latency is nearly all that is
 left, so fetch the line 256 bytes ahead. Unlike memcpy(), which
-disables prefetching on DMA_NONCOHERENT entirely, only prefetch lines
-that lie inside the buffer: the 74K does not need a post-DMA
-invalidate, so a line prefetched past the end could belong to a buffer
-the device is still writing, and the CPU would later read the stale
-copy. The loop runs with the prefetch until 256 bytes before the end
-and finishes without it, so there is no bounds check per iteration.
+disables prefetching on DMA_NONCOHERENT entirely, only prefetch
+addresses the loop itself loads later in the same call, so the prefetch
+never brings in a line the loop would not fetch anyway: the 74K does not
+need a post-DMA invalidate, so a line fetched past that could belong to
+a buffer the device is still writing, and the CPU would later read the
+stale copy. The loop runs with the prefetch until 256 bytes before the
+end and finishes without it, so there is no bounds check per iteration.
 
 Asus RT-N16 (BCM4716, bgmac), iperf3 single stream unless noted,
 median of 3 in Mbit/s, mean of two rounds, in one boot with the variants
@@ -47,6 +49,14 @@ maddu alone does little on the 74K, which waits on the misses, and the
 two together are 2-3% above the prefetch alone with one stream. A
 prefetch distance of 192 bytes performed the same, 128 bytes was about
 1% lower.
+
+TP-Link Archer C7 v2 (QCA9558, 74Kc, ag71xx without checksum offload),
+same method, stock and both, in separate boots:
+
+                     stock      both
+  local rx / tx      384 / 339  419 / 369
+  routed up / down   396 / 600  389 / 619
+  routed, 4 streams  388 / 545  378 / 553
 
 On an RTL9303 (34Kc) maddu alone raised iperf3 transmit from 185.8 to
 210.2 Mbit/s and lowered the CPU time at a fixed 70 Mbit/s by 11%; on
@@ -154,9 +164,9 @@ Signed-off-by: Rosen Penev <rosenp@gmail.com>
 +
 +#ifdef CONFIG_CPU_HAS_PREFETCH
 +	/*
-+	 * Fetch 256 bytes ahead, but only while that lies inside the buffer:
-+	 * on non-coherent systems a line prefetched past the end could belong
-+	 * to a buffer the device still owns.
++	 * Fetch 256 bytes ahead, but only addresses the loop loads itself
++	 * later: on non-coherent systems any other line could belong to a
++	 * buffer the device still owns.
 +	 */
 +	PTR_SUBU	t5, t8, 0x100
 +	sltu	t2, src, t5
