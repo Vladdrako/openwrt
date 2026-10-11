@@ -251,13 +251,6 @@ static void ppe_eg_l3_if_mtu_set(struct qca_ppe_priv *priv, u32 idx, u32 mtu)
 	ppe_tbl_write(priv, PPE_IN_L3_IF_TBL(idx), words, PPE_L3_IF_WORDS);
 }
 
-/* Ports outside a bridge sit on VSI 0 since setup. */
-static u32 ppe_port_l3_vsi(struct qca_ppe_priv *priv, int port)
-{
-	return priv->port_vsi[port] == PPE_VSI_INVALID ? 0 :
-	       priv->port_vsi[port];
-}
-
 static void ppe_entry_set_addr6(u32 *words, u32 offset,
 				const struct in6_addr *addr)
 {
@@ -353,24 +346,39 @@ static int ppe_flow_mangle_ipv4(const struct flow_action_entry *act,
 }
 
 /* A port of a switch stacked behind one of ours on the qca-8021q tag reaches
- * it as an 802.1Q VLAN, its own or that of the VLAN-unaware bridge it forwards
- * in, so its flows are flows of our port in that VLAN. The bridge is read as
- * the tagger reads it on transmit.
+ * it as an 802.1Q VLAN, so its flows are flows of our port in that VLAN: the
+ * port's own, that of the VLAN-unaware bridge it forwards in, or in a
+ * VLAN-aware bridge the flow's bridge VLAN, which is the tag the flow carries
+ * or, untagged, the port's PVID. The bridge is read as the tagger reads it on
+ * transmit. A flow tag on top of the port's own VLAN would be a second tag.
  */
-static u16 ppe_flow_8021q_vid(struct dsa_port *dp)
+static u16 ppe_flow_8021q_vid(struct dsa_port *dp, u16 flow_vid)
 {
 	struct net_device *br = dsa_port_bridge_dev_get(dp);
+	struct bridge_vlan_info vinfo;
+	u16 pvid;
 
-	if (!br)
-		return dsa_tag_8021q_standalone_vid(dp);
-	if (br_vlan_enabled(br))
+	if (!br || !br_vlan_enabled(br)) {
+		if (flow_vid)
+			return 0;
+		if (!br)
+			return dsa_tag_8021q_standalone_vid(dp);
+		return dsa_tag_8021q_bridge_vid(dsa_port_bridge_num_get(dp));
+	}
+	if (flow_vid)
+		return flow_vid;
+
+	guard(rcu)();
+	if (br_vlan_get_pvid_rcu(dp->user, &pvid) || !pvid ||
+	    br_vlan_get_info_rcu(dp->user, pvid, &vinfo) ||
+	    !(vinfo.flags & BRIDGE_VLAN_INFO_UNTAGGED))
 		return 0;
 
-	return dsa_tag_8021q_bridge_vid(dsa_port_bridge_num_get(dp));
+	return pvid;
 }
 
 static int ppe_flow_port_by_ifindex(struct qca_ppe_priv *priv, int ifindex,
-				    u16 *vid)
+				    u16 flow_vid, u16 *vid)
 {
 	struct dsa_port *dp, *cpu_dp, *cdp;
 
@@ -393,7 +401,7 @@ static int ppe_flow_port_by_ifindex(struct qca_ppe_priv *priv, int ifindex,
 			    cdp->user->ifindex != ifindex)
 				continue;
 
-			*vid = ppe_flow_8021q_vid(cdp);
+			*vid = ppe_flow_8021q_vid(cdp, flow_vid);
 			return *vid ? dp->index : -EOPNOTSUPP;
 		}
 	}
@@ -668,7 +676,7 @@ static int ppe_flow_ingress_vsi(struct qca_ppe_priv *priv, int iport, u16 vid)
 	if (!vid)
 		vid = ppe_port_pvid(priv, iport);
 	if (!vid)
-		return ppe_port_l3_vsi(priv, iport);
+		return priv->port_vsi[iport];
 
 	vlan = ppe_vlan_find(priv, priv->port_br_dev[iport], vid);
 
@@ -758,9 +766,6 @@ static int ppe_flow_alloc_ingress(struct qca_ppe_priv *priv, int iport,
 	regmap_write(priv->regmap, PPE_L3_VSI_TBL(vsi),
 		     PPE_L3_VSI_IF_VALID | FIELD_PREP(PPE_L3_VSI_IF_INDEX, vsi));
 
-	/* Frames injected on the conduit are routed against this interface. */
-	ppe_port_l3_if_set(priv, QCA_PPE_CPU_PORT, vsi);
-
 	return 0;
 }
 
@@ -794,7 +799,7 @@ static void ppe_flow_l3_mtu_set(struct qca_ppe_priv *priv, int port, int mtu)
 			ppe_l3_if_mtu_set(priv, priv->uplink[i].vsi,
 					  mtu + VLAN_ETH_HLEN + PPPOE_SES_HLEN);
 
-	vsi = ppe_port_l3_vsi(priv, port);
+	vsi = priv->port_vsi[port];
 	if (priv->l3_if_ref[vsi])
 		ppe_l3_if_mtu_set(priv, vsi, mtu + ETH_HLEN);
 
@@ -906,7 +911,6 @@ static void ppe_flow_free_ingress(struct qca_ppe_priv *priv,
 	}
 
 	if (entry->l3_if >= 0 && !--priv->l3_if_ref[entry->l3_if]) {
-		ppe_port_l3_if_set(priv, QCA_PPE_CPU_PORT, PPE_L3_IF_INVALID);
 		regmap_write(priv->regmap, PPE_L3_VSI_TBL(entry->l3_if), 0);
 		ppe_tbl_clear(priv, PPE_IN_L3_IF_TBL(entry->l3_if),
 			      PPE_L3_IF_WORDS);
@@ -971,12 +975,12 @@ static int ppe_flow_alloc_egress(struct qca_ppe_priv *priv,
 	int port, ret;
 	u16 vid;
 
-	port = ppe_flow_port_by_ifindex(priv, data->odev->ifindex, &vid);
+	port = ppe_flow_port_by_ifindex(priv, data->odev->ifindex,
+					data->vlan_valid ? data->vlan_id : 0,
+					&vid);
 	if (port < 0)
 		return port;
 	if (vid) {
-		if (data->vlan_valid)
-			return -EOPNOTSUPP;
 		data->vlan_id = vid;
 		data->vlan_valid = true;
 		entry->ocasc = data->odev->ifindex;
@@ -1368,6 +1372,7 @@ static int ppe_flow_offload_replace(struct ppe_flow_block *fb,
 	struct flow_action_entry *act;
 	bool snat, dnat, v6;
 	int i, ret, nfw, nhw, iport, icasc;
+	u16 kvid = 0;
 
 	guard(mutex)(&priv->flow_lock);
 	guard(mutex)(&priv->vlan_lock);
@@ -1397,23 +1402,6 @@ static int ppe_flow_offload_replace(struct ppe_flow_block *fb,
 	    !flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC))
 		return ppe_flow_reject(priv, PPE_REJECT_KEY);
 
-	{
-		struct flow_match_meta match;
-
-		flow_rule_match_meta(rule, &match);
-		/* Compare against our own ports rather than looking the index
-		 * up, which keeps this correct without knowing the namespace
-		 * the flowtable belongs to. A flow that did not arrive on a
-		 * switch port, Wi-Fi included, has no source port to match.
-		 */
-		iport = ppe_flow_port_by_ifindex(priv,
-						 match.key->ingress_ifindex,
-						 &data.ivid);
-		if (iport < 0)
-			return ppe_flow_reject(priv, PPE_REJECT_INGRESS_PORT);
-		icasc = data.ivid ? match.key->ingress_ifindex : 0;
-	}
-
 	/* An ingress tag is matched by the VSI it is classified into - the
 	 * uplink's tag on a PPPoE port, a bridge VLAN the port is a member
 	 * of - never by the tag itself, which the hardware key cannot hold.
@@ -1426,9 +1414,28 @@ static int ppe_flow_offload_replace(struct ppe_flow_block *fb,
 		struct flow_match_vlan match;
 
 		flow_rule_match_vlan(rule, &match);
-		if (match.key->vlan_tpid != htons(ETH_P_8021Q) || icasc)
+		if (match.key->vlan_tpid != htons(ETH_P_8021Q))
 			return ppe_flow_reject(priv, PPE_REJECT_INGRESS_VLAN);
-		data.ivid = match.key->vlan_id;
+		kvid = match.key->vlan_id;
+	}
+
+	{
+		struct flow_match_meta match;
+
+		flow_rule_match_meta(rule, &match);
+		/* Compare against our own ports rather than looking the index
+		 * up, which keeps this correct without knowing the namespace
+		 * the flowtable belongs to. A flow that did not arrive on a
+		 * switch port, Wi-Fi included, has no source port to match.
+		 */
+		iport = ppe_flow_port_by_ifindex(priv,
+						 match.key->ingress_ifindex,
+						 kvid, &data.ivid);
+		if (iport < 0)
+			return ppe_flow_reject(priv, PPE_REJECT_INGRESS_PORT);
+		icasc = data.ivid ? match.key->ingress_ifindex : 0;
+		if (!icasc)
+			data.ivid = kvid;
 	}
 
 	{

@@ -8,7 +8,9 @@ the source port number on receive, so a frame to and a frame from the
 same port carry different headers. An offload engine that adds and
 matches one tag per port cannot carry it. Add a "qca-8021q" tagging
 protocol on top of tag_8021q, where each port, or the bridge it
-forwards in, is one 802.1Q VLAN in both directions.
+forwards in, is one 802.1Q VLAN in both directions. Register and MIB
+frames keep the header, behind the "qca-etype" type, and go to the
+qca8k handlers as before.
 
 Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
@@ -47,7 +49,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  
  static struct sk_buff *__qca_tag_xmit(struct sk_buff *skb,
  				      struct net_device *dev, unsigned int len)
-@@ -177,14 +181,70 @@ static const struct dsa_device_ops qca_e
+@@ -177,14 +181,77 @@ static const struct dsa_device_ops qca_e
  
  DSA_TAG_DRIVER(qca_etype_netdev_ops);
  
@@ -78,6 +80,11 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 +{
 +	int src_port = -1, switch_id = -1, vbid = -1, vid = -1;
 +
++	/* Register and MIB frames keep the header, behind its type */
++	if (!skb_vlan_tag_present(skb) &&
++	    eth_hdr(skb)->h_proto == htons(QCA_HDR_ETYPE))
++		return __qca_tag_rcv(skb, dev, QCA_ETYPE_HDR_LEN);
++
 +	if (!skb_vlan_tag_present(skb) &&
 +	    eth_hdr(skb)->h_proto != htons(ETH_P_8021Q))
 +		return NULL;
@@ -97,6 +104,8 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 +static const struct dsa_device_ops qca_8021q_netdev_ops = {
 +	.name	= QCA_8021Q_NAME,
 +	.proto	= DSA_TAG_PROTO_QCA_8021Q,
++	.connect = qca_tag_connect,
++	.disconnect = qca_tag_disconnect,
 +	.xmit	= qca_8021q_tag_xmit,
 +	.rcv	= qca_8021q_tag_rcv,
 +	.needed_headroom = VLAN_HLEN,

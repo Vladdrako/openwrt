@@ -17,6 +17,22 @@
 		reg = <0x01868010 0x1000>;
 		reg-names = "nss-misc-reset";
 		memory-region = <&nss_region>;
+
+		/*
+		 * Blocks the firmware reaches while it runs that no other
+		 * driver keeps clocked: an access through a gated clock stalls
+		 * the bus with no error.
+		 */
+		clocks = <&gcc GCC_NSSNOC_CRYPTO_CLK>,
+			 <&gcc GCC_CRYPTO_PPE_CLK>,
+			 <&gcc GCC_UNIPHY1_AHB_CLK>,
+			 <&gcc GCC_UNIPHY1_SYS_CLK>,
+			 <&gcc GCC_UNIPHY2_AHB_CLK>,
+			 <&gcc GCC_UNIPHY2_SYS_CLK>,
+			 <&gcc GCC_UNIPHY1_PORT5_RX_CLK>,
+			 <&gcc GCC_UNIPHY1_PORT5_TX_CLK>,
+			 <&gcc GCC_UNIPHY2_PORT6_RX_CLK>,
+			 <&gcc GCC_UNIPHY2_PORT6_TX_CLK>;
 	};
 
 	nss0: nss@40000000 {

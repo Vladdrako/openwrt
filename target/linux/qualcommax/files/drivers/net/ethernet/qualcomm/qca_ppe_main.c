@@ -15,10 +15,6 @@
 #include <linux/rtnetlink.h>
 #include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
-#include <linux/etherdevice.h>
-#include <linux/slab.h>
-#include <linux/workqueue.h>
-#include <linux/soc/qcom/qca_edma.h>
 #include <linux/soc/qcom/qca_ppe.h>
 
 #include "qca_ppe.h"
@@ -28,21 +24,6 @@
  * as no counter wraps twice unobserved between folds.
  */
 #define PPE_MIB_FOLD_INTERVAL	(30 * HZ)
-
-/*
- * The single PPE switch instance on this SoC. Recorded at probe so callers
- * that key off a bridge netdev or a bare MAC (the NSS bridge manager) can
- * reach the switch without a DSA user port to resolve through. qca-ppe stays
- * the single writer of the PPE tables; these callers only request actions.
- */
-static struct qca_ppe_priv *qca_ppe_instance;
-
-/*
- * Workqueue for deferred FDB deletes requested from the atomic bridge
- * FDB-update notifier. Drained in remove() before the PPE clocks are
- * disabled so a pending delete never touches freed/clock-gated state.
- */
-static struct workqueue_struct *qca_ppe_wq;
 
 static void ppe_port_gmac_set(struct qca_ppe_priv *priv, int port,
 			      bool tx_en, bool rx_en)
@@ -92,14 +73,6 @@ static void ppe_port_bridge_txmac_set(struct qca_ppe_priv *priv, int port,
 	regmap_update_bits(priv->regmap, PPE_PORT_BRIDGE_CTRL(port),
 			   PPE_PORT_BRIDGE_CTRL_TXMAC_EN,
 			   enable ? PPE_PORT_BRIDGE_CTRL_TXMAC_EN : 0);
-}
-
-static struct net_device *ppe_port_conduit(struct dsa_port *dp)
-{
-	if (!dp || !dsa_port_is_user(dp))
-		return NULL;
-
-	return dsa_port_to_conduit(dp);
 }
 
 static void ppe_gmac_link_up(struct qca_ppe_priv *priv, int port,
@@ -402,33 +375,6 @@ static void ppe_port_vsi_set(struct qca_ppe_priv *priv, int port, u32 vsi)
 	if (vsi != PPE_VSI_INVALID) {
 		val[1] |= PPE_L3_VP_VSI_VALID;
 		val[1] |= FIELD_PREP(PPE_L3_VP_VSI, vsi);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(val); i++)
-		regmap_write(priv->regmap, PPE_L3_VP_PORT_TBL(port) + i * 4,
-			     val[i]);
-}
-
-/* A frame the host hands to the conduit arrives on the CPU port carrying no
- * switch port of its own, so the routing stage has no interface to work from and
- * a ROUTE flow entry never applies to it. Binding an L3 interface to the CPU port
- * supplies that context. The binding is the L3 interface alone: giving the CPU
- * port a VSI supplies it too, but a port-default VSI reclassifies every
- * host-originated frame and leaves PPPoE discovery without a concentrator.
- */
-void ppe_port_l3_if_set(struct qca_ppe_priv *priv, int port, u32 l3_if)
-{
-	u32 val[3];
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(val); i++)
-		regmap_read(priv->regmap, PPE_L3_VP_PORT_TBL(port) + i * 4,
-			    &val[i]);
-
-	val[0] &= ~(PPE_L3_VP_L3_IF_VALID | PPE_L3_VP_L3_IF_INDEX);
-	if (l3_if != PPE_L3_IF_INVALID) {
-		val[0] |= PPE_L3_VP_L3_IF_VALID;
-		val[0] |= FIELD_PREP(PPE_L3_VP_L3_IF_INDEX, l3_if);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(val); i++)
@@ -1381,7 +1327,7 @@ static int qca_ppe_setup(struct dsa_switch *ds)
 	frame_size = PPE_DEFAULT_MTU + 2 * VLAN_HLEN;
 
 	for (i = 0; i < num_ports; i++) {
-		priv->port_vsi[i] = PPE_VSI_INVALID;
+		priv->port_vsi[i] = 0;
 		priv->port_fw_vsi[i] = PPE_VSI_INVALID;
 	}
 
@@ -1427,12 +1373,11 @@ static int qca_ppe_setup(struct dsa_switch *ds)
 	regmap_write(priv->regmap, PPE_VSI_TBL(0) + 4,
 		     PPE_VSI_TBL_NEW_ADDR_LRN_EN | PPE_VSI_TBL_STA_MOVE_LRN_EN);
 
-	for (i = 1; i < num_ports; i++) {
+	for (i = 1; i < num_ports; i++)
 		ppe_port_vsi_set(priv, i, 0);
-		priv->port_vsi[i] = 0;
-	}
 
-	ppe_fdb_flush(priv);
+	if (ppe_fdb_flush(priv))
+		dev_warn(ds->dev, "FDB flush timed out\n");
 
 	regmap_update_bits(priv->regmap, PPE_L2_GLOBAL_CONF,
 			   PPE_L2_LRN_EN | PPE_L2_AGE_EN,
@@ -1500,9 +1445,6 @@ static int qca_ppe_port_enable(struct dsa_switch *ds, int port,
 static void qca_ppe_port_disable(struct dsa_switch *ds, int port)
 {
 	struct qca_ppe_priv *priv = ds_to_priv(ds);
-	struct dsa_port *dp = dsa_to_port(ds, port);
-
-	qca_edma_port_transition_begin(ppe_port_conduit(dp), port);
 
 	ppe_port_bridge_txmac_set(priv, port, false);
 	ppe_port_queues_enable(priv, port, false);
@@ -1611,7 +1553,6 @@ static void qca_ppe_port_bridge_leave(struct dsa_switch *ds, int port,
 	if (!bvsi)
 		return;
 
-	/* Back to the probe-time default VSI, like any standalone port */
 	priv->port_vsi[port] = 0;
 	priv->port_br_dev[port] = NULL;
 	ppe_port_vsi_set(priv, port, 0);
@@ -2052,8 +1993,6 @@ static void qca_ppe_mac_config(struct phylink_config *config,
 	struct qca_ppe_priv *priv = ds_to_priv(dp->ds);
 	int port = dp->index;
 
-	qca_edma_port_transition_begin(ppe_port_conduit(dp), port);
-
 	if ((state->interface == PHY_INTERFACE_MODE_2500BASEX &&
 	     phylink_autoneg_inband(mode)) ||
 	    state->interface == PHY_INTERFACE_MODE_USXGMII ||
@@ -2121,8 +2060,6 @@ static void qca_ppe_mac_link_down(struct phylink_config *config,
 	 */
 	if (dsa_is_cpu_port(dp->ds, port))
 		return;
-
-	qca_edma_port_transition_begin(ppe_port_conduit(dp), port);
 
 	/* Gate the fabric before the MAC is torn down; qca_ppe_mac_link_up()
 	 * turns it back on once the MAC is up. Left on across a flap, the
@@ -2196,7 +2133,7 @@ static void qca_ppe_mac_link_up(struct phylink_config *config,
 	     interface == PHY_INTERFACE_MODE_USXGMII ||
 	     interface == PHY_INTERFACE_MODE_10GBASER) &&
 	     port < 5)
-		goto out;
+		return;
 
 	/* Bank what the MAC the port is leaving has counted, then baseline
 	 * the one it arrives on: a rebase left to the periodic fold would
@@ -2231,7 +2168,7 @@ static void qca_ppe_mac_link_up(struct phylink_config *config,
 				  tx_pause, rx_pause);
 		break;
 	default:
-		goto out;
+		return;
 	}
 
 	switch (interface) {
@@ -2307,21 +2244,13 @@ static void qca_ppe_mac_link_up(struct phylink_config *config,
 		ppe_port_xgmac_set(priv, port, true, true);
 		break;
 	default:
-		goto out;
+		return;
 	}
 
-	/* MAC is up, so the fabric may feed the port again. The early exits
-	 * above bring no MAC up, so they skip this and leave the gate closed
-	 * on purpose.
+	/* MAC is up, so the fabric may feed the port again. The early returns
+	 * above bring no MAC up, so they leave the gate closed on purpose.
 	 */
 	ppe_port_bridge_txmac_set(priv, port, true);
-
-	/* The transition mac_config opened must close on every exit path,
-	 * gate or no gate: while it is open the conduit drops all host TX for
-	 * the port.
-	 */
-out:
-	qca_edma_port_transition_end(ppe_port_conduit(dp), port);
 }
 
 /* Tw_sys for 100BASE-TX is 30 us, the longest of the speeds offered. */
@@ -3428,23 +3357,6 @@ static const struct dsa_switch_ops qca_ppe_ops = {
 	.devlink_trap_drop_counter_get = qca_ppe_devlink_trap_drop_counter_get,
 };
 
-/*
- * qca_ppe_port_fw_vsi_get - per-port private VSI for the NSS firmware
- * @netdev: DSA user netdev on a qca-ppe switch
- *
- * The NSS firmware's physical-interface model predates this driver's
- * shared bridge VSIs: the firmware accepts exactly one port per VSI
- * (the old qca-ssdk stack gave every port a unique default VSI;
- * bridge VSI sharing went through the firmware's own bridge interface
- * instead, which is nss-bridge-mgr territory). Allocate a dedicated
- * VSI for the port on first use, with VSI 0 semantics: the port and
- * the CPU port as members, all flooding to the CPU port only, so the
- * Linux bridge remains the forwarding authority and inter-port
- * traffic takes the firmware slow path.
- *
- * The VSI stays allocated for the switch lifetime (one per user port,
- * out of 32). Callers hold rtnl. Returns the VSI or -errno.
- */
 static struct qca_ppe_priv *fw_vsi_port_resolve(struct net_device *netdev,
 						int *port)
 {
@@ -3464,27 +3376,16 @@ static struct qca_ppe_priv *fw_vsi_port_resolve(struct net_device *netdev,
 }
 
 /*
- * The private VSI carries the port and the CPU port, but floods only
- * toward the CPU port copy of each direction: source-port pruning
- * makes a wire-ingress flood reach the CPU port only and a firmware
- * (CPU-sourced) flood reach the wire only, so the Linux bridge stays
- * the forwarding authority with no duplicate delivery.
+ * qca_ppe_port_fw_vsi_get - a VSI of the port's own for the NSS firmware
+ * @netdev: DSA user netdev on a qca-ppe switch
+ *
+ * The firmware refuses a VSI that a second port already uses, so each port
+ * gets one of its own on first use, kept for the switch lifetime. Its members
+ * are the port and the CPU port, so the Linux bridge stays the forwarding
+ * authority. The firmware clears the member and flood masks of a VSI it is
+ * assigned, so every call writes them again: call it once more after the
+ * assign. Callers hold rtnl. Returns the VSI or -errno.
  */
-static void fw_vsi_tbl_write(struct qca_ppe_priv *priv, int port, u32 vsi)
-{
-	regmap_write(priv->regmap, PPE_VSI_TBL(vsi),
-		     FIELD_PREP(PPE_VSI_TBL_MEMBER,
-				BIT(port) | BIT(QCA_PPE_CPU_PORT)) |
-		     FIELD_PREP(PPE_VSI_TBL_UUC,
-				BIT(port) | BIT(QCA_PPE_CPU_PORT)) |
-		     FIELD_PREP(PPE_VSI_TBL_UMC,
-				BIT(port) | BIT(QCA_PPE_CPU_PORT)) |
-		     FIELD_PREP(PPE_VSI_TBL_BC,
-				BIT(port) | BIT(QCA_PPE_CPU_PORT)));
-	regmap_write(priv->regmap, PPE_VSI_TBL(vsi) + 4,
-		     PPE_VSI_TBL_NEW_ADDR_LRN_EN | PPE_VSI_TBL_STA_MOVE_LRN_EN);
-}
-
 int qca_ppe_port_fw_vsi_get(struct net_device *netdev)
 {
 	struct qca_ppe_priv *priv;
@@ -3494,59 +3395,29 @@ int qca_ppe_port_fw_vsi_get(struct net_device *netdev)
 	if (!priv)
 		return -ENODEV;
 
-	if (priv->port_fw_vsi[port] != PPE_VSI_INVALID)
-		return priv->port_fw_vsi[port];
+	guard(mutex)(&priv->vlan_lock);
 
-	vsi = ppe_vsi_alloc(priv);
-	if (vsi < 0)
-		return vsi;
+	vsi = priv->port_fw_vsi[port];
+	if (vsi == PPE_VSI_INVALID) {
+		vsi = ppe_vsi_alloc(priv);
+		if (vsi < 0)
+			return vsi;
+		priv->port_fw_vsi[port] = vsi;
+	}
 
-	fw_vsi_tbl_write(priv, port, vsi);
-	priv->port_fw_vsi[port] = vsi;
+	ppe_vsi_member_set(priv, vsi, BIT(port) | BIT(QCA_PPE_CPU_PORT));
 
 	return vsi;
 }
 EXPORT_SYMBOL_GPL(qca_ppe_port_fw_vsi_get);
 
 /*
- * qca_ppe_port_fw_vsi_refresh - re-assert a private VSI's table entry
- * @netdev: DSA user netdev whose private VSI was assigned to the fw
+ * qca_ppe_port_vsi_restore - bind a port to its VSI again
+ * @netdev: DSA user netdev whose VSI the firmware has released
  *
- * The firmware rewrites the VSI table entry of a VSI it is assigned
- * (measured: members and flood masks read back zeroed), which kills
- * its own broadcast egress - the firmware floods H2N broadcasts per
- * the VSI flood masks, so an emptied mask means host-originated ARP
- * requests never reach the wire while unicast (FDB hit) still flows.
- * Call after every firmware vsi_assign to re-assert the masks.
- */
-int qca_ppe_port_fw_vsi_refresh(struct net_device *netdev)
-{
-	struct qca_ppe_priv *priv;
-	int port;
-
-	priv = fw_vsi_port_resolve(netdev, &port);
-	if (!priv)
-		return -ENODEV;
-
-	if (priv->port_fw_vsi[port] == PPE_VSI_INVALID)
-		return -ENOENT;
-
-	fw_vsi_tbl_write(priv, port, priv->port_fw_vsi[port]);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(qca_ppe_port_fw_vsi_refresh);
-
-/*
- * qca_ppe_port_vsi_restore - put a port's forwarding identity back
- * @netdev: DSA user netdev whose private VSI the firmware has released
- *
- * Assigning a port's private VSI to the firmware rewrites the port's own
- * binding to point at it, and releasing it clears that binding rather than
- * restoring what was there: the port is then bound to nothing and forwards
- * nothing, which looks exactly like a dead link (measured: unicast to a
- * station behind the port stops, and rejoining the bridge fixes it). The
- * binding this driver last programmed is the one the bridge state implies,
- * so it is what goes back. Callers hold rtnl.
+ * Releasing a VSI from the firmware leaves the port bound to no VSI, so it
+ * forwards nothing. Put back the binding the bridge state implies. Callers
+ * hold rtnl.
  */
 int qca_ppe_port_vsi_restore(struct net_device *netdev)
 {
@@ -3557,117 +3428,11 @@ int qca_ppe_port_vsi_restore(struct net_device *netdev)
 	if (!priv)
 		return -ENODEV;
 
-	if (priv->port_vsi[port] == PPE_VSI_INVALID)
-		return -ENOENT;
-
 	ppe_port_vsi_set(priv, port, priv->port_vsi[port]);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qca_ppe_port_vsi_restore);
-
-/*
- * qca_ppe_bridge_vsi_get - VSI of the shared bridge a Linux bridge maps to
- * @br_dev: a Linux bridge netdev
- *
- * qca-ppe already allocates one shared VSI per Linux bridge when its DSA user
- * ports join (port_bridge_join), with the member/flood masks programmed. The
- * NSS bridge manager reuses that VSI for the firmware bridge interface instead
- * of allocating its own, so qca-ppe stays the single PPE-table writer. Returns
- * the VSI, or -ENODEV if the bridge has no qca-ppe ports (nothing to offload).
- */
-int qca_ppe_bridge_vsi_get(struct net_device *br_dev)
-{
-	struct qca_ppe_priv *priv = qca_ppe_instance;
-	struct qca_ppe_bridge_vsi *bvsi;
-
-	ASSERT_RTNL();	/* reads priv->bridges[]/port_vsi[], mutated under rtnl */
-
-	if (!priv || !br_dev)
-		return -ENODEV;
-
-	bvsi = bridge_vsi_find(priv, br_dev);
-	if (!bvsi)
-		return -ENODEV;
-
-	return bvsi->vsi;
-}
-EXPORT_SYMBOL_GPL(qca_ppe_bridge_vsi_get);
-
-/*
- * qca_ppe_bridge_vsi_refresh - re-assert a bridge VSI's member/flood masks
- * @br_dev: a Linux bridge netdev
- *
- * The firmware zeroes a VSI's member and flood masks when it is assigned to a
- * bridge interface (same hazard as the per-port VSI). Re-apply the masks
- * qca-ppe computed from the bridged ports. Call after every firmware
- * vsi_assign and after each member join. Returns 0, or -ENODEV.
- */
-int qca_ppe_bridge_vsi_refresh(struct net_device *br_dev)
-{
-	struct qca_ppe_priv *priv = qca_ppe_instance;
-	struct qca_ppe_bridge_vsi *bvsi;
-
-	ASSERT_RTNL();	/* reads priv->bridges[]/port_vsi[], mutated under rtnl */
-
-	if (!priv || !br_dev)
-		return -ENODEV;
-
-	bvsi = bridge_vsi_find(priv, br_dev);
-	if (!bvsi)
-		return -ENODEV;
-
-	bridge_vsi_members_update(priv, bvsi);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(qca_ppe_bridge_vsi_refresh);
-
-/*
- * qca_ppe_fdb_del - flush a learned FDB entry by MAC + bridge VSI
- *
- * Called from the bridge FDB-update notifier when a MAC roams off a physical
- * port, so the PPE stops forwarding to the stale port before it ages out.
- * That notifier runs in atomic context (br->hash_lock held) while the PPE
- * regmap takes a mutex, so the actual delete is deferred to a workqueue.
- */
-struct qca_ppe_fdb_del_work {
-	struct work_struct work;
-	struct qca_ppe_priv *priv;
-	unsigned char addr[ETH_ALEN];
-	u32 vsi;
-};
-
-static void qca_ppe_fdb_del_worker(struct work_struct *work)
-{
-	struct qca_ppe_fdb_del_work *w =
-		container_of(work, struct qca_ppe_fdb_del_work, work);
-
-	ppe_fdb_op(w->priv, w->addr, 0, w->vsi, PPE_FDB_OP_DEL);
-	kfree(w);
-}
-
-int qca_ppe_fdb_del(const unsigned char *addr, u32 vsi)
-{
-	struct qca_ppe_priv *priv = qca_ppe_instance;
-	struct qca_ppe_fdb_del_work *w;
-
-	if (!priv || !qca_ppe_wq || !addr)
-		return -ENODEV;
-
-	w = kzalloc(sizeof(*w), GFP_ATOMIC);
-	if (!w)
-		return -ENOMEM;
-
-	INIT_WORK(&w->work, qca_ppe_fdb_del_worker);
-	w->priv = priv;
-	ether_addr_copy(w->addr, addr);
-	w->vsi = vsi;
-	/* Dedicated wq so remove() can drain it while the PPE is still live. */
-	queue_work(qca_ppe_wq, &w->work);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(qca_ppe_fdb_del);
-
 
 static void ppe_mac_hw_init(struct qca_ppe_priv *priv)
 {
@@ -3937,9 +3702,6 @@ static int qca_ppe_probe(struct platform_device *pdev)
 	ppe_flow_debugfs_init(priv);
 
 	platform_set_drvdata(pdev, priv);
-	/* Best-effort: a failed wq just disables deferred FDB flush. */
-	qca_ppe_wq = alloc_workqueue("qca_ppe_fdb", 0, 0);
-	qca_ppe_instance = priv;
 
 	return 0;
 
@@ -3955,11 +3717,6 @@ static void qca_ppe_remove(struct platform_device *pdev)
 {
 	struct qca_ppe_priv *priv = platform_get_drvdata(pdev);
 
-	qca_ppe_instance = NULL;	/* no new lookups / queued FDB work after this */
-	if (qca_ppe_wq) {
-		destroy_workqueue(qca_ppe_wq);	/* drain pending FDB deletes while live */
-		qca_ppe_wq = NULL;
-	}
 	ppe_debugfs_exit(priv);
 	ppe_scheduler_unready(priv);
 	dsa_unregister_switch(&priv->ds);
