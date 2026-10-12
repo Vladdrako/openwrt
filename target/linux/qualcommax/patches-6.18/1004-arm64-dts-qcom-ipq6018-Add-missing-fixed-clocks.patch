@@ -23,17 +23,20 @@ Signed-off-by: Alexandru Gagniuc <mr.nuke.me@gmail.com>
  	};
 
  	cpus: cpus {
-@@ -433,8 +439,12 @@
- 		gcc: gcc@1800000 {
- 			compatible = "qcom,gcc-ipq6018";
- 			reg = <0x0 0x01800000 0x0 0x80000>;
--			clocks = <&xo>, <&sleep_clk>;
--			clock-names = "xo", "sleep_clk";
-+			clocks = <&xo>,
-+				 <&sleep_clk>,
+@@ -417,13 +417,15 @@
+ 				 <&uniphy0 UNIPHY_CLK_RX>,
+ 				 <&uniphy0 UNIPHY_CLK_TX>,
+ 				 <&uniphy1 UNIPHY_CLK_RX>,
+-				 <&uniphy1 UNIPHY_CLK_TX>;
++				 <&uniphy1 UNIPHY_CLK_TX>,
 +				 <&usb3phy_0_cc_pipe_clk>;
-+			clock-names = "xo",
-+				      "sleep_clk",
+ 			clock-names = "xo",
+ 				      "sleep_clk",
+ 				      "uniphy0_gcc_rx_clk",
+ 				      "uniphy0_gcc_tx_clk",
+ 				      "uniphy1_gcc_rx_clk",
+-				      "uniphy1_gcc_tx_clk";
++				      "uniphy1_gcc_tx_clk",
 +				      "usb3phy_0_cc_pipe_clk";
  			#clock-cells = <1>;
  			#reset-cells = <1>;

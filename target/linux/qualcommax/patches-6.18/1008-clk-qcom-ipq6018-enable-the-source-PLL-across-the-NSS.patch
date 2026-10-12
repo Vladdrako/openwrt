@@ -1,0 +1,57 @@
+From: OpenWrt
+Subject: [PATCH] clk: qcom: ipq6018: enable the source PLL across the NSS
+ crypto RCG switch
+
+nss_crypto_clk_src is reparented onto NSS_CRYPTO_PLL by the ppe node's
+assigned-clock-rates, and that reparent happens from
+of_clk_set_defaults() during the qca_ppe platform probe - i.e. before
+any consumer has enabled the branch, so before anything has walked the
+tree and enabled nss_crypto_pll{,_main}.
+
+gcc_ipq6018_probe() only calls clk_alpha_pll_configure() on
+nss_crypto_pll_main: that programs the PLL's config registers but does
+not turn it on. An RCG's CMD_UPDATE bit only self-clears once the newly
+selected source is actually running, so the switch times out after the
+500us poll and the driver splats:
+
+  nss_crypto_clk_src: rcg didn't update its configuration.
+  WARNING: CPU: 3 PID: 1 at drivers/clk/qcom/clk-rcg2.c:136
+  ...
+  clk_rcg2_configure+0x88
+  clk_rcg2_set_rate_and_parent+0x2c
+  clk_change_rate+0x7c
+  clk_core_set_rate_nolock+0x164
+  clk_set_rate+0x38
+  of_clk_set_defaults+0x69c
+  platform_probe+0x38
+  ...
+  qca_ppe_driver_init+0x1c
+
+leaving the RCG's CFG register pointing at a source it never latched,
+which is what the NSS firmware's crypto block then runs off.
+
+CLK_OPS_PARENT_ENABLE is the clock framework's answer to exactly this:
+it makes clk_change_rate()/__clk_set_parent_before() prepare+enable both
+the old and the new parent around the rate/parent change and drop them
+again afterwards, so the PLL is spinning while the RCG latches. It is
+the same flag other qcom controllers carry on RCGs whose parents are
+gated at switch time.
+
+Signed-off-by: OpenWrt
+---
+--- a/drivers/clk/qcom/gcc-ipq6018.c
++++ b/drivers/clk/qcom/gcc-ipq6018.c
+@@ -997,6 +997,13 @@ static struct clk_rcg2 nss_crypto_clk_sr
+ 		.name = "nss_crypto_clk_src",
+ 		.parent_data = gcc_xo_nss_crypto_pll_gpll0,
+ 		.num_parents = 3,
++		/*
++		 * The reparent onto NSS_CRYPTO_PLL runs from
++		 * of_clk_set_defaults(), before any consumer has enabled
++		 * the branch and with it the PLL. Without this the RCG
++		 * never latches the new source and CMD_UPDATE times out.
++		 */
++		.flags = CLK_OPS_PARENT_ENABLE,
+ 		.ops = &clk_rcg2_ops,
+ 	},
+ };

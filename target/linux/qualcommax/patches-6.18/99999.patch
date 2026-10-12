@@ -1,31 +1,5 @@
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-@@ -441,11 +448,14 @@
- 			reg = <0x0 0x01800000 0x0 0x80000>;
- 			clocks = <&xo>,
- 				 <&sleep_clk>,
--				 <&usb3phy_0_cc_pipe_clk>;
-+				 <&usb3phy_0_cc_pipe_clk>,
-+				 <&pcie_phy>;
- 			clock-names = "xo",
- 				      "sleep_clk",
--				      "usb3phy_0_cc_pipe_clk";
-+				      "usb3phy_0_cc_pipe_clk",
-+				      "pcie20_phy0_pipe_clk";
- 			#clock-cells = <1>;
-+			#power-domain-cells = <1>;
- 			#reset-cells = <1>;
- 		};
- 
-@@ -491,6 +501,8 @@
- 			assigned-clock-rates = <133330000>,
- 					       <24000000>;
- 
-+			power-domains = <&gcc USB1_GDSC>;
-+
- 			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
- 				     <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
- 			interrupt-names = "pwr_event",
 @@ -742,6 +745,8 @@
  					       <133330000>,
  					       <24000000>;
@@ -482,22 +456,6 @@ diff --git a/arch/arm64/boot/dts/qcom/ipq6018.dtsi b/arch/arm64/boot/dts/qcom/ip
 index 804ee40812aa3b..f9df3971befa68 100644
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-@@ -699,11 +699,10 @@
- 		};
- 
- 		q6v5_wcss: remoteproc@cd00000 {
--			compatible = "qcom,ipq6018-wcss-pil";
--			reg = <0x0 0x0cd00000 0x0 0x4040>,
--			      <0x0 0x004ab000 0x0 0x20>;
--			reg-names = "qdsp6",
--				    "rmb";
-+			compatible = "qcom,ipq6018-q6-mpd";
-+			reg = <0x0 0x0cd00000 0x0 0x4040>;
-+			firmware-name = "IPQ6018/q6_fw.mdt",
-+					"IPQ6018/m3_fw.mdt";
- 			interrupts-extended = <&intc GIC_SPI 325 IRQ_TYPE_EDGE_RISING>,
- 					      <&wcss_smp2p_in 0 0>,
- 					      <&wcss_smp2p_in 1 0>,
 @@ -886,14 +886,6 @@
  					  "handover",
  					  "stop-ack";
@@ -513,15 +471,6 @@ index 804ee40812aa3b..f9df3971befa68 100644
  			clocks = <&gcc GCC_PRNG_AHB_CLK>,
  					<&gcc GCC_SYS_NOC_WCSS_AHB_CLK>,
  					<&gcc GCC_Q6SS_ATBM_CLK>,
-@@ -913,8 +905,6 @@
- 						<600000000>,
- 						<240000000>;
- 
--			qcom,halt-regs = <&tcsr 0x18000 0x1b000 0xe000>;
--
- 			qcom,smem-states = <&wcss_smp2p_out 0>,
- 					   <&wcss_smp2p_out 1>;
- 			qcom,smem-state-names = "shutdown",
 From 75458b68ff8b4f9412bce8b75e40ed955640512f Mon Sep 17 00:00:00 2001
 From: Robert Marko <robimarko@gmail.com>
 Date: Wed, 25 Oct 2023 12:23:23 +0200
@@ -547,60 +496,6 @@ index 6f4be3aa0acfce..bcd3823b743446 100644
 +#define USB1_GDSC				1
  #endif
 
-From 505f9c8653fc218ca47a153ec58ebc16bef5502f Mon Sep 17 00:00:00 2001
-From: Mantas Pucka <mantas@8devices.com>
-Date: Tue, 16 Jan 2024 10:42:40 +0200
-Subject: [PATCH 16/19] remoteproc: q6v5_wcss: change ssr name for ipq6018 wifi
- subsystem
-
-On IPQ6018 this string ends up being sent to RPM when remoteproc stops
-(on crash or rmmod ath11k). "q6wcss" is not a valid name (not found by
-`strings` in rpm.mbn), so this causes RPM do 'something' (presumably crash)
-causing a system reboot followed by hang in XBL, with no WDT running.
-Let's change ssr_name to a more sensible 'wcnss', that does not cause such
-issues.
-
-Signed-off-by: Mantas Pucka <mantas@8devices.com>
----
- drivers/remoteproc/qcom_q6v5_wcss.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
---- a/drivers/remoteproc/qcom_q6v5_wcss.c
-+++ b/drivers/remoteproc/qcom_q6v5_wcss.c
-@@ -1372,7 +1372,7 @@
- 	.crash_reason_smem = WCSS_CRASH_REASON,
- 	.aon_reset_required = true,
- 	.wcss_q6_reset_required = true,
--	.ssr_name = "q6wcss",
-+	.ssr_name = "wcnss",
- 	.ops = &q6v5_wcss_ipq8074_ops,
- 	.requires_force_stop = true,
- 	.need_mem_protection = true,
-
-From c67a1814bb1d0df290cf1e3f9c966f04aa41b9b9 Mon Sep 17 00:00:00 2001
-From: Mantas Pucka <mantas@8devices.com>
-Date: Tue, 30 Jan 2024 12:43:56 +0200
-Subject: [PATCH] arm64: dts: qcom: ipq6018: change voltage to perf levels for
- CPR4 driver
-
-Current CPR4 driver requires opp-microvolt to be an abstract
-performance level instead of actual voltage level.
-
-Signed-off-by: Mantas Pucka <mantas@8devices.com>
----
- arch/arm64/boot/dts/qcom/ipq6018.dtsi | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
-
---- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-+++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-@@ -437,6 +439,7 @@
- 			clocks = <&xo>,
- 				 <&sleep_clk>,
- 				 <&usb3phy_0_cc_pipe_clk>,
-+				 <&ssphy_0>,
- 				 <&pcie_phy>;
- 			clock-names = "xo",
- 				      "sleep_clk",
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 @@ -233,12 +233,12 @@
@@ -629,14 +524,6 @@ Signed-off-by: Mantas Pucka <mantas@8devices.com>
  			no-map;
  
  			hwlocks = <&tcsr_mutex 3>;
-@@ -704,6 +704,7 @@ dwc_0: usb@8a00000 {
- 				clocks = <&xo>;
- 				clock-names = "ref";
- 				tx-fifo-resize;
-+				snps,parkmode-disable-ss-quirk;
- 				snps,is-utmi-l1-suspend;
- 				snps,hird-threshold = /bits/ 8 <0x0>;
- 				snps,dis_u2_susphy_quirk;
 @@ -897,6 +897,11 @@
  			compatible = "qcom,ipq6018-wifi";
  			reg = <0x0 0xc000000 0x0 0x1000000>;
@@ -929,14 +816,6 @@ index dd6a14392da6..b3ee9ce25c22 100644
  					type = "critical";
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-@@ -10,6 +10,7 @@
- #include <dt-bindings/reset/qcom,gcc-ipq6018.h>
- #include <dt-bindings/clock/qcom,apss-ipq.h>
- #include <dt-bindings/thermal/thermal.h>
-+#include <dt-bindings/gpio/gpio.h>
- 
- / {
- 	#address-cells = <2>;
 @@ -205,7 +206,7 @@
  		};
  	};
@@ -1041,6 +920,53 @@ index dd6a14392da6..b3ee9ce25c22 100644
  			clock-latency-ns = <200000>;
  		};
  	};
+@@ -424,15 +424,19 @@
+ 				 <&uniphy0 UNIPHY_CLK_TX>,
+ 				 <&uniphy1 UNIPHY_CLK_RX>,
+ 				 <&uniphy1 UNIPHY_CLK_TX>,
+-				 <&usb3phy_0_cc_pipe_clk>;
++				 <&usb3phy_0_cc_pipe_clk>,
++				 <&ssphy_0>,
++				 <&pcie_phy>;
+ 			clock-names = "xo",
+ 				      "sleep_clk",
+ 				      "uniphy0_gcc_rx_clk",
+ 				      "uniphy0_gcc_tx_clk",
+ 				      "uniphy1_gcc_rx_clk",
+ 				      "uniphy1_gcc_tx_clk",
+-				      "usb3phy_0_cc_pipe_clk";
++				      "usb3phy_0_cc_pipe_clk",
++					  "pcie20_phy0_pipe_clk";
+ 			#clock-cells = <1>;
++			#power-domain-cells = <1>;
+ 			#reset-cells = <1>;
+ 		};
+ 
+@@ -472,6 +476,8 @@
+ 					  <&gcc GCC_USB1_MOCK_UTMI_CLK>;
+ 			assigned-clock-rates = <133330000>,
+ 					       <24000000>;
++
++			power-domains = <&gcc USB1_GDSC>;
+ 
+ 			interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
+ 				     <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
+@@ -697,6 +703,15 @@
+ 			pinctrl-0 = <&qpic_pins>;
+ 			pinctrl-names = "default";
+ 			status = "disabled";
++		};
++		
++		sram@8600000 {
++			compatible = "qcom,ipq6018-imem", "syscon", "simple-mfd";
++			reg = <0x0 0x08600000 0x0 0x8000>;
++			ranges = <0 0 0x08600000 0x8000>;
++
++			#address-cells = <1>;
++			#size-cells = <1>;
+ 		};
+ 
+ 		usb3: usb@8a00000 {
 
 From fd4bc44f7546b0c606102f8ee89ad44a8a94a13f Mon Sep 17 00:00:00 2001
 From: BrainSlayer <s.gottschall@dd-wrt.com>
@@ -1149,10 +1075,12 @@ diff --git a/arch/arm64/boot/dts/qcom/ipq6018.dtsi b/arch/arm64/boot/dts/qcom/ip
 index bfe59b0208415902c69fd0c0c7565d97997d4207..3b9e40045906b26b94e2d2510b0570d3eaf084ce 100644
 --- a/arch/arm64/boot/dts/qcom/ipq6018.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq6018.dtsi
-@@ -659,6 +659,15 @@ qpic_nand: nand-controller@79b0000 {
+@@ -697,6 +703,15 @@
+ 			pinctrl-0 = <&qpic_pins>;
+ 			pinctrl-names = "default";
  			status = "disabled";
- 		};
- 
++		};
++		
 +		sram@8600000 {
 +			compatible = "qcom,ipq6018-imem", "syscon", "simple-mfd";
 +			reg = <0x0 0x08600000 0x0 0x8000>;
@@ -1160,11 +1088,9 @@ index bfe59b0208415902c69fd0c0c7565d97997d4207..3b9e40045906b26b94e2d2510b0570d3
 +
 +			#address-cells = <1>;
 +			#size-cells = <1>;
-+		};
-+
- 		usb3: usb@8af8800 {
- 			compatible = "qcom,ipq6018-dwc3", "qcom,dwc3";
- 			reg = <0x0 0x08af8800 0x0 0x400>;
+ 		};
+ 
+ 		usb3: usb@8a00000 {
 
 -- 
 2.34.1
