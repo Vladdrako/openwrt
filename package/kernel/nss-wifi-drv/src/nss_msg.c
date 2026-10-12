@@ -64,12 +64,6 @@ bool nss_msg_complete(struct nss_core *core, const struct n2h_descriptor *desc)
 	return true;
 }
 
-/* Send a message and wait for the firmware's answer in place.
- *
- * One at a time: bring-up is a sequence of questions, and a second buffer
- * would need a way to tell two answers apart that the protocol does not
- * provide.
- */
 /* What the firmware says when nothing asked it.
  *
  * Every unsolicited message is counted by type, and the first of each type
@@ -113,16 +107,24 @@ static bool nss_msg_trace;
 module_param_named(msg_trace, nss_msg_trace, bool, 0644);
 MODULE_PARM_DESC(msg_trace, "dump every control message sent to the firmware");
 
-/* @len is the message as sent and what the firmware's length check sees;
+/* Send a message and wait for the firmware's answer in place.
+ *
+ * One at a time: bring-up is a sequence of questions, and a second buffer
+ * would need a way to tell two answers apart that the protocol does not
+ * provide.
+ *
+ * @len is the message as sent and what the firmware's length check sees;
  * @room is how much of the answer the caller reads back. They differ only
  * for a request whose reply carries an array sized by the buffer, like the
  * connection-statistics sweep.
  */
-int nss_msg_transact(struct nss_core *core, void *msg, size_t len, size_t room)
+static int nss_msg_xact(struct nss_core *core, void *msg, size_t len,
+			size_t room, bool quiet)
 {
 	struct nss_cmn_msg *ncm = msg;
 	struct nss_h2n_ring *ring = &core->h2n[NSS_H2N_RING_COMMAND];
 	struct nss_if_mem_map *map = core->if_map;
+	unsigned long timeout = msecs_to_jiffies(NSS_MSG_TIMEOUT_MS);
 	struct h2n_descriptor *desc;
 	u32 next;
 	int ret;
@@ -135,6 +137,12 @@ int nss_msg_transact(struct nss_core *core, void *msg, size_t len, size_t room)
 
 	if (!core->running)
 		return -ENODEV;
+
+	if (core->msg.lost) {
+		if (!wait_for_completion_timeout(&core->msg.done, timeout))
+			return -ETIMEDOUT;
+		core->msg.lost = false;
+	}
 
 	/* The header is the layer's to fill: the length the firmware checks
 	 * excludes it, and getting that wrong is answered with a rejection
@@ -183,10 +191,10 @@ int nss_msg_transact(struct nss_core *core, void *msg, size_t len, size_t room)
 
 	nss_doorbell(core, NSS_H2N_INTR_DATA_CMD);
 
-	if (!wait_for_completion_timeout(&core->msg.done,
-					 msecs_to_jiffies(NSS_MSG_TIMEOUT_MS))) {
+	if (!wait_for_completion_timeout(&core->msg.done, timeout)) {
 		dev_err(core->dev, "interface %u type %u: no answer in %u ms\n",
 			ncm->interface, ncm->type, NSS_MSG_TIMEOUT_MS);
+		core->msg.lost = true;
 		return -ETIMEDOUT;
 	}
 
@@ -197,8 +205,9 @@ int nss_msg_transact(struct nss_core *core, void *msg, size_t len, size_t room)
 		ret = 0;
 		break;
 	case NSS_CMN_RESPONSE_EMSG:
-		dev_err(core->dev, "interface %u type %u refused: %u\n",
-			ncm->interface, ncm->type, ncm->error);
+		if (!quiet)
+			dev_err(core->dev, "interface %u type %u refused: %u\n",
+				ncm->interface, ncm->type, ncm->error);
 		ret = -EPROTO;
 		break;
 	default:
@@ -213,9 +222,20 @@ int nss_msg_transact(struct nss_core *core, void *msg, size_t len, size_t room)
 	return ret;
 }
 
+int nss_msg_transact(struct nss_core *core, void *msg, size_t len, size_t room)
+{
+	return nss_msg_xact(core, msg, len, room, false);
+}
+
 int nss_msg_send(struct nss_core *core, void *msg, size_t len)
 {
-	return nss_msg_transact(core, msg, len, len);
+	return nss_msg_xact(core, msg, len, len, false);
+}
+
+/* For a sender that judges the refusal itself. */
+int nss_msg_send_quiet(struct nss_core *core, void *msg, size_t len)
+{
+	return nss_msg_xact(core, msg, len, len, true);
 }
 
 /* Whether the firmware has a node of this kind to give, and what it calls it.

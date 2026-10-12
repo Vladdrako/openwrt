@@ -176,12 +176,25 @@ static void nss_notify_recv(struct nss_core *core,
 	ncm = (const void *)(skb->head + desc->payload_offs);
 	nss_msg_seen(core, ncm, desc->payload_len);
 	nss_msg_census(ncm);
+	nss_flow_notify(ncm, desc->payload_len);
 
 	if (NSS_INTERFACE_NUM_GET(ncm->interface) == NSS_INTERFACE_WIFILI)
 		nss_wifili_notify(core, ncm, desc->payload_len);
 	else if (!nss_mesh_notify(core, ncm, desc->payload_len))
 		nss_wifili_vdev_notify(core, ncm, desc->payload_len);
 }
+
+/* Whether the firmware may keep the buffer a frame arrives in. A kept buffer
+ * counts against the firmware's high-water mark, which this driver holds
+ * equal to what it lends, and it comes back later under the same cookie
+ * carrying a received frame, which the completion path below frees unread.
+ */
+static bool nss_tx_reusable;
+module_param_named(tx_reusable, nss_tx_reusable, bool, 0644);
+MODULE_PARM_DESC(tx_reusable, "offer the firmware the buffer a frame arrives in");
+
+static int nss_lent_take(struct nss_core *core, struct sk_buff *skb);
+static void nss_lent_put(struct nss_core *core, u32 slot);
 
 /* Hand a frame down to the firmware to place.
  *
@@ -197,18 +210,6 @@ static void nss_notify_recv(struct nss_core *core,
  * chain them and a chain the firmware reads wrongly is a fault rather than a
  * dropped frame.
  */
-/* Whether the firmware may keep the buffer a frame arrives in. A kept buffer
- * counts against the firmware's high-water mark, which this driver holds
- * equal to what it lends, and it comes back later under the same cookie
- * carrying a received frame, which the completion path below frees unread.
- */
-static bool nss_tx_reusable;
-module_param_named(tx_reusable, nss_tx_reusable, bool, 0644);
-MODULE_PARM_DESC(tx_reusable, "offer the firmware the buffer a frame arrives in");
-
-static int nss_lent_take(struct nss_core *core, struct sk_buff *skb);
-static void nss_lent_put(struct nss_core *core, u32 slot);
-
 int nss_data_send(struct nss_core *core, struct sk_buff *skb, u32 if_num)
 {
 	struct nss_h2n_ring *ring = &core->h2n[NSS_H2N_RING_DATA];
@@ -292,18 +293,7 @@ int nss_data_send(struct nss_core *core, struct sk_buff *skb, u32 if_num)
 					   NSS_H2N_FLAG_GEN_L4_CHECKSUM;
 		desc->opaque = (uintptr_t)skb;
 
-		/* The first few descriptors, whatever built them. A frame this
-		 * driver makes reaches the transmit ring and one converted from
-		 * the WLAN subsystem does not, through this same function, so
-		 * what differs is in these numbers. Printed before the index
-		 * is published, after which the skb may already be freed.
-		 */
-		if (++core->tx_posted <= 12)
-			dev_info(core->dev,
-				 "tx %llu: if %u offs %u len %u buf %u flags %#x head %p data %p\n",
-				 core->tx_posted, if_num, desc->payload_offs,
-				 desc->payload_len, desc->buffer_len,
-				 desc->bit_flags, skb->head, skb->data);
+		core->tx_posted++;
 
 		dma_wmb();
 		ring->hlos_index = next;
@@ -587,12 +577,12 @@ static int nss_refill(struct nss_core *core, int budget)
 
 	while (filled < budget) {
 		u32 next = (ring->hlos_index + 1) & (NSS_RING_ENTRIES - 1);
-
-		if (atomic_read(&core->buffers_queued) + filled >= core->pool_size)
-			break;
 		struct h2n_descriptor *desc;
 		struct sk_buff *skb;
 		dma_addr_t dma;
+
+		if (atomic_read(&core->buffers_queued) + filled >= core->pool_size)
+			break;
 
 		if (next == READ_ONCE(map->h2n_nss_index[NSS_H2N_RING_EMPTY_BUF]))
 			break;
@@ -648,20 +638,11 @@ static int nss_refill(struct nss_core *core, int budget)
 	return filled;
 }
 
-/* The firmware is up the first time it asks for buffers. Before believing it,
- * check that the page both sides share carries the value the firmware writes
- * once it has taken it over.
- */
+/* The firmware is up the first time it asks for buffers. */
 static void nss_check_booted(struct nss_core *core)
 {
 	if (core->running)
 		return;
-
-	if (core->if_map->magic != NSS_IF_MEM_MAP_MAGIC) {
-		dev_err(core->dev, "core %u answered with magic %#x\n",
-			core->id, core->if_map->magic);
-		return;
-	}
 
 	core->running = true;
 	complete(&core->booted);

@@ -22,7 +22,7 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/mac.c
  #include <net/cfg80211.h>
  #include <linux/etherdevice.h>
  #include <linux/bitfield.h>
-@@ -4506,6 +4507,7 @@ static int ath11k_mac_op_set_key(struct
+@@ -4507,6 +4508,7 @@ static int ath11k_mac_op_set_key(struct
  	const u8 *peer_addr;
  	int ret = 0;
  	u32 flags = 0;
@@ -30,7 +30,7 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/mac.c
  
  	/* BIP needs to be done in software */
  	if (key->cipher == WLAN_CIPHER_SUITE_AES_CMAC ||
-@@ -4619,6 +4621,10 @@ static int ath11k_mac_op_set_key(struct
+@@ -4620,6 +4622,10 @@ static int ath11k_mac_op_set_key(struct
  	spin_lock_bh(&ab->base_lock);
  	peer = ath11k_peer_find(ab, arvif->vdev_id, peer_addr);
  	if (peer && cmd == SET_KEY) {
@@ -41,7 +41,7 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/mac.c
  		peer->keys[key->keyidx] = key;
  		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
  			peer->ucast_keyidx = key->keyidx;
-@@ -4659,6 +4665,36 @@ static int ath11k_mac_op_set_key(struct
+@@ -4660,6 +4666,36 @@ static int ath11k_mac_op_set_key(struct
  
  	spin_unlock_bh(&ab->base_lock);
  

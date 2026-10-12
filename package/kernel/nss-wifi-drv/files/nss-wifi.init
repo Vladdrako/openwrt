@@ -11,8 +11,9 @@
 #
 # The decision is on by default and turned off with:
 #   uci set nss-wifi.general.offload='0'; uci commit nss-wifi
-# Anything else, and any failure below, loads the driver exactly as an image
-# without this package would. Wired networking never depends on either path.
+# Anything else loads the driver exactly as an image without this package
+# would. A failure once the radios have probed for the offload leaves Wi-Fi
+# down until the next boot. Wired networking never depends on either path.
 
 START=19
 USE_PROCD=1
@@ -24,9 +25,17 @@ wifi_load_host() {
 }
 
 start_service() {
-	local dir i
+	local dir i param
 
 	[ "$(uci -q get nss-wifi.general.offload)" = "1" ] || {
+		wifi_load_host
+		return 0
+	}
+
+	# ath11k offloads only the IPQ8074 and IPQ6018 radios; elsewhere none
+	# would ever hand its rings over and the wait below would only delay
+	# the boot.
+	grep -qsE 'qcom,ipq(8074|6018)-wifi' /proc/device-tree/soc*/wifi@*/compatible || {
 		wifi_load_host
 		return 0
 	}
@@ -38,11 +47,16 @@ start_service() {
 	uci -q commit nss-wifi
 	sync
 
-	# The parameters are read when a radio probes, and the bus module is
-	# what probes one, so they are written between loading the WLAN driver
-	# and loading the bus module rather than passed to either. modprobe on
-	# this image carries no module parameters at all.
 	modprobe nss-wifi-drv 2>/dev/null
+
+	# The radios are handed over below, so a board whose device tree
+	# describes no NSS core keeps them on the host path instead.
+	dir=$(ls -d /sys/kernel/debug/*.nss 2>/dev/null | head -1)
+	[ -n "$dir" ] || {
+		logger -t nss-wifi "no NSS core to boot, staying on the host path"
+		wifi_load_host
+		return 0
+	}
 
 	# Parameters are read when the plane is brought up below, and modprobe
 	# on this image carries none, so anything to be varied between boots is
@@ -53,6 +67,8 @@ start_service() {
 			logger -t nss-wifi "$param"
 	done
 
+	# A radio reads these when it probes, and the bus module is what
+	# probes one, so they are written between the two modprobes.
 	modprobe ath11k 2>/dev/null
 	if ! echo 1 > /sys/module/ath11k/parameters/nss_offload 2>/dev/null; then
 		logger -t nss-wifi "ath11k has no offload parameter, staying on the host path"
@@ -78,11 +94,6 @@ start_service() {
 	done
 	sleep 3
 
-	dir=$(ls -d /sys/kernel/debug/*.nss 2>/dev/null | head -1)
-	[ -n "$dir" ] || {
-		logger -t nss-wifi "no NSS core to boot"
-		return 0
-	}
 	echo 1 > "$dir/boot" || {
 		logger -t nss-wifi "the NSS core would not boot"
 		return 0

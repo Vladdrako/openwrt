@@ -6,7 +6,7 @@
  * a back end that refuses one leaves it for the others and for software. So
  * this is a second back end beside the switch's, and neither needs to know the
  * other exists: the switch declines a flow that did not arrive on one of its
- * ports, and this declines one that did not arrive on a wireless device.
+ * ports, and this declines one with no wireless end.
  *
  * The kernel offers the two directions of a connection separately and the
  * firmware wants a single rule carrying both. The two offers arrive one after
@@ -115,7 +115,7 @@ struct nss_flow_entry {
 	struct nss_flow_pppoe *pppoe;
 	enum flow_offload_tuple_dir pppoe_dir;	/* the side that is PPPoE */
 	u64 lastused;
-	u64 cnt[4];	/* bench: flow rx, flow tx, return rx, return tx */
+	u64 cnt[4];	/* flow rx, flow tx, return rx, return tx */
 	union {
 		struct nss_ipv4_5tuple t4;
 		struct nss_ipv6_5tuple t6;
@@ -164,9 +164,9 @@ static int nss_flow_last_ifindex;
  * flow stayed in software.
  */
 struct nss_flow_reject_rec {
-	__be32 sip, dip;
+	union nf_inet_addr sip, dip;
 	__be16 sport, dport;
-	u8 proto, dir, why;
+	u8 l3proto, proto, dir, why;
 	u32 detail;
 };
 
@@ -188,9 +188,10 @@ static int nss_flow_reject_at(enum nss_flow_reject why, int ret,
 	r = &nss_flow_rej[nss_flow_rej_seen++ % ARRAY_SIZE(nss_flow_rej)];
 	r->why = why;
 	r->dir = t->dir;
+	r->l3proto = t->l3proto;
 	r->proto = t->l4proto;
-	r->sip = t->src_v4.s_addr;
-	r->dip = t->dst_v4.s_addr;
+	r->sip.in6 = t->src_v6;
+	r->dip.in6 = t->dst_v6;
 	r->sport = t->src_port;
 	r->dport = t->dst_port;
 	r->detail = detail;
@@ -245,7 +246,11 @@ int nss_flow_ifnum(struct nss_core *core, int ifindex, u32 *mtu)
 	 */
 	i = nss_mesh_ifnum(ifindex);
 	if (i >= 0) {
-		*mtu = rcu_dereference(core->iface[i])->mtu;
+		struct net_device *dev = rcu_dereference(core->iface[i]);
+
+		if (!dev)
+			return -ENODEV;
+		*mtu = dev->mtu;
 		return i;
 	}
 
@@ -624,6 +629,10 @@ static int nss_flow_pppoe_take(struct nss_core *core, struct nss_flow_entry *e)
 	struct nss_flow_pppoe *p;
 	u32 tag;
 
+	/* A rule pushed again keeps the session it already holds. */
+	if (e->pppoe)
+		return 0;
+
 	if (o->pppoe == r->pppoe) {
 		/* ponytail: VLAN without PPPoE is not offloaded yet */
 		return (o->pppoe || o->vtpid || r->vtpid) ? -EOPNOTSUPP : 0;
@@ -935,8 +944,13 @@ static void nss_flow_withdraw(struct nss_core *core, struct nss_flow_entry *e)
 		m->msg.rule_destroy.tuple = e->t6;
 		m->cm.interface = NSS_INTERFACE_IPV6;
 		m->cm.type = NSS_IPV6_TX_DESTROY_RULE_MSG;
-		nss_msg_send(core, m, offsetof(struct nss_ipv6_msg, msg) +
-				      sizeof(m->msg.rule_destroy));
+		/* A connection the firmware already dropped is gone either way. */
+		if (nss_msg_send_quiet(core, m, offsetof(struct nss_ipv6_msg, msg) +
+					   sizeof(m->msg.rule_destroy)) &&
+		    m->cm.error != NSS_IPV6_DR_NO_CONNECTION_ENTRY_ERROR)
+			dev_warn_ratelimited(core->dev,
+					     "v6 rule destroy refused: error %u\n",
+					     m->cm.error);
 	} else {
 		struct nss_ipv4_msg *m __free(kfree) =
 			kzalloc(sizeof(*m), GFP_KERNEL);
@@ -946,8 +960,12 @@ static void nss_flow_withdraw(struct nss_core *core, struct nss_flow_entry *e)
 		m->msg.rule_destroy.tuple = e->t4;
 		m->cm.interface = NSS_INTERFACE_IPV4;
 		m->cm.type = NSS_IPV4_TX_DESTROY_RULE_MSG;
-		nss_msg_send(core, m, offsetof(struct nss_ipv4_msg, msg) +
-				      sizeof(m->msg.rule_destroy));
+		if (nss_msg_send_quiet(core, m, offsetof(struct nss_ipv4_msg, msg) +
+					   sizeof(m->msg.rule_destroy)) &&
+		    m->cm.error != NSS_IPV4_DR_NO_CONNECTION_ENTRY_ERROR)
+			dev_warn_ratelimited(core->dev,
+					     "v4 rule destroy refused: error %u\n",
+					     m->cm.error);
 	}
 
 	e->installed = false;
@@ -999,12 +1017,19 @@ static int nss_flow_replace(struct nss_core *core, struct flow_cls_offload *f)
 						  meta.key->ingress_ifindex);
 		}
 
+		/* The IPv6 rule carries no address translation. */
+		flow_rule_match_basic(rule, &basic);
+		if (basic.key->n_proto == htons(ETH_P_IPV6) &&
+		    (test_bit(NF_FLOW_SNAT, &flow->flags) ||
+		     test_bit(NF_FLOW_DNAT, &flow->flags)))
+			return nss_flow_reject_at(NSS_FLOW_REJECT_ACTION,
+						  -EOPNOTSUPP, f, 0);
+
 		e = kzalloc(sizeof(*e), GFP_KERNEL);
 		if (!e)
 			return -ENOMEM;
 
 		e->flow = key;
-		flow_rule_match_basic(rule, &basic);
 		e->protocol = basic.key->ip_proto;
 		e->v6 = basic.key->n_proto == htons(ETH_P_IPV6);
 		e->lastused = jiffies;
@@ -1079,16 +1104,40 @@ static int nss_flow_destroy(struct nss_core *core, struct flow_cls_offload *f)
 	return 0;
 }
 
+static bool nss_flow_is_v4(const struct nss_flow_entry *e,
+			   const struct nss_ipv4_conn_sync *r)
+{
+	return !e->v6 && e->t4.protocol == r->protocol &&
+	       e->t4.flow_ip == r->flow_ip &&
+	       e->t4.flow_ident == r->flow_ident &&
+	       e->t4.return_ip == r->return_ip &&
+	       e->t4.return_ident == r->return_ident;
+}
+
+static bool nss_flow_is_v6(const struct nss_flow_entry *e,
+			   const struct nss_ipv6_conn_sync *r)
+{
+	return e->v6 && e->t6.protocol == r->protocol &&
+	       !memcmp(e->t6.flow_ip, r->flow_ip, sizeof(r->flow_ip)) &&
+	       e->t6.flow_ident == r->flow_ident &&
+	       !memcmp(e->t6.return_ip, r->return_ip, sizeof(r->return_ip)) &&
+	       e->t6.return_ident == r->return_ident;
+}
+
 /* A record from the firmware's sweep marks its connection recently used if
- * any of its four counters moved since the previous sweep.
+ * any of its four counters moved since the previous sweep, and gone if the
+ * firmware flushed or evicted it, so that no destroy follows for it.
  */
 static void nss_flow_sync_mark_v4(const struct nss_ipv4_conn_sync *r)
 {
 	struct rhashtable_iter iter;
 	struct nss_flow_entry *e;
 
-	if (!(r->flow_rx_packet_count | r->flow_tx_packet_count |
-	      r->return_rx_packet_count | r->return_tx_packet_count))
+	bool gone = r->reason == NSS_IPV4_RULE_SYNC_REASON_FLUSH ||
+		    r->reason == NSS_IPV4_RULE_SYNC_REASON_EVICT;
+
+	if (!gone && !(r->flow_rx_packet_count | r->flow_tx_packet_count |
+		       r->return_rx_packet_count | r->return_tx_packet_count))
 		return;
 
 	rhashtable_walk_enter(&nss_flow_table, &iter);
@@ -1096,13 +1145,10 @@ static void nss_flow_sync_mark_v4(const struct nss_ipv4_conn_sync *r)
 	while ((e = rhashtable_walk_next(&iter)) != NULL) {
 		if (IS_ERR(e))
 			continue;
-		if (e->v6 || !e->installed ||
-		    e->t4.protocol != r->protocol ||
-		    e->t4.flow_ip != r->flow_ip ||
-		    e->t4.flow_ident != r->flow_ident ||
-		    e->t4.return_ip != r->return_ip ||
-		    e->t4.return_ident != r->return_ident)
+		if (!e->installed || !nss_flow_is_v4(e, r))
 			continue;
+		if (gone)
+			WRITE_ONCE(e->installed, false);
 		e->lastused = jiffies;
 		e->cnt[0] += r->flow_rx_packet_count;
 		e->cnt[1] += r->flow_tx_packet_count;
@@ -1119,8 +1165,11 @@ static void nss_flow_sync_mark_v6(const struct nss_ipv6_conn_sync *r)
 	struct rhashtable_iter iter;
 	struct nss_flow_entry *e;
 
-	if (!(r->flow_rx_packet_count | r->flow_tx_packet_count |
-	      r->return_rx_packet_count | r->return_tx_packet_count))
+	bool gone = r->reason == NSS_IPV6_RULE_SYNC_REASON_FLUSH ||
+		    r->reason == NSS_IPV6_RULE_SYNC_REASON_EVICT;
+
+	if (!gone && !(r->flow_rx_packet_count | r->flow_tx_packet_count |
+		       r->return_rx_packet_count | r->return_tx_packet_count))
 		return;
 
 	rhashtable_walk_enter(&nss_flow_table, &iter);
@@ -1128,13 +1177,10 @@ static void nss_flow_sync_mark_v6(const struct nss_ipv6_conn_sync *r)
 	while ((e = rhashtable_walk_next(&iter)) != NULL) {
 		if (IS_ERR(e))
 			continue;
-		if (!e->v6 || !e->installed ||
-		    e->t6.protocol != r->protocol ||
-		    memcmp(e->t6.flow_ip, r->flow_ip, sizeof(r->flow_ip)) ||
-		    e->t6.flow_ident != r->flow_ident ||
-		    memcmp(e->t6.return_ip, r->return_ip, sizeof(r->return_ip)) ||
-		    e->t6.return_ident != r->return_ident)
+		if (!e->installed || !nss_flow_is_v6(e, r))
 			continue;
+		if (gone)
+			WRITE_ONCE(e->installed, false);
 		e->lastused = jiffies;
 		e->cnt[0] += r->flow_rx_packet_count;
 		e->cnt[1] += r->flow_tx_packet_count;
@@ -1144,6 +1190,51 @@ static void nss_flow_sync_mark_v6(const struct nss_ipv6_conn_sync *r)
 	}
 	rhashtable_walk_stop(&iter);
 	rhashtable_walk_exit(&iter);
+}
+
+/* The firmware drops a connection on its own, flushed or evicted, and says so
+ * with a sync carrying the reason. Its rule is gone: a destroy for it is
+ * refused, and the flow table's next refresh has to push it again. From the
+ * receive poll, so the table is read under RCU without a walker.
+ */
+void nss_flow_notify(const struct nss_cmn_msg *ncm, u32 len)
+{
+	u32 iface = NSS_INTERFACE_NUM_GET(ncm->interface);
+	const struct nss_ipv4_msg *m4;
+	const struct nss_ipv6_msg *m6;
+	const struct bucket_table *tbl;
+	struct nss_flow_entry *e;
+	struct rhash_head *pos;
+	u32 i;
+
+	m4 = container_of_const(ncm, struct nss_ipv4_msg, cm);
+	m6 = container_of_const(ncm, struct nss_ipv6_msg, cm);
+	if (iface == NSS_INTERFACE_IPV4) {
+		if (ncm->type != NSS_IPV4_RX_CONN_STATS_SYNC_MSG ||
+		    len < offsetofend(struct nss_ipv4_msg, msg.conn_stats) ||
+		    (m4->msg.conn_stats.reason != NSS_IPV4_RULE_SYNC_REASON_FLUSH &&
+		     m4->msg.conn_stats.reason != NSS_IPV4_RULE_SYNC_REASON_EVICT))
+			return;
+	} else if (iface == NSS_INTERFACE_IPV6) {
+		if (ncm->type != NSS_IPV6_RX_CONN_STATS_SYNC_MSG ||
+		    len < offsetofend(struct nss_ipv6_msg, msg.conn_stats) ||
+		    (m6->msg.conn_stats.reason != NSS_IPV6_RULE_SYNC_REASON_FLUSH &&
+		     m6->msg.conn_stats.reason != NSS_IPV6_RULE_SYNC_REASON_EVICT))
+			return;
+	} else {
+		return;
+	}
+
+	rcu_read_lock();
+	for (tbl = rht_dereference_rcu(nss_flow_table.tbl, &nss_flow_table);
+	     tbl; tbl = rht_dereference_rcu(tbl->future_tbl, &nss_flow_table))
+		for (i = 0; i < tbl->size; i++)
+			rht_for_each_entry_rcu(e, pos, tbl, i, node)
+				if (iface == NSS_INTERFACE_IPV4 ?
+				    nss_flow_is_v4(e, &m4->msg.conn_stats) :
+				    nss_flow_is_v6(e, &m6->msg.conn_stats))
+					WRITE_ONCE(e->installed, false);
+	rcu_read_unlock();
 }
 
 /* Sweep the firmware's connection table for what moved.
@@ -1281,10 +1372,6 @@ static int nss_flow_block_cb(enum tc_setup_type type, void *type_data,
 	}
 }
 
-static void nss_flow_block_release(void *cb_priv)
-{
-}
-
 /* Take the flow table's block on a wireless device.
  *
  * The kernel offers the block through the device's own traffic-control entry
@@ -1311,7 +1398,7 @@ int nss_flow_setup_block(struct net_device *dev, struct flow_block_offload *f)
 		}
 
 		block_cb = flow_block_cb_alloc(nss_flow_block_cb, dev, dev,
-					       nss_flow_block_release);
+					       NULL);
 		if (IS_ERR(block_cb))
 			return PTR_ERR(block_cb);
 
@@ -1444,10 +1531,17 @@ void nss_flow_print(struct seq_file *s)
 	for (i = 0; i < ARRAY_SIZE(nss_flow_rej) && i < nss_flow_rej_seen; i++) {
 		const struct nss_flow_reject_rec *r = &nss_flow_rej[i];
 
-		seq_printf(s, "reject %s dir %u proto %u %pI4:%u -> %pI4:%u detail %u\n",
-			   nss_flow_reject_name[r->why], r->dir, r->proto,
-			   &r->sip, ntohs(r->sport), &r->dip, ntohs(r->dport),
-			   r->detail);
+		seq_printf(s, "reject %s dir %u proto %u ",
+			   nss_flow_reject_name[r->why], r->dir, r->proto);
+		if (r->l3proto == NFPROTO_IPV6)
+			seq_printf(s, "[%pI6c]:%u -> [%pI6c]:%u",
+				   &r->sip.in6, ntohs(r->sport),
+				   &r->dip.in6, ntohs(r->dport));
+		else
+			seq_printf(s, "%pI4:%u -> %pI4:%u",
+				   &r->sip.in, ntohs(r->sport),
+				   &r->dip.in, ntohs(r->dport));
+		seq_printf(s, " detail %u\n", r->detail);
 	}
 
 	rhashtable_walk_enter(&nss_flow_table, &iter);

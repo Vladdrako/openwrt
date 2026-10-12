@@ -2,9 +2,9 @@
 /* Shared state and the firmware's wire format for the NSS host driver.
  *
  * Everything named here that the firmware also reads or writes is fixed by the
- * blob and cannot be redesigned: the two descriptor layouts, the index page
- * they are described in, the message header, the meminfo request record and
- * the log ring. The rest is this driver's own.
+ * firmware: the two descriptor layouts, the index page they are described in,
+ * the message header, the meminfo request record and the log ring. The rest is
+ * this driver's own.
  */
 
 #ifndef __NSS_DRV_H
@@ -63,13 +63,12 @@
 /* The buffer may be kept rather than handed straight back. */
 #define NSS_H2N_FLAG_BUFFER_REUSABLE	0x8000
 
+unsigned int nss_pool_ceiling(void);
+
 /* The firmware chooses its own offset inside a receive buffer, so the buffer
  * it is given is the head of the allocation and it reports where the payload
  * landed.
  */
-extern unsigned int nss_pool_size;
-unsigned int nss_pool_ceiling(void);
-
 #define NSS_EMPTY_BUFFER_SIZE	1984
 #define NSS_EMPTY_BUFFER_ALLOC	(NSS_EMPTY_BUFFER_SIZE + NET_SKB_PAD)
 
@@ -232,10 +231,9 @@ static_assert(sizeof(struct nss_log_entry) == 160);
 static_assert(sizeof(struct nss_log_descriptor) == 32);
 
 /* The message header is the exported ABI, shared with every wifili and vdev
- * message that embeds it. What the firmware stores at cb and app_data is
- * sixteen bytes it never reads: they come back exactly as they were sent,
- * which is the only thing tying a reply to its request - there is no
- * sequence number anywhere in the protocol.
+ * message that embeds it. The sixteen bytes at cb and app_data come back
+ * exactly as they were sent, which is the only thing tying a reply to its
+ * request - there is no sequence number anywhere in the protocol.
  */
 #define NSS_HLOS_MESSAGE_VERSION	1
 
@@ -283,6 +281,8 @@ struct nss_msg {
 	dma_addr_t dma;
 	struct mutex lock;
 	struct completion done;
+	/* A timed-out request still owns the buffer. */
+	bool lost;
 };
 
 struct nss_core;
@@ -336,8 +336,11 @@ struct nss_msg_seen {
 	u32 last[256];
 };
 
+struct nss_soc;
+
 struct nss_core {
 	struct device *dev;
+	const struct nss_soc *soc;
 	void __iomem *nphys;
 	void __iomem *qgic;
 	void __iomem *imem;
@@ -451,6 +454,7 @@ int nss_data_send(struct nss_core *core, struct sk_buff *skb, u32 if_num);
 void nss_doorbell(struct nss_core *core, u32 intr);
 int nss_msg_init(struct nss_core *core);
 int nss_msg_send(struct nss_core *core, void *msg, size_t len);
+int nss_msg_send_quiet(struct nss_core *core, void *msg, size_t len);
 int nss_msg_transact(struct nss_core *core, void *msg, size_t len, size_t room);
 bool nss_msg_complete(struct nss_core *core, const struct n2h_descriptor *desc);
 int nss_msg_probe(struct nss_core *core, struct seq_file *s);
@@ -550,6 +554,7 @@ void nss_bridge_start(struct nss_core *core);
 void nss_bridge_stop(void);
 void nss_bridge_print(struct seq_file *s);
 void nss_flow_flush(void);
+void nss_flow_notify(const struct nss_cmn_msg *ncm, u32 len);
 void nss_flow_print(struct seq_file *s);
 int nss_flow_init(void);
 void nss_flow_exit(void);

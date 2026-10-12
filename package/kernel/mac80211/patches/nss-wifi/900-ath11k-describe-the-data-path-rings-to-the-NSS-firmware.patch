@@ -21,11 +21,9 @@ the radios have stopped, and it restarts on the rings described next.
 
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 ---
-Index: backports-7.2/drivers/net/wireless/ath/ath11k/dp.c
-===================================================================
---- backports-7.2.orig/drivers/net/wireless/ath/ath11k/dp.c
-+++ backports-7.2/drivers/net/wireless/ath/ath11k/dp.c
-@@ -13,6 +13,18 @@
+--- a/drivers/net/wireless/ath/ath11k/dp.c
++++ b/drivers/net/wireless/ath/ath11k/dp.c
+@@ -13,6 +13,12 @@
  #include "dp_rx.h"
  #include "peer.h"
  
@@ -33,18 +31,12 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/dp.c
 +#include <linux/soc/qcom/nss_wifi.h>
 +
 +#define ATH11K_NSS_TARGET_IPQ8074	24
-+
-+/* How much of a receive payload the firmware may use: the receive descriptor
-+ * this hardware writes, a rounded pad, the widest 802.11 header with a mesh
-+ * header and a SNAP header behind it, and 1500 bytes of ethernet payload. It
-+ * is not the size of the buffer the payload sits in.
-+ */
-+#define ATH11K_NSS_RX_BUF_LEN		1816
++#define ATH11K_NSS_TARGET_IPQ6018	25
 +
  static void ath11k_dp_htt_htc_tx_complete(struct ath11k_base *ab,
  					  struct sk_buff *skb)
  {
-@@ -869,6 +881,162 @@ done:
+@@ -869,6 +875,173 @@ done:
  }
  EXPORT_SYMBOL(ath11k_dp_service_srng);
  
@@ -66,6 +58,22 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/dp.c
 +/* The buffer manager the firmware names in a receive buffer it fills, as a
 + * release ring number. Read off the entries it writes, not assumed.
 + */
++
++/* The target as the firmware enumerates it, which is its own numbering and
++ * not this driver's hardware revision. The NSS firmware drives only the
++ * radios inside the SoC.
++ */
++static u32 ath11k_nss_target(struct ath11k_base *ab)
++{
++	switch (ab->hw_rev) {
++	case ATH11K_HW_IPQ8074:
++		return ATH11K_NSS_TARGET_IPQ8074;
++	case ATH11K_HW_IPQ6018_HW10:
++		return ATH11K_NSS_TARGET_IPQ6018;
++	default:
++		return 0;
++	}
++}
 +
 +static void ath11k_nss_wifi_ring(struct nss_wifi_ring *r,
 +				 struct ath11k_base *ab, u32 ring_id,
@@ -101,8 +109,7 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/dp.c
 +	u32 reg_base;
 +	int i;
 +
-+	/* The NSS firmware drives only the radios inside the SoC. */
-+	if (ab->hw_rev != ATH11K_HW_IPQ8074)
++	if (!ath11k_nss_target(ab))
 +		return;
 +
 +	res = platform_get_resource(to_platform_device(ab->dev),
@@ -120,13 +127,9 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/dp.c
 +	soc->shadow_rd = ab->hal.rdp.paddr;
 +	soc->shadow_wr = ab->hal.wrp.paddr;
 +	soc->lmac_ring_start = HAL_SRNG_RING_ID_LMAC1_ID_START;
-+	/* The target as the firmware enumerates it, which is its own numbering
-+	 * and not this driver's hardware revision. This SoC is the only one
-+	 * the description is built for.
-+	 */
-+	soc->target_type = ATH11K_NSS_TARGET_IPQ8074;
++	soc->target_type = ath11k_nss_target(ab);
 +	soc->tlv_size = ab->hw_params.hal_desc_sz;
-+	soc->rx_buf_len = ATH11K_NSS_RX_BUF_LEN;
++	soc->rx_buf_len = DP_RX_BUFFER_SIZE;
 +	soc->num_tcl = ab->hw_params.hal_params->num_tx_rings;
 +	soc->num_reo = DP_REO_DST_RING_MAX;
 +	soc->num_pdevs = ab->num_radios;
@@ -175,7 +178,7 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/dp.c
 +	struct nss_wifi_pdev pdev = {};
 +	struct resource *res;
 +
-+	if (ab->hw_rev != ATH11K_HW_IPQ8074)
++	if (!ath11k_nss_target(ab))
 +		return;
 +
 +	res = platform_get_resource(to_platform_device(ab->dev),
@@ -207,24 +210,22 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/dp.c
  void ath11k_dp_pdev_free(struct ath11k_base *ab)
  {
  	struct ath11k *ar;
-@@ -914,6 +1082,16 @@ int ath11k_dp_pdev_alloc(struct ath11k_b
+@@ -914,6 +1087,14 @@ int ath11k_dp_pdev_alloc(struct ath11k_b
  	int ret;
  	int i;
  
 +	/* Not from where the rest of the SoC's rings are allocated: the
 +	 * reorder destination rings are set up later than that, and a
 +	 * description taken there carries them as an address of zero with no
-+	 * entries. The firmware accepts it, finds no receive ring to reap, and
-+	 * with no reorder ring a group reaps its transmit completions either -
-+	 * so every message answers success and nothing moves in either
-+	 * direction.
++	 * entries. The firmware accepts that, but neither receive nor transmit
++	 * completions then move.
 +	 */
 +	ath11k_nss_wifi_describe(ab);
 +
  	/* TODO:Per-pdev rx ring unlike tx ring which is mapped to different AC's */
  	for (i = 0; i < ab->num_radios; i++) {
  		ar = ab->pdevs[i].ar;
-@@ -929,6 +1107,8 @@ int ath11k_dp_pdev_alloc(struct ath11k_b
+@@ -929,6 +1110,8 @@ int ath11k_dp_pdev_alloc(struct ath11k_b
  				    i);
  			goto err;
  		}
@@ -233,11 +234,11 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/dp.c
  	}
  
  	return 0;
-@@ -1025,6 +1205,9 @@ void ath11k_dp_free(struct ath11k_base *
+@@ -1025,6 +1208,9 @@ void ath11k_dp_free(struct ath11k_base *
  	struct ath11k_dp *dp = &ab->dp;
  	int i;
  
-+	if (ab->hw_rev == ATH11K_HW_IPQ8074)
++	if (ath11k_nss_target(ab))
 +		nss_wifi_soc_unregister();
 +
  	ath11k_dp_link_desc_cleanup(ab, dp->link_desc_banks,

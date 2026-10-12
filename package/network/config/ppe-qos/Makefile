@@ -13,7 +13,7 @@ define Package/ppe-qos
   SECTION:=net
   CATEGORY:=Network
   TITLE:=Qualcomm PPE hardware QoS classifiers
-  DEPENDS:=@TARGET_qualcommax +dcb +tc +kmod-sched-flower +kmod-sched-act-pedit \
+  DEPENDS:=@TARGET_qualcommax @KERNEL_DCB +dcb +tc +kmod-sched-flower +kmod-sched-act-pedit \
 	+kmod-sched-prio +kmod-sched-ets +kmod-sched-mqprio +kmod-sched-act-police
   PKGARCH:=all
 endef

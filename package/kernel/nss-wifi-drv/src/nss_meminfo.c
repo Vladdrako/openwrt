@@ -156,11 +156,13 @@ static int nss_meminfo_satisfy(struct nss_core *core, void __iomem *r)
 		cpu = nss_mem_alloc(core, size, align, &addr);
 		break;
 	case NSS_MEMINFO_MEMTYPE_INFO:
-		/* Not an allocation: the firmware is asking a question and
-		 * reads the answer back out of the same field.
+		/* Not an allocation: the image asks where its DDR heap may
+		 * run, and is told the region it was loaded into, as a base
+		 * and a size, as qca-nss-drv answers it.
 		 */
 		if (!strcmp(name, "heap_ddr_size")) {
-			writel(core->region_size, r + REQ_ADDR);
+			writel(core->region_size, r + REQ_SIZE);
+			writel(core->region_base, r + REQ_ADDR);
 			return 0;
 		}
 		dev_warn(core->dev, "unanswered meminfo query %s\n", name);
@@ -184,8 +186,13 @@ static int nss_meminfo_satisfy(struct nss_core *core, void __iomem *r)
 	 * just allocated: everything else the firmware owns outright.
 	 */
 	if (!strcmp(name, "nss_if_mem_map_inst")) {
+		if (size < sizeof(*core->if_map))
+			return -EINVAL;
 		core->if_map = cpu;
 	} else if (!strcmp(name, "debug_boot_log_desc")) {
+		if (size < sizeof(struct nss_log_descriptor) +
+			   sizeof(struct nss_log_entry))
+			return -EINVAL;
 		core->log = cpu;
 		/* How many entries the ring can hold follows from the block
 		 * the firmware asked for, so the count it later reports has

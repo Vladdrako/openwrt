@@ -75,7 +75,7 @@
  * and stay on, because the switch sits behind them and a wired data plane
  * that has nothing to do with this driver goes down when they do.
  */
-static const struct nss_clk_cfg nss_clk_tbl[] = {
+static const struct nss_clk_cfg nss_clk_ipq8074[] = {
 	{ "nss-noc-clk",		461500000 },
 	{ "nss-ptp-ref-clk",		150000000 },
 	{ "nss-csr-clk",		200000000 },
@@ -97,28 +97,71 @@ static const struct nss_clk_cfg nss_clk_tbl[] = {
 	{ "nss-nc-axi-clk",		461500000 },
 };
 
-#define NSS_CLK_COUNT	ARRAY_SIZE(nss_clk_tbl)
+/* The rates qca-nss-drv's ipq60xx hal sets. */
+static const struct nss_clk_cfg nss_clk_ipq6018[] = {
+	{ "nss-noc-clk",		266670000 },
+	{ "nss-ptp-ref-clk",		150000000 },
+	{ "nss-csr-clk",		200000000 },
+	{ "nss-cfg-clk",		100000000 },
+	{ "nss-nssnoc-qosgen-ref-clk",	 24000000 },
+	{ "nss-nssnoc-snoc-clk",	266600000 },
+	{ "nss-snoc-nssnoc-clk",	266670000 },
+	{ "nss-nssnoc-timeout-ref-clk",	  6000000 },
+	{ "nss-ce-axi-clk",		200000000 },
+	{ "nss-ce-apb-clk",		200000000 },
+	{ "nss-nssnoc-ce-axi-clk",	200000000 },
+	{ "nss-nssnoc-ce-apb-clk",	200000000 },
+	{ "nss-mem-noc-ubi32-clk",	533330000 },
+	{ "nss-nssnoc-ahb-clk",		200000000 },
+	{ "nss-core-clk",			0 },
+	{ "nss-ahb-clk",		200000000 },
+	{ "nss-axi-clk",		533330000 },
+	{ "nss-nc-axi-clk",		266670000 },
+	{ "nss-utcm-clk",		266670000 },
+};
+
+struct nss_soc {
+	const struct nss_clk_cfg *clk;
+	/* Program the copy engine and core-to-core interrupts as level
+	 * sensitive. qca-nss-drv leaves them at reset on the single-core
+	 * IPQ6018.
+	 */
+	bool level_irqs;
+};
+
+static const struct nss_soc nss_ipq8074 = {
+	.clk = nss_clk_ipq8074,
+	.level_irqs = true,
+};
+
+static const struct nss_soc nss_ipq6018 = {
+	.clk = nss_clk_ipq6018,
+};
+
+#define NSS_CLK_COUNT	ARRAY_SIZE(nss_clk_ipq8074)
 #define NSS_CLK_FABRIC	13
 #define NSS_CLK_OWN	(NSS_CLK_COUNT - NSS_CLK_FABRIC)
+
+static_assert(ARRAY_SIZE(nss_clk_ipq6018) == NSS_CLK_COUNT);
 
 static int nss_clocks_get(struct nss_core *core)
 {
 	int i, ret;
 
 	for (i = 0; i < NSS_CLK_COUNT; i++)
-		core->clks[i].id = nss_clk_tbl[i].name;
+		core->clks[i].id = core->soc->clk[i].name;
 
 	ret = devm_clk_bulk_get(core->dev, NSS_CLK_COUNT, core->clks);
 	if (ret)
 		return dev_err_probe(core->dev, ret, "clocks\n");
 
 	for (i = 0; i < NSS_CLK_COUNT; i++) {
-		unsigned long rate = nss_clk_tbl[i].rate ? : core->core_rate;
+		unsigned long rate = core->soc->clk[i].rate ? : core->core_rate;
 
 		ret = clk_set_rate(core->clks[i].clk, rate);
 		if (ret)
 			return dev_err_probe(core->dev, ret, "%s rate\n",
-					     nss_clk_tbl[i].name);
+					     core->clks[i].id);
 	}
 
 	return 0;
@@ -246,13 +289,13 @@ static struct net_device *nss_conduit_get(void)
 
 /* The firmware leaves its EDMA rings and the queue table wherever it got to,
  * and a firmware started on them reads descriptors no engine wrote. The
- * conduit's DMA reset returns the block to its power-on state; it may only
- * run with the core in reset, and the conduit's driver wants rtnl for it.
+ * conduit's shared DMA reset returns the block to its power-on state; it may
+ * only run with the core in reset, and the conduit's driver wants rtnl for it.
  */
 static void nss_edma_settle(struct nss_core *core)
 {
 	struct net_device *conduit = core->conduit;
-	u32 flags = ETH_RESET_DMA;
+	u32 flags = ETH_RESET_DMA << ETH_RESET_SHARED_SHIFT;
 	int ret;
 
 	rtnl_lock();
@@ -311,8 +354,12 @@ static void nss_core_release(struct nss_core *core)
 	writel(NSS_CORE_BAR_ADDR, core->nphys + NSS_CORE_BAR);
 	writel(core->load_addr, core->nphys + NSS_CORE_BOOT_ADDR);
 
-	writel(NSS_CORE_INT_STAT2_LEVEL, core->nphys + NSS_CORE_INT_STAT2_TYPE);
-	writel(NSS_CORE_INT_STAT3_LEVEL, core->nphys + NSS_CORE_INT_STAT3_TYPE);
+	if (core->soc->level_irqs) {
+		writel(NSS_CORE_INT_STAT2_LEVEL,
+		       core->nphys + NSS_CORE_INT_STAT2_TYPE);
+		writel(NSS_CORE_INT_STAT3_LEVEL,
+		       core->nphys + NSS_CORE_INT_STAT3_TYPE);
+	}
 
 	writel(NSS_CORE_IFETCH_RANGE_ADDR, core->nphys + NSS_CORE_IFETCH_RANGE);
 
@@ -356,8 +403,10 @@ static void nss_core_halt(struct nss_core *core)
 	/* Wait out any message or frame already past its running check: the
 	 * rings and the lent table go below.
 	 */
-	scoped_guard(mutex, &core->msg.lock)
+	scoped_guard(mutex, &core->msg.lock) {
 		core->running = false;
+		core->msg.lost = false;
+	}
 	synchronize_net();
 	/* A core in reset cannot be asked to close its ports. */
 	core->phys_stale |= core->phys_armed;
@@ -398,13 +447,15 @@ static void nss_core_halt(struct nss_core *core)
  * unconfigured pool is unbounded the other way: the firmware accepted 82242
  * buffers, 329 MB of slab on a 411 MB box, within ten seconds of the core
  * booting. The Wi-Fi data plane's own share of it is declared separately,
- * through nss_wifi_pool_set().
+ * through nss_wifi_pool_set(). The ceiling is that share plus the 8192 the
+ * connections and the exception path take; the firmware fills whatever
+ * ceiling it is given, and each buffer costs a 4 KB slab object.
  */
-unsigned int nss_pool_size = 30624;
+static unsigned int nss_pool_size = 16384;
 module_param_named(pool_size, nss_pool_size, uint, 0644);
 MODULE_PARM_DESC(pool_size, "empty buffers the host will lend the firmware");
 
-unsigned int nss_pool_low = 4352;
+static unsigned int nss_pool_low = 4352;
 module_param_named(pool_low, nss_pool_low, uint, 0644);
 MODULE_PARM_DESC(pool_low, "buffers below which the firmware asks for more");
 /* The firmware refuses a span narrower than the ring the pool is topped up
@@ -516,7 +567,7 @@ struct nss_n2h_buf_pool {
 	u64 vaddr[NSS_N2H_PAGES_PER_MSG];
 };
 
-unsigned int nss_pbuf_bytes = 3100000;
+static unsigned int nss_pbuf_bytes = 3100000;
 module_param_named(pbuf_bytes, nss_pbuf_bytes, uint, 0644);
 MODULE_PARM_DESC(pbuf_bytes, "memory lent for the firmware's packet descriptors");
 
@@ -526,7 +577,7 @@ void nss_pbuf_pool_free(struct nss_core *core)
 
 	for (i = 0; i < core->pbuf_pages; i++) {
 		dma_unmap_single(core->dev, core->pbuf_dma[i], PAGE_SIZE,
-				 DMA_TO_DEVICE);
+				 DMA_BIDIRECTIONAL);
 		kfree(core->pbuf_page[i]);
 	}
 
@@ -570,7 +621,7 @@ static int nss_pbuf_pool_add(struct nss_core *core, size_t bytes)
 				break;
 
 			dma = dma_map_single(core->dev, page, PAGE_SIZE,
-					     DMA_TO_DEVICE);
+					     DMA_BIDIRECTIONAL);
 			if (dma_mapping_error(core->dev, dma)) {
 				kfree(page);
 				break;
@@ -1143,6 +1194,8 @@ static int nss_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	core->dev = dev;
+	core->soc = of_machine_is_compatible("qcom,ipq6018") ? &nss_ipq6018 :
+							       &nss_ipq8074;
 	INIT_LIST_HEAD(&core->allocs);
 	init_completion(&core->booted);
 	init_completion(&core->resumed);
@@ -1191,15 +1244,15 @@ static int nss_probe(struct platform_device *pdev)
 	if (!core->qgic)
 		return -ENOMEM;
 
+	/* IPQ6018 has no instruction memory. */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vphys");
-	if (!res)
-		return -ENODEV;
-
-	core->imem_base = res->start;
-	core->imem_size = resource_size(res);
-	core->imem = devm_ioremap_resource(dev, res);
-	if (IS_ERR(core->imem))
-		return PTR_ERR(core->imem);
+	if (res) {
+		core->imem_base = res->start;
+		core->imem_size = resource_size(res);
+		core->imem = devm_ioremap_resource(dev, res);
+		if (IS_ERR(core->imem))
+			return PTR_ERR(core->imem);
+	}
 
 	ret = nss_clocks_get(core);
 	if (ret)

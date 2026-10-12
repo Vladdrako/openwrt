@@ -129,8 +129,13 @@ struct nss_if_msg {
 
 #define NSS_IPV4_TX_CREATE_RULE_MSG		0
 #define NSS_IPV4_TX_DESTROY_RULE_MSG		1
+#define NSS_IPV4_RX_CONN_STATS_SYNC_MSG		3
 #define NSS_IPV4_TX_CREATE_MC_RULE_MSG		6
 #define NSS_IPV4_TX_CONN_STATS_SYNC_MANY_MSG	7
+
+#define NSS_IPV4_RULE_SYNC_REASON_FLUSH		1
+#define NSS_IPV4_RULE_SYNC_REASON_EVICT		2
+#define NSS_IPV4_DR_NO_CONNECTION_ENTRY_ERROR	5
 
 #define NSS_IPV4_RULE_CREATE_FLAG_NO_SEQ_CHECK	0x01
 #define NSS_IPV4_RULE_CREATE_FLAG_BRIDGE_FLOW	0x02
@@ -154,8 +159,13 @@ struct nss_if_msg {
 
 #define NSS_IPV6_TX_CREATE_RULE_MSG		0
 #define NSS_IPV6_TX_DESTROY_RULE_MSG		1
+#define NSS_IPV6_RX_CONN_STATS_SYNC_MSG		3
 #define NSS_IPV6_TX_CREATE_MC_RULE_MSG		6
 #define NSS_IPV6_TX_CONN_STATS_SYNC_MANY_MSG	7
+
+#define NSS_IPV6_RULE_SYNC_REASON_FLUSH		1
+#define NSS_IPV6_RULE_SYNC_REASON_EVICT		2
+#define NSS_IPV6_DR_NO_CONNECTION_ENTRY_ERROR	5
 
 #define NSS_IPV6_RULE_CREATE_FLAG_NO_SEQ_CHECK	0x01
 #define NSS_IPV6_RULE_CREATE_FLAG_BRIDGE_FLOW	0x02
@@ -330,6 +340,7 @@ struct nss_ipv4_msg {
 		struct nss_ipv4_rule_destroy_msg rule_destroy;
 		struct nss_ipv4_mc_rule_create_msg mc_rule_create;
 		struct nss_ipv4_conn_sync_many_msg conn_stats_many;
+		struct nss_ipv4_conn_sync conn_stats;
 	} msg;
 };
 
@@ -475,6 +486,7 @@ struct nss_ipv6_msg {
 		struct nss_ipv6_rule_destroy_msg rule_destroy;
 		struct nss_ipv6_mc_rule_create_msg mc_rule_create;
 		struct nss_ipv6_conn_sync_many_msg conn_stats_many;
+		struct nss_ipv6_conn_sync conn_stats;
 	} msg;
 };
 

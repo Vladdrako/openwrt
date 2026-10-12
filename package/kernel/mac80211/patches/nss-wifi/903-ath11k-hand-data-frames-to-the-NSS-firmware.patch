@@ -27,6 +27,11 @@ as a block ack request from a station, on the same path as ethernet. The
 receive descriptor at the head of the buffer gives the format, and such a
 frame goes to mac80211 as 802.11, as on the host receive path.
 
+Received data frames no longer pass through mac80211, which took a
+station's RX bitrate from them. The rate is taken from the monitor status
+ring instead, which carries the preamble type and frame control once the
+PPDU end user stats TLV is enabled; the last PPDU carrying data sets it.
+
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 ---
 Index: backports-7.2/drivers/net/wireless/ath/ath11k/core.h
@@ -51,6 +56,15 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/core.h
  	struct ath11k *ar;
  	struct ieee80211_vif *vif;
  
+@@ -562,6 +566,8 @@ struct ath11k_sta {
+ 	struct rate_info txrate;
+ 	u32 peer_nss;
+ 	struct rate_info last_txrate;
++	/* set only while the NSS firmware takes the data frames */
++	struct rate_info rxrate;
+ 	u64 rx_duration;
+ 	u64 tx_duration;
+ 	u8 rssi_comb;
 Index: backports-7.2/drivers/net/wireless/ath/ath11k/mac.c
 ===================================================================
 --- backports-7.2.orig/drivers/net/wireless/ath/ath11k/mac.c
@@ -63,7 +77,15 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/mac.c
  #include <net/cfg80211.h>
  #include <linux/etherdevice.h>
  #include <linux/bitfield.h>
-@@ -6546,14 +6547,57 @@ static void ath11k_mac_op_tx(struct ieee
+@@ -229,6 +230,7 @@ ath11k_phymodes[NUM_NL80211_BANDS][ATH11
+ const struct htt_rx_ring_tlv_filter ath11k_mac_mon_status_filter_default = {
+ 	.rx_filter = HTT_RX_FILTER_TLV_FLAGS_MPDU_START |
+ 		     HTT_RX_FILTER_TLV_FLAGS_PPDU_END |
++		     HTT_RX_FILTER_TLV_FLAGS_PPDU_END_USER_STATS |
+ 		     HTT_RX_FILTER_TLV_FLAGS_PPDU_END_STATUS_DONE,
+ 	.pkt_filter_flags0 = HTT_RX_FP_MGMT_FILTER_FLAGS0,
+ 	.pkt_filter_flags1 = HTT_RX_FP_MGMT_FILTER_FLAGS1,
+@@ -6546,14 +6548,57 @@ static void ath11k_mac_op_tx(struct ieee
  		return;
  	}
  
@@ -72,6 +94,9 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/mac.c
 -	 * of its own descriptors. A frame the host puts there completes as a
 -	 * descriptor the firmware never handed out. Management has already
 -	 * left over the control path above.
+-	 */
+-	if (ar->ab->nss_offload) {
+-		ieee80211_free_txskb(ar->hw, skb);
 +	/* The transmit ring belongs to the firmware, so a frame goes to the
 +	 * virtual device the firmware knows this interface by instead. The
 +	 * virtual device carries ethernet, because the hardware builds the
@@ -93,9 +118,7 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/mac.c
 +	 * address it is told to expect is the frame's own first address,
 +	 * which is what makes the check it performs vacuous rather than
 +	 * wrong.
- 	 */
--	if (ar->ab->nss_offload) {
--		ieee80211_free_txskb(ar->hw, skb);
++	 */
 +	if (ar->ab->nss_offload && !ath11k_nss_host_tx) {
 +		struct sk_buff *orig = skb;
 +
@@ -128,7 +151,7 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/mac.c
  		return;
  	}
  
-@@ -6881,6 +6925,56 @@ static int ath11k_mac_setup_vdev_create_
+@@ -6881,6 +6926,56 @@ static int ath11k_mac_setup_vdev_create_
  	return 0;
  }
  
@@ -185,7 +208,7 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/mac.c
  static void ath11k_mac_op_update_vif_offload(struct ieee80211_hw *hw,
  					     struct ieee80211_vif *vif)
  {
-@@ -7127,6 +7221,7 @@ static int ath11k_mac_op_add_interface(s
+@@ -7127,6 +7222,7 @@ static int ath11k_mac_op_add_interface(s
  
  	arvif->ar = ar;
  	arvif->vif = vif;
@@ -193,7 +216,7 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/mac.c
  
  	INIT_LIST_HEAD(&arvif->list);
  	INIT_WORK(&arvif->bcn_tx_work, ath11k_mac_bcn_tx_work);
-@@ -7212,6 +7307,9 @@ static int ath11k_mac_op_add_interface(s
+@@ -7212,6 +7308,9 @@ static int ath11k_mac_op_add_interface(s
  
  	ath11k_mac_op_update_vif_offload(hw, vif);
  
@@ -203,7 +226,7 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/mac.c
  	nss = get_num_chains(ar->cfg_tx_chainmask) ? : 1;
  	ret = ath11k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
  					    WMI_VDEV_PARAM_NSS, nss);
-@@ -7394,6 +7492,17 @@ static void ath11k_mac_op_remove_interfa
+@@ -7394,6 +7493,17 @@ static void ath11k_mac_op_remove_interfa
  				    arvif->vdev_id, ret);
  	}
  
@@ -221,6 +244,18 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/mac.c
  	ret = ath11k_mac_vdev_delete(ar, arvif);
  	if (ret) {
  		ath11k_warn(ab, "failed to delete vdev %d: %d\n",
+@@ -9469,6 +9579,11 @@ static void ath11k_mac_op_sta_statistics
+ 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
+ 	}
+ 
++	if (arsta->rxrate.legacy || arsta->rxrate.nss) {
++		sinfo->rxrate = arsta->rxrate;
++		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BITRATE);
++	}
++
+ 	ath11k_mac_put_chain_rssi(sinfo, arsta, "ppdu", false);
+ 
+ 	mutex_lock(&ar->conf_mutex);
 Index: backports-7.2/drivers/net/wireless/ath/ath11k/core.c
 ===================================================================
 --- backports-7.2.orig/drivers/net/wireless/ath/ath11k/core.c
@@ -240,7 +275,7 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/dp.c
 ===================================================================
 --- backports-7.2.orig/drivers/net/wireless/ath/ath11k/dp.c
 +++ backports-7.2/drivers/net/wireless/ath/ath11k/dp.c
-@@ -989,6 +989,7 @@ static void ath11k_nss_wifi_describe(str
+@@ -1001,6 +1001,7 @@ static void ath11k_nss_wifi_describe(str
  	soc->priv = ab;
  	soc->reset = ath11k_nss_reset;
  	soc->link_desc_return = ath11k_nss_link_desc_return;
@@ -308,6 +343,84 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/dp_rx.c
  static bool ath11k_dp_rx_check_nwifi_hdr_len_valid(struct ath11k_base *ab,
  						   struct hal_rx_desc *rx_desc,
  						   struct sk_buff *msdu)
+@@ -2784,6 +2833,68 @@ exit:
+ 	return total_msdu_reaped;
+ }
+ 
++/* The receive rate mac80211 reports comes from data frames, which do not
++ * reach it while the NSS firmware takes them. Take it from the PPDU status.
++ */
++static void ath11k_dp_rx_update_peer_rxrate(struct ath11k_sta *arsta,
++					    struct hal_rx_mon_ppdu_info *ppdu_info)
++{
++	/* 100 kbps, by L-SIG rate: CCK 1-7, OFDM 8-15 */
++	static const u16 legacy[] = { 0, 10, 20, 55, 110, 20, 55, 110,
++				      480, 240, 120, 60, 540, 360, 180, 90 };
++	struct rate_info r = {};
++	u8 nss = ppdu_info->nss;
++	u8 mcs = ppdu_info->mcs;
++
++	if (!ieee80211_is_data_present(cpu_to_le16(ppdu_info->frame_control)))
++		return;
++
++	switch (ppdu_info->preamble_type) {
++	case HAL_RX_PREAMBLE_11A:
++	case HAL_RX_PREAMBLE_11B:
++		r.legacy = legacy[ppdu_info->rate];
++		if (r.legacy)
++			arsta->rxrate = r;
++		return;
++	case HAL_RX_PREAMBLE_11N:
++		if (mcs > 7)
++			return;
++		r.mcs = mcs + 8 * (nss - 1);
++		r.flags = RATE_INFO_FLAGS_MCS;
++		if (ppdu_info->gi)
++			r.flags |= RATE_INFO_FLAGS_SHORT_GI;
++		break;
++	case HAL_RX_PREAMBLE_11AC:
++		if (mcs > ATH11K_VHT_MCS_MAX)
++			return;
++		r.mcs = mcs;
++		r.flags = RATE_INFO_FLAGS_VHT_MCS;
++		if (ppdu_info->gi)
++			r.flags |= RATE_INFO_FLAGS_SHORT_GI;
++		break;
++	case HAL_RX_PREAMBLE_11AX:
++		if (mcs > ATH11K_HE_MCS_MAX)
++			return;
++		/* HE-SIG-A carries space-time streams */
++		if (ppdu_info->is_stbc)
++			nss = DIV_ROUND_UP(nss, 2);
++		r.mcs = mcs;
++		r.flags = RATE_INFO_FLAGS_HE_MCS;
++		r.he_gi = ath11k_mac_he_gi_to_nl80211_he_gi(ppdu_info->gi);
++		r.he_dcm = ppdu_info->dcm;
++		break;
++	default:
++		return;
++	}
++
++	if (!nss)
++		return;
++
++	r.nss = nss;
++	r.bw = ath11k_mac_bw_to_mac80211_bw(ppdu_info->bw);
++	arsta->rxrate = r;
++}
++
+ static void ath11k_dp_rx_update_peer_stats(struct ath11k_sta *arsta,
+ 					   struct hal_rx_mon_ppdu_info *ppdu_info)
+ {
+@@ -5345,6 +5456,8 @@ int ath11k_dp_rx_process_mon_status(stru
+ 		}
+ 
+ 		arsta = ath11k_sta_to_arsta(peer->sta);
++		if (ab->nss_offload)
++			ath11k_dp_rx_update_peer_rxrate(arsta, ppdu_info);
+ 		ath11k_dp_rx_update_peer_stats(arsta, ppdu_info);
+ 
+ 		if (ath11k_debugfs_is_pktlog_peer_valid(ar, peer->addr))
 Index: backports-7.2/drivers/net/wireless/ath/ath11k/dp_rx.h
 ===================================================================
 --- backports-7.2.orig/drivers/net/wireless/ath/ath11k/dp_rx.h
@@ -322,3 +435,18 @@ Index: backports-7.2/drivers/net/wireless/ath/ath11k/dp_rx.h
 +			    struct sk_buff *msdu, struct napi_struct *napi);
 +
  #endif /* ATH11K_DP_RX_H */
+Index: backports-7.2/drivers/net/wireless/ath/ath11k/hal_rx.c
+===================================================================
+--- backports-7.2.orig/drivers/net/wireless/ath/ath11k/hal_rx.c
++++ backports-7.2/drivers/net/wireless/ath/ath11k/hal_rx.c
+@@ -925,6 +925,10 @@ ath11k_hal_rx_parse_mon_status_tlv(struc
+ 		ppdu_info->num_mpdu_fcs_err =
+ 			FIELD_GET(HAL_RX_PPDU_END_USER_STATS_INFO0_MPDU_CNT_FCS_ERR,
+ 				  info0);
++		if (info1 & HAL_RX_PPDU_END_USER_STATS_INFO1_FC_VALID)
++			ppdu_info->frame_control =
++				FIELD_GET(HAL_RX_PPDU_END_USER_STATS_INFO2_FRAME_CTRL,
++					  __le32_to_cpu(eu_stats->info2));
+ 		switch (ppdu_info->preamble_type) {
+ 		case HAL_RX_PREAMBLE_11N:
+ 			ppdu_info->ht_flags = 1;

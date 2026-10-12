@@ -45,14 +45,13 @@
  * A descriptor is under 128 bytes, so this many still fit the page below.
  */
 #define NSS_WIFILI_TX_DESC		512
+#define NSS_WIFILI_TX_PROCESSQ		1024
 
 /* The firmware carves both kinds out of the memory given here, at a stride
  * of its own for each, and a block smaller than the declared count leads to
  * a range trap. The size follows the count: every pool's descriptors plus one
  * spare per pool.
  */
-#define NSS_WIFILI_TX_PROCESSQ		1024
-
 #define NSS_WIFILI_TX_DESC_STRIDE	80
 #define NSS_WIFILI_TX_DESC_EXT_STRIDE	160
 
@@ -130,44 +129,6 @@ void nss_wifili_bind(struct nss_core *core)
 /* Keep what the WLAN driver says; starting the firmware is a separate act,
  * because a running core takes the hardware with it.
  */
-/* What the WLAN driver said its rings are, printed when it says it.
- *
- * A ring described wrongly is accepted by the firmware exactly as a ring
- * described rightly, and the only difference shows up as nothing working. So
- * the description is printed where it is taken, not where it is used, and a
- * base of zero or an entry count of zero is visible before anything is built
- * on it.
- */
-static void nss_wifili_log_soc(void)
-{
-	int i;
-
-	pr_info("nss-wifi-drv: shadow rd %#x wr %#x lmac from %u dev %#x\n",
-		nss_wifili_soc.shadow_rd, nss_wifili_soc.shadow_wr,
-		nss_wifili_soc.lmac_ring_start, nss_wifili_soc.dev_base);
-
-	for (i = 0; i < nss_wifili_soc.num_tcl; i++)
-		pr_info("nss-wifi-drv: tcl%d id %u base %#x x%u  txcomp id %u base %#x x%u hw %#x/%#x  tclhw %#x/%#x tcle %u\n",
-			i, nss_wifili_soc.tcl[i].id, nss_wifili_soc.tcl[i].base,
-			nss_wifili_soc.tcl[i].num_entries,
-			nss_wifili_soc.txcomp[i].id,
-			nss_wifili_soc.txcomp[i].base,
-			nss_wifili_soc.txcomp[i].num_entries,
-			nss_wifili_soc.txcomp[i].hwreg[0],
-			nss_wifili_soc.txcomp[i].hwreg[1],
-			nss_wifili_soc.tcl[i].hwreg[0],
-			nss_wifili_soc.tcl[i].hwreg[1],
-			nss_wifili_soc.tcl[i].entry_size);
-
-	for (i = 0; i < nss_wifili_soc.num_reo; i++)
-		pr_info("nss-wifi-drv: reo%d id %u base %#x x%u hw %#x/%#x\n",
-			i, nss_wifili_soc.reo_dest[i].id,
-			nss_wifili_soc.reo_dest[i].base,
-			nss_wifili_soc.reo_dest[i].num_entries,
-			nss_wifili_soc.reo_dest[i].hwreg[0],
-			nss_wifili_soc.reo_dest[i].hwreg[1]);
-}
-
 int nss_wifi_soc_register(const struct nss_wifi_soc *soc)
 {
 	guard(mutex)(&nss_wifili_lock);
@@ -179,8 +140,6 @@ int nss_wifi_soc_register(const struct nss_wifi_soc *soc)
 	nss_wifili_soc = *soc;
 	nss_wifili_pdevs = 0;
 	nss_wifili_have_soc = true;
-
-	nss_wifili_log_soc();
 
 	return 0;
 }
@@ -314,8 +273,6 @@ void nss_wifili_stats_print(struct seq_file *s)
 		   st.rxwbm_stats.err_src_reo,
 		   st.rxwbm_stats.err_src_invalid);
 }
-
-EXPORT_SYMBOL_GPL(nss_wifili_stats_print);
 
 void nss_wifili_notify(struct nss_core *core, const struct nss_cmn_msg *ncm,
 		       u32 len)
@@ -725,7 +682,6 @@ void nss_wifili_vdev_stats_print(struct seq_file *s)
 			   v->wvmes.mcast_pbuf_enq_fail);
 	}
 }
-EXPORT_SYMBOL_GPL(nss_wifili_vdev_stats_print);
 
 /* Each message carries its own body and its own length.
  *
@@ -798,10 +754,9 @@ MODULE_PARM_DESC(rx_next_hop, "interface a virtual device forwards receive to, 1
  * the host is the exception path alone, kept selectable because it separates
  * a receive path that does not start from a rule that does not match.
  *
- * The firmware keeps this on the base virtual-device node, not on the node a
- * device was allocated: addressed to an allocated one it is answered without
- * an error and the core traps seconds later. It is therefore sent once, after
- * the data plane starts, rather than per device.
+ * Addressed to an allocated device, the message is answered without an error
+ * and the core traps seconds later. It is therefore sent once to the base
+ * virtual-device node, after the data plane starts, rather than per device.
  */
 static int nss_wifili_vdev_next_hop(struct nss_core *core)
 {
@@ -1270,11 +1225,12 @@ int nss_wifi_peer_create(u32 vdev_id, const u8 *mac, u16 peer_id,
 	/* The WLAN driver drops a station's record on paths that never reach a
 	 * per-peer deletion - a device going down, a recovery sweep - and the
 	 * station then associates again. Releasing any record this address
-	 * already holds is what bounds the table, and it covers every one of
-	 * those paths because each ends here.
+	 * already holds on this vdev is what bounds the table; the same
+	 * station may be live on another radio's vdev.
 	 */
 	for (i = 0; i < ARRAY_SIZE(nss_wifili_peer_tbl); i++)
 		if (nss_wifili_peer_tbl[i].mem &&
+		    nss_wifili_peer_tbl[i].vdev_id == vdev_id &&
 		    ether_addr_equal(nss_wifili_peer_tbl[i].mac, mac))
 			nss_wifili_peer_release(core, i);
 
@@ -1921,7 +1877,9 @@ static void nss_me_peer_gone(const u8 *mac)
 	guard(spinlock_bh)(&nss_me_lock);
 
 	for (e = nss_me_tbl; e < nss_me_tbl + NSS_ME_MAX; e++) {
-		if (!e->proto || !ether_addr_equal(e->mac, mac))
+		/* The station may still be associated on another vdev. */
+		if (!e->proto || !ether_addr_equal(e->mac, mac) ||
+		    nss_me_peer_id(e->if_num, mac) >= 0)
 			continue;
 		e->want = false;
 		mod_delayed_work(system_wq, &nss_me_work, 0);
@@ -2236,10 +2194,7 @@ static int nss_wifili_start_locked(struct nss_core *core, struct seq_file *s)
 	m->msg.init.wtdim.num_tx_device_limit = NSS_WIFILI_TX_DESC *
 						nss_wifili_pdevs;
 
-	/* The queue the firmware hands transmit work between its own threads
-	 * on. Left at zero it is sized to nothing and written into anyway,
-	 * which the core answers with a range trap seconds after it starts.
-	 */
+	/* Left at zero, the core takes a range trap seconds after it starts. */
 	m->msg.init.tx_sw_internode_queue_size = NSS_WIFILI_TX_PROCESSQ;
 
 	m->msg.init.target_type = nss_wifili_soc.target_type;

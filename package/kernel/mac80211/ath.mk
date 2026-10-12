@@ -338,8 +338,9 @@ define KernelPackage/ath11k/config
 
        config ATH11K_NSS_WIFI
                bool "Describe the data-path rings to the NSS firmware"
-               depends on PACKAGE_kmod-ath11k && TARGET_qualcommax
-               default n
+               depends on PACKAGE_kmod-ath11k
+               depends on TARGET_qualcommax_ipq807x || TARGET_qualcommax_ipq60xx
+               select PACKAGE_kmod-nss-wifi-drv
                help
                  The NSS cores can reap the WLAN hardware's rings
                  themselves, which takes the Wi-Fi data path off the host.

@@ -59,6 +59,31 @@ int nss_phys_msg(struct nss_core *core, int if_num, u32 type,
 	return ret;
 }
 
+static void nss_phys_port_close(struct nss_core *core, int if_num,
+				struct net_device *dev)
+{
+	struct nss_if_link_state_notify link = {};
+	struct nss_if_vsi_assign vsi = {};
+
+	nss_phys_msg(core, if_num, NSS_IF_LINK_STATE_NOTIFY, &link,
+		     sizeof(link));
+
+	vsi.vsi = qca_ppe_port_fw_vsi_get(dev);
+	if (vsi.vsi >= 0)
+		nss_phys_msg(core, if_num, NSS_IF_VSI_UNASSIGN, &vsi,
+			     sizeof(vsi));
+
+	nss_phys_msg(core, if_num, NSS_IF_CLOSE, NULL, 0);
+
+	/* The port's binding reads back cleared after the unassign, so the
+	 * switch driver puts back the one the bridge implies.
+	 */
+	qca_ppe_port_vsi_restore(dev);
+
+	dev_info(core->dev, "%s: port %d back to the host\n",
+		 netdev_name(dev), if_num);
+}
+
 static int nss_phys_port_open(struct nss_core *core, int if_num,
 			      struct net_device *dev)
 {
@@ -87,53 +112,32 @@ static int nss_phys_port_open(struct nss_core *core, int if_num,
 	ether_addr_copy(mac.mac_addr, dev->dev_addr);
 	ret = nss_phys_msg(core, if_num, NSS_IF_MAC_ADDR_SET, &mac, sizeof(mac));
 	if (ret)
-		return ret;
+		goto err;
 
 	mtu.min_buf_size = dev->mtu;
 	ret = nss_phys_msg(core, if_num, NSS_IF_MTU_CHANGE, &mtu, sizeof(mtu));
 	if (ret)
-		return ret;
+		goto err;
 
 	open.rx_forward_if = NSS_PHYS_RX_FORWARD;
 	open.alignment_mode = NSS_IF_DATA_ALIGN_2BYTE;
 	ret = nss_phys_msg(core, if_num, NSS_IF_OPEN, &open, sizeof(open));
 	if (ret)
-		return ret;
+		goto err;
 
 	ret = nss_phys_msg(core, if_num, NSS_IF_LINK_STATE_NOTIFY, &link,
 			   sizeof(link));
 	if (ret)
-		return ret;
+		goto err;
 
 	dev_info(core->dev, "%s: port %d routes in the firmware, vsi %d\n",
 		 netdev_name(dev), if_num, id);
 
 	return 0;
-}
 
-static void nss_phys_port_close(struct nss_core *core, int if_num,
-				struct net_device *dev)
-{
-	struct nss_if_link_state_notify link = {};
-	struct nss_if_vsi_assign vsi = {};
-
-	nss_phys_msg(core, if_num, NSS_IF_LINK_STATE_NOTIFY, &link,
-		     sizeof(link));
-
-	vsi.vsi = qca_ppe_port_fw_vsi_get(dev);
-	if (vsi.vsi >= 0)
-		nss_phys_msg(core, if_num, NSS_IF_VSI_UNASSIGN, &vsi,
-			     sizeof(vsi));
-
-	nss_phys_msg(core, if_num, NSS_IF_CLOSE, NULL, 0);
-
-	/* The port's binding reads back cleared after the unassign, so the
-	 * switch driver puts back the one the bridge implies.
-	 */
-	qca_ppe_port_vsi_restore(dev);
-
-	dev_info(core->dev, "%s: port %d back to the host\n",
-		 netdev_name(dev), if_num);
+err:
+	nss_phys_port_close(core, if_num, dev);
+	return ret;
 }
 
 /* Bring the set of firmware-routed ports to exactly @mask.

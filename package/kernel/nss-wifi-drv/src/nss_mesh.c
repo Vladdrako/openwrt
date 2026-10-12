@@ -348,7 +348,13 @@ void nss_mesh_del(struct nss_core *core, int link)
 /* A new core never knew the old nodes, and halting it dropped the bindings. */
 void nss_mesh_reset(void)
 {
+	int i;
+
 	guard(mutex)(&nss_mesh_lock);
+
+	for (i = 0; i < NSS_MESH_MAX; i++)
+		WRITE_ONCE(nss_mesh_tbl[i].ops, NULL);
+	synchronize_net();
 
 	memset(nss_mesh_tbl, 0, sizeof(nss_mesh_tbl));
 }
