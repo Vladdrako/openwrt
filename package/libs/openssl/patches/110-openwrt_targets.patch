@@ -9,7 +9,7 @@ Signed-off-by: Eneas U de Queiroz <cote2004-github@yahoo.com>
 
 --- /dev/null
 +++ b/Configurations/25-openwrt.conf
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,51 @@
 +## Openwrt "CONFIG_ARCH" matching targets.
 +
 +my %targets = (
