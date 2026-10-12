@@ -1413,19 +1413,26 @@ static int edma_set_ringparam(struct net_device *netdev,
 				ring->rx_pending);
 }
 
-/* The rebuild asserts the block's reset line, so it is the DMA reset too. */
+/* The rebuild asserts the block's reset line, so it is the DMA reset too.
+ * While the NSS firmware shares the block, only a request for the shared
+ * component resets it.
+ */
 static int edma_reset(struct net_device *netdev, u32 *flags)
 {
 	struct edma_priv *priv = netdev_priv(netdev);
+	u32 shared = ETH_RESET_DMA << ETH_RESET_SHARED_SHIFT;
 	int ret;
 
-	if (!(*flags & ETH_RESET_DMA))
+	if (!(*flags & (ETH_RESET_DMA | shared)))
 		return -EINVAL;
+
+	if (!(*flags & shared) && edma_shared(priv))
+		return -EBUSY;
 
 	ret = edma_reconfigure(priv, priv->rx_page_order, priv->tx_ring_size,
 			       priv->rx_ring_size);
 	if (!ret)
-		*flags &= ~ETH_RESET_DMA;
+		*flags &= ~(ETH_RESET_DMA | shared);
 
 	return ret;
 }
@@ -1796,8 +1803,8 @@ static const struct net_device_ops edma_netdev_ops = {
 };
 
 /* Point every CPU-port queue back at the host receive ring while the NSS
- * firmware runs. The table is a per-frame lookup the firmware programs once
- * and never reads, so this writes nothing the firmware owns.
+ * firmware runs. Once written, the table reads back unchanged for as long as
+ * the firmware runs.
  */
 int qca_edma_cpu_queues_to_host(struct net_device *conduit)
 {
