@@ -10,7 +10,7 @@ Signed-off-by: Rui Salvaterra <rsalvaterra@gmail.com>
 
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -460,7 +460,7 @@ static bool shmem_confirm_swap(struct ad
+@@ -569,7 +569,7 @@ static int shmem_confirm_swap(struct add
  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
  /* ifdef here to avoid bloating shmem.o when not necessary */
  

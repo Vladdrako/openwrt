@@ -1,6 +1,6 @@
 --- a/drivers/mtd/ubi/io.c
 +++ b/drivers/mtd/ubi/io.c
-@@ -89,6 +89,7 @@
+@@ -76,6 +76,7 @@
  #include <linux/crc32.h>
  #include <linux/err.h>
  #include <linux/slab.h>
@@ -8,7 +8,7 @@
  #include "ubi.h"
  
  static int self_check_not_bad(const struct ubi_device *ubi, int pnum);
-@@ -412,6 +413,8 @@ static uint8_t patterns[] = {0xa5, 0x5a, 0x0};
+@@ -381,6 +382,8 @@ static uint8_t patterns[] = {0xa5, 0x5a,
  static int torture_peb(struct ubi_device *ubi, int pnum)
  {
  	int err, i, patt_count;
@@ -17,7 +17,7 @@
  
  	ubi_msg(ubi, "run torture test for PEB %d", pnum);
  	patt_count = ARRAY_SIZE(patterns);
-@@ -456,12 +459,41 @@ static int torture_peb(struct ubi_device *ubi, int pnum)
+@@ -425,12 +428,41 @@ static int torture_peb(struct ubi_device
  			goto out;
  		}
  	}

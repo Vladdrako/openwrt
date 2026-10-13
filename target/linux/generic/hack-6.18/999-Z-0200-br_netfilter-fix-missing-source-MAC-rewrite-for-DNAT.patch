@@ -20,7 +20,7 @@ so the source MAC is correctly set.
 
 --- a/net/bridge/br_netfilter_hooks.c
 +++ b/net/bridge/br_netfilter_hooks.c
-@@ -389,7 +389,7 @@ static int br_nf_pre_routing_finish(stru
+@@ -393,7 +393,7 @@ static int br_nf_pre_routing_finish(stru
  		nf_bridge->pkt_otherhost = false;
  	}
  	nf_bridge->in_prerouting = 0;

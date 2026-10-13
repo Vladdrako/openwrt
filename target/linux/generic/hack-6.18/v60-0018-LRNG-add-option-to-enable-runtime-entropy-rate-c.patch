@@ -27,11 +27,9 @@ Signed-off-by: Stephan Mueller <smueller@chronox.de>
  drivers/char/lrng/Kconfig | 22 +++++++++++-----------
  1 file changed, 11 insertions(+), 11 deletions(-)
 
-diff --git a/drivers/char/lrng/Kconfig b/drivers/char/lrng/Kconfig
-index fc4b40acb886..77f60d68245b 100644
 --- a/drivers/char/lrng/Kconfig
 +++ b/drivers/char/lrng/Kconfig
-@@ -124,17 +124,17 @@ endmenu # "Specific DRNG seeding strategies"
+@@ -124,17 +124,17 @@ endmenu # "Specific DRNG seeding strateg
  
  menu "Entropy Source Configuration"
  
@@ -60,6 +58,3 @@ index fc4b40acb886..77f60d68245b 100644
  
  comment "Common Timer-based Entropy Source Configuration"
  
--- 
-2.52.0
-

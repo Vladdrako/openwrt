@@ -1,14 +1,14 @@
 --- a/fs/Kconfig
 +++ b/fs/Kconfig
-@@ -338,7 +338,7 @@ config GRACE_PERIOD
+@@ -358,7 +358,7 @@ config GRACE_PERIOD
  	tristate
  
  config LOCKD
 -	tristate
 +	tristate "Lockd"
  	depends on FILE_LOCKING
+ 	select CRC32
  	select GRACE_PERIOD
- 
 --- a/net/sunrpc/Kconfig
 +++ b/net/sunrpc/Kconfig
 @@ -1,6 +1,6 @@
@@ -18,4 +18,4 @@
 +	tristate "Secure RPC"
  	depends on MULTIUSER
  
- config SUNRPC_GSS 
+ config SUNRPC_GSS

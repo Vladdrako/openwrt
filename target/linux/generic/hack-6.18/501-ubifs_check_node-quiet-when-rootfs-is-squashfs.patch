@@ -28,7 +28,7 @@ Signed-off-by: Tony Butler <spudz76@gmail.com>
  #include "ubifs.h"
  
  /**
-@@ -254,6 +254,9 @@
+@@ -253,6 +254,9 @@ int ubifs_check_node(const struct ubifs_
  
  	magic = le32_to_cpu(ch->magic);
  	if (magic != UBIFS_NODE_MAGIC) {

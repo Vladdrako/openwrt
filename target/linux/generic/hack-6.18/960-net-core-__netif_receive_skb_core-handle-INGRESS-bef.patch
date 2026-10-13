@@ -10,7 +10,7 @@ Signed-off-by: Chen Minqiang <ptpt52@gmail.com>
 
 --- a/net/core/dev.c
 +++ b/net/core/dev.c
-@@ -5947,24 +5947,6 @@ another_round:
+@@ -5957,24 +5957,6 @@ another_round:
  
  	if (skb_skip_tc_classify(skb))
  		goto skip_classify;
@@ -35,7 +35,7 @@ Signed-off-by: Chen Minqiang <ptpt52@gmail.com>
  #ifdef CONFIG_NET_INGRESS
  	if (static_branch_unlikely(&ingress_needed_key)) {
  		bool another = false;
-@@ -5982,6 +5964,22 @@ skip_taps:
+@@ -5992,6 +5974,22 @@ skip_taps:
  			goto out;
  	}
  #endif

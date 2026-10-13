@@ -1,6 +1,6 @@
 --- a/drivers/net/macvlan.c
 +++ b/drivers/net/macvlan.c
-@@ -421,6 +421,35 @@ static void macvlan_forward_source_one(s
+@@ -424,6 +424,35 @@ static void macvlan_forward_source_one(s
  	macvlan_count_rx(vlan, len, ret == NET_RX_SUCCESS, false);
  }
  
@@ -36,7 +36,7 @@
  static bool macvlan_forward_source(struct sk_buff *skb,
  				   struct macvlan_port *port,
  				   const unsigned char *addr)
-@@ -491,6 +520,13 @@ static rx_handler_result_t macvlan_handl
+@@ -499,6 +528,13 @@ static rx_handler_result_t macvlan_handl
  		return RX_HANDLER_PASS;
  	}
  

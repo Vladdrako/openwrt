@@ -323,7 +323,7 @@ Signed-off-by: Rosen Penev <rosenp@gmail.com>
  
  static struct mt753x_pcs *pcs_to_mt753x_pcs(struct phylink_pcs *pcs)
  {
-@@ -208,7 +209,7 @@ _mt7530_read(struct mt7530_dummy_poll *p
+@@ -202,7 +203,7 @@ _mt7530_read(struct mt7530_dummy_poll *p
  	return val;
  }
  
@@ -332,7 +332,7 @@ Signed-off-by: Rosen Penev <rosenp@gmail.com>
  mt7530_read(struct mt7530_priv *priv, u32 reg)
  {
  	struct mt7530_dummy_poll p;
-@@ -217,7 +218,7 @@ mt7530_read(struct mt7530_priv *priv, u3
+@@ -211,7 +212,7 @@ mt7530_read(struct mt7530_priv *priv, u3
  	return _mt7530_read(&p);
  }
  
@@ -341,7 +341,7 @@ Signed-off-by: Rosen Penev <rosenp@gmail.com>
  mt7530_rmw(struct mt7530_priv *priv, u32 reg,
  	   u32 mask, u32 set)
  {
-@@ -2560,6 +2561,10 @@ mt7530_setup(struct dsa_switch *ds)
+@@ -2542,6 +2543,10 @@ mt7530_setup(struct dsa_switch *ds)
  	}
  #endif /* CONFIG_GPIOLIB */
  

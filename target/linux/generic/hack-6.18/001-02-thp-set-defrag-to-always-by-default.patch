@@ -10,7 +10,7 @@ Signed-off-by: Rui Salvaterra <rsalvaterra@gmail.com>
 
 --- a/mm/huge_memory.c
 +++ b/mm/huge_memory.c
-@@ -61,7 +61,7 @@ unsigned long transparent_hugepage_flags
+@@ -63,7 +63,7 @@ unsigned long transparent_hugepage_flags
  #ifdef CONFIG_TRANSPARENT_HUGEPAGE_MADVISE
  	(1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG)|
  #endif

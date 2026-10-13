@@ -1,6 +1,6 @@
 --- a/drivers/mtd/mtdblock_ro.c
 +++ b/drivers/mtd/mtdblock_ro.c
-@@ -46,9 +46,6 @@
+@@ -48,9 +48,6 @@ static void mtdblock_add_mtd(struct mtd_
  	dev->tr = tr;
  	dev->readonly = 1;
  
@@ -12,7 +12,7 @@
  		kfree(dev);
 --- a/drivers/mtd/mtdblock.c
 +++ b/drivers/mtd/mtdblock.c
-@@ -257,9 +257,6 @@
+@@ -261,9 +261,6 @@ static int mtdblock_open(struct mtd_blkt
  		return 0;
  	}
  

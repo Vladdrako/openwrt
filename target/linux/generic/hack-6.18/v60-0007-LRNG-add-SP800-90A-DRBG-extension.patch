@@ -28,11 +28,9 @@ Signed-off-by: Stephan Mueller <smueller@chronox.de>
  3 files changed, 255 insertions(+), 39 deletions(-)
  create mode 100644 drivers/char/lrng/lrng_drng_drbg.c
 
-diff --git a/drivers/char/lrng/Kconfig b/drivers/char/lrng/Kconfig
-index 84b6367b0aee..575b54d14ae7 100644
 --- a/drivers/char/lrng/Kconfig
 +++ b/drivers/char/lrng/Kconfig
-@@ -620,11 +620,11 @@ endmenu # "Specific DRNG seeding strategies"
+@@ -620,11 +620,11 @@ endmenu # "Specific DRNG seeding strateg
  config LRNG_DRNG_CHACHA20
  	tristate
  
@@ -138,8 +136,6 @@ index 84b6367b0aee..575b54d14ae7 100644
  # 	config LRNG_DFLT_DRNG_KCAPI
  # 		depends on RANDOM_DEFAULT_IMPL
  # 		bool "Kernel Crypto API DRNG"
-diff --git a/drivers/char/lrng/Makefile b/drivers/char/lrng/Makefile
-index b3326c9580eb..b59414316f1c 100644
 --- a/drivers/char/lrng/Makefile
 +++ b/drivers/char/lrng/Makefile
 @@ -14,3 +14,4 @@ obj-$(CONFIG_NUMA)			+= lrng_numa.o
@@ -147,9 +143,6 @@ index b3326c9580eb..b59414316f1c 100644
  obj-$(CONFIG_LRNG_HASH_KCAPI)		+= lrng_hash_kcapi.o
  obj-$(CONFIG_LRNG_DRNG_CHACHA20)	+= lrng_drng_chacha20.o
 +obj-$(CONFIG_LRNG_DRBG)			+= lrng_drng_drbg.o
-diff --git a/drivers/char/lrng/lrng_drng_drbg.c b/drivers/char/lrng/lrng_drng_drbg.c
-new file mode 100644
-index 000000000000..0da8150e0d42
 --- /dev/null
 +++ b/drivers/char/lrng/lrng_drng_drbg.c
 @@ -0,0 +1,215 @@
@@ -368,6 +361,3 @@ index 000000000000..0da8150e0d42
 +late_initcall(lrng_drbg_selftest);
 +
 +#endif /* CONFIG_LRNG_DFLT_DRNG_DRBG */
--- 
-2.52.0
-

@@ -1,8 +1,8 @@
 --- a/kernel/module/Kconfig
 +++ b/kernel/module/Kconfig
-@@ -286,6 +286,25 @@
+@@ -458,6 +458,25 @@ config UNUSED_KSYMS_WHITELIST
  	  one per line. The path can be absolute, or relative to the kernel
- 	  source tree.
+ 	  source or obj tree.
  
 +config MAX_KMOD_CONCURRENT_P2
 +       int "Max allowed concurrent request_module() calls (6=>64, 10=>1024)"
@@ -25,10 +25,10 @@
 +
  config MODULES_TREE_LOOKUP
  	def_bool y
- 	depends on PERF_EVENTS || TRACING || CFI_CLANG
+ 	depends on PERF_EVENTS || TRACING || CFI
 --- a/kernel/module/kmod.c
 +++ b/kernel/module/kmod.c
-@@ -46,7 +46,7 @@
+@@ -42,7 +42,7 @@
   * and this would only be an upper limit, after which the OOM killer would take
   * effect. Systems like these are very unlikely if modules are enabled.
   */

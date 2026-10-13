@@ -20,7 +20,7 @@ Subject: [PATCH] net: Allocate ifindex from range 1-63 using bitmap
  #include <linux/seq_file_net.h>
 --- a/net/core/dev.c
 +++ b/net/core/dev.c
-@@ -11212,6 +11212,15 @@ static void netdev_free_phy_link_topolog
+@@ -11227,6 +11227,15 @@ static void netdev_free_phy_link_topolog
  	}
  }
  
@@ -36,7 +36,7 @@ Subject: [PATCH] net: Allocate ifindex from range 1-63 using bitmap
  /**
   * register_netdevice() - register a network device
   * @dev: device to register
-@@ -11280,11 +11289,36 @@ int register_netdevice(struct net_device
+@@ -11295,11 +11304,36 @@ int register_netdevice(struct net_device
  	if (ret)
  		goto err_uninit;
  
@@ -73,7 +73,7 @@ Subject: [PATCH] net: Allocate ifindex from range 1-63 using bitmap
  	/* Transfer changeable features to wanted_features and enable
  	 * software offloads (GSO and GRO).
  	 */
-@@ -11395,6 +11429,7 @@ out:
+@@ -11410,6 +11444,7 @@ out:
  err_uninit_notify:
  	call_netdevice_notifiers(NETDEV_PRE_UNINIT, dev);
  err_ifindex_release:
@@ -81,7 +81,7 @@ Subject: [PATCH] net: Allocate ifindex from range 1-63 using bitmap
  	dev_index_release(net, dev->ifindex);
  err_free_pcpu:
  	netdev_do_free_pcpu_stats(dev);
-@@ -12199,6 +12234,7 @@ void unregister_netdevice_queue(struct n
+@@ -12214,6 +12249,7 @@ void unregister_netdevice_queue(struct n
  	if (head) {
  		list_move_tail(&dev->unreg_list, head);
  	} else {

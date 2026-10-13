@@ -1,11 +1,11 @@
 --- a/drivers/soc/qcom/Kconfig
 +++ b/drivers/soc/qcom/Kconfig
-@@ -93,7 +93,7 @@ config QCOM_PDR_HELPERS
- 	select QCOM_QMI_HELPERS
+@@ -125,7 +125,7 @@ config QCOM_PMIC_GLINK
+ 	  platforms.
  
  config QCOM_QMI_HELPERS
 -	tristate
 +	tristate "Qualcomm QMI Helpers"
  	depends on NET
  
- config QCOM_RMTFS_MEM
+ config QCOM_RAMP_CTRL

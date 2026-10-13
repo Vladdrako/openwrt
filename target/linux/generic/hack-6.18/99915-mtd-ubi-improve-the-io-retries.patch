@@ -1,6 +1,7 @@
 --- a/drivers/mtd/ubi/io.c
 +++ b/drivers/mtd/ubi/io.c
-@@ -133,4 +133,10 @@
+@@ -119,6 +119,12 @@ int ubi_io_read(const struct ubi_device
+ 
  	dbg_io("read %d bytes from PEB %d:%d", len, pnum, offset);
  
 +	if ((u32)buf < PAGE_SIZE) {
@@ -11,7 +12,8 @@
 +
  	ubi_assert(pnum >= 0 && pnum < ubi->peb_count);
  	ubi_assert(offset >= 0 && offset + len <= ubi->peb_size);
-@@ -160,6 +160,8 @@
+ 	ubi_assert(len > 0);
+@@ -147,7 +153,9 @@ int ubi_io_read(const struct ubi_device
  	 * Try to prevent this situation by changing the first byte of the
  	 * buffer.
  	 */
@@ -20,8 +22,9 @@
 +		*((uint8_t *)buf) ^= 0xFF;	//  buf doesn't have to be a
 +						//  valid virtual address
  
-	addr = (loff_t)pnum * ubi->peb_size + offset;
-@@ -186,8 +186,7 @@
+ 	addr = (loff_t)pnum * ubi->peb_size + offset;
+ retry:
+@@ -170,10 +178,9 @@ retry:
  			return UBI_IO_BITFLIPS;
  		}
  
@@ -30,16 +33,20 @@
  			ubi_warn(ubi, "error %d%s while reading %d bytes from PEB %d:%d, read only %zd bytes, retry",
  				 err, errstr, len, pnum, offset, read);
 -			yield();
-			goto retry;
-@@ -345,5 +345,4 @@
-			ubi_warn(ubi, "error %d while erasing PEB %d, retry",
-				 err, pnum);
+ 			goto retry;
+ 		}
+ 
+@@ -340,7 +347,6 @@ retry:
+ 		if (retries++ < UBI_IO_RETRIES) {
+ 			ubi_warn(ubi, "error %d while erasing PEB %d, retry",
+ 				 err, pnum);
 -			yield();
-			goto retry;
-		}
+ 			goto retry;
+ 		}
+ 		ubi_err(ubi, "cannot erase PEB %d, error %d", pnum, err);
 --- a/drivers/mtd/ubi/ubi.h
 +++ b/drivers/mtd/ubi/ubi.h
-@@ -63,7 +63,7 @@ void ubi_err(const struct ubi_device *ubi, const char *fmt, ...);
+@@ -63,7 +63,7 @@ void ubi_err(const struct ubi_device *ub
   * In case of errors, UBI tries to repeat the operation several times before
   * returning error. The below constant defines how many times UBI re-tries.
   */
