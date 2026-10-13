@@ -45,10 +45,10 @@ Signed-off-by: André Valentin <avalentin@marcant.net>
 
 --- a/drivers/net/wireless/ath/ath11k/hw.h
 +++ b/drivers/net/wireless/ath/ath11k/hw.h
-@@ -233,6 +233,13 @@ struct ath11k_hw_params {
- 	bool support_fw_mac_sequence;
- 	bool support_dual_stations;
- 	bool pdev_suspend;
+@@ -236,6 +236,13 @@
+ 	bool cfr_support;
+ 	u32 cfr_num_stream_bufs;
+ 	u32 cfr_stream_buf_size;
 +	/*
 +	 * Run the ahb shutdown() teardown (stop DMA before the SMMU is torn
 +	 * down at reboot/shutdown). Only set where the teardown is required;
