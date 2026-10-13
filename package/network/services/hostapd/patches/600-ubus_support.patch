@@ -324,16 +324,7 @@ probe/assoc/auth requests via object subscribe.
  		wpa_printf(MSG_DEBUG, "RRM action %u is not supported",
 --- a/src/ap/sta_info.c
 +++ b/src/ap/sta_info.c
-@@ -361,6 +361,8 @@ void ap_free_sta(struct hostapd_data *ha
- 	sta->probe_ie_taxonomy = NULL;
- 	wpabuf_free(sta->assoc_ie_taxonomy);
- 	sta->assoc_ie_taxonomy = NULL;
-+	wpabuf_free(sta->assoc_frame_taxonomy);
-+	sta->assoc_frame_taxonomy = NULL;
- #endif /* CONFIG_TAXONOMY */
- 
- 	ht40_intolerant_remove(hapd->iface, sta);
-@@ -621,6 +623,7 @@ void ap_handle_timer(void *eloop_ctx, vo
+@@ -668,6 +668,7 @@ void ap_handle_timer(void *eloop_ctx, vo
  		hostapd_logger(hapd, sta->addr, HOSTAPD_MODULE_IEEE80211,
  			       HOSTAPD_LEVEL_INFO, "deauthenticated due to "
  			       "local deauth request");
