@@ -75,6 +75,7 @@ struct platform_device;
 #define GMACCR_MAX_RX_PKT_LEN_MASK	0x3
 #define GMACCR_MAX_RX_PKT_LEN_JUMBO	0x3
 
+#define SYSC_REG_CHIP_REV_ID	0x0c
 #define SYSC_REG_CFG1		0x14
 #define RST_CTRL_MCM		BIT(2)
 #define PCIE_RC_MODE		BIT(8)
@@ -101,9 +102,6 @@ struct platform_device;
 #define PHY_AN_EN		BIT(31)
 #define PHY_PRE_EN		BIT(30)
 #define PMY_MDC_CONF(_x)	((_x & 0x3f) << 24)
-#define PHY_EMB_AN_EN		BIT(23)
-#define PHY_END_ADDR		GENMASK(12, 8)
-#define PHY_START_ADDR		GENMASK(4, 0)
 
 
 enum {
@@ -120,10 +118,6 @@ struct mt7620_gsw_vlan {
 	bool valid;
 };
 
-struct mt7620_gsw_platform_data {
-	struct mt7620_gsw *gsw;
-};
-
 struct mt7620_gsw {
 	struct device		*dev;
 	struct reset_control	*rst_ephy;
@@ -136,19 +130,15 @@ struct mt7620_gsw {
 	struct platform_device	*dsa_dev;
 	struct mii_bus		*upstream_mii_bus;
 	struct net_device	*conduit;
+	bool			dsa_irq_claimed;
 #endif
 	bool			ephy_disable;
 	bool			port4_ephy;
 	unsigned long int	autopoll;
 	u16			ephy_base;
 #if IS_ENABLED(CONFIG_NET_DSA_MT7620)
-	u32			phy_polling;
 	u16			pvid[GSW_NUM_PORTS];
-	u8			mirror_rx;
-	u8			mirror_tx;
-	u8			mirror_port;
 	struct mt7620_gsw_vlan	vlans[GSW_NUM_VLANS];
-	struct delayed_work	link_sync_work;
 	struct delayed_work	mib_work;
 	unsigned long		mib_active_ports;
 	u8			mib_port_intervals;

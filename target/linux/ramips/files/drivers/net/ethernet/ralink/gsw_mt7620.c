@@ -22,7 +22,6 @@
 #include <linux/of_platform.h>
 #include <linux/phy.h>
 #include <linux/soc/mediatek/mt7620-gsw.h>
-#include <linux/sys_soc.h>
 
 #include <ralink_regs.h>
 
@@ -67,6 +66,22 @@ static irqreturn_t gsw_interrupt_mt7620(int irq, void *_priv)
 	return IRQ_HANDLED;
 }
 
+#if IS_ENABLED(CONFIG_NET_DSA_MT7620)
+static irqreturn_t gsw_interrupt_mt7620_dsa(int irq, void *data)
+{
+	struct mt7620_gsw *gsw = data;
+	u32 status;
+
+	status = mtk_switch_r32(gsw, GSW_REG_ISR);
+	if (!status)
+		return IRQ_NONE;
+
+	mtk_switch_w32(gsw, status, GSW_REG_ISR);
+
+	return IRQ_HANDLED;
+}
+#endif
+
 static void gsw_reset_ephy(struct mt7620_gsw *gsw)
 {
 	if (!gsw->rst_ephy)
@@ -78,20 +93,11 @@ static void gsw_reset_ephy(struct mt7620_gsw *gsw)
 	usleep_range(10, 20);
 }
 
-static const bool mt7620_gsw_bga = true;
-static const bool mt7620_gsw_qfn;
-
-static const struct soc_device_attribute mt7620_gsw_soc_match[] = {
-	{ .family = "Ralink", .soc_id = "mt7620a", .data = &mt7620_gsw_bga },
-	{ .family = "Ralink", .soc_id = "mt7620n", .data = &mt7620_gsw_qfn },
-	{ }
-};
-
-static int mt7620_ephy_init(struct mt7620_gsw *gsw)
+static void mt7620_ephy_init(struct mt7620_gsw *gsw)
 {
-	const struct soc_device_attribute *soc;
-	bool is_bga;
-	u32 i, val;
+	u32 i;
+	u32 val;
+	u32 is_BGA = (rt_sysc_r32(SYSC_REG_CHIP_REV_ID) >> 16) & 1;
 
 	if (gsw->ephy_disable) {
 		mtk_switch_w32(gsw, mtk_switch_r32(gsw, GSW_REG_GPC1) |
@@ -100,7 +106,7 @@ static int mt7620_ephy_init(struct mt7620_gsw *gsw)
 
 		pr_info("gsw: internal ephy disabled\n");
 
-		return 0;
+		return;
 	} else if (gsw->ephy_base) {
 		mtk_switch_w32(gsw, mtk_switch_r32(gsw, GSW_REG_GPC1) |
 			(gsw->ephy_base << 16),
@@ -110,17 +116,11 @@ static int mt7620_ephy_init(struct mt7620_gsw *gsw)
 		pr_info("gsw: ephy base address: %d\n", gsw->ephy_base);
 	}
 
-	soc = soc_device_match(mt7620_gsw_soc_match);
-	if (!soc)
-		return dev_err_probe(gsw->dev, -ENODEV,
-				     "MT7620 SoC identification unavailable\n");
-	is_bga = *(const bool *)soc->data;
-
 	/* global page 4 */
 	_mt7620_mii_write(gsw, gsw->ephy_base + 1, 31, 0x4000);
 
 	_mt7620_mii_write(gsw, gsw->ephy_base + 1, 17, 0x7444);
-	if (is_bga)
+	if (is_BGA)
 		_mt7620_mii_write(gsw, gsw->ephy_base + 1, 19, 0x0114);
 	else
 		_mt7620_mii_write(gsw, gsw->ephy_base + 1, 19, 0x0117);
@@ -138,7 +138,7 @@ static int mt7620_ephy_init(struct mt7620_gsw *gsw)
 
 	/* global page 2 */
 	_mt7620_mii_write(gsw, gsw->ephy_base + 1, 31, 0x2000);
-	if (is_bga) {
+	if (is_BGA) {
 		_mt7620_mii_write(gsw, gsw->ephy_base + 1, 21, 0x0515);
 		_mt7620_mii_write(gsw, gsw->ephy_base + 1, 22, 0x0053);
 		_mt7620_mii_write(gsw, gsw->ephy_base + 1, 23, 0x00bf);
@@ -195,7 +195,6 @@ static int mt7620_ephy_init(struct mt7620_gsw *gsw)
 		_mt7620_mii_write(gsw, gsw->ephy_base + 4, 16, 0x1313);
 		pr_info("gsw: setting port4 to ephy mode\n");
 	}
-	return 0;
 }
 
 static void mt7620_mac_init(struct mt7620_gsw *gsw)
@@ -278,9 +277,9 @@ int mtk_gsw_init(struct fe_priv *priv)
 	mt7620_mac_init(gsw);
 
 	/*
-	 * Keep link interrupts masked until the DSA child has registered its
-	 * handler and connected all user PHYs. Otherwise a link-state change can
-	 * continuously assert the GSW interrupt line.
+	 * DSA uses phylib polling for the user PHYs. Mask the legacy switch
+	 * interrupt before enabling the PHYs, otherwise an unhandled link-state
+	 * change can continuously assert the GSW interrupt line.
 	 */
 	if (dsa_switch) {
 #if IS_ENABLED(CONFIG_NET_DSA_MT7620)
@@ -288,17 +287,32 @@ int mtk_gsw_init(struct fe_priv *priv)
 		mtk_switch_w32(gsw, mtk_switch_r32(gsw, GSW_REG_ISR),
 			       GSW_REG_ISR);
 
+		/*
+		 * Claim the interrupt once, but leave it disabled because
+		 * phylib polls the user PHYs. Unlike the legacy handler, this
+		 * does not retain fe_priv across deferred Ethernet probes.
+		 */
+		if (gsw->irq && !gsw->dsa_irq_claimed) {
+			ret = devm_request_irq(&pdev->dev, gsw->irq,
+					       gsw_interrupt_mt7620_dsa,
+					       IRQF_NO_AUTOEN,
+					       "gsw-dsa", gsw);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"failed to request DSA switch IRQ\n");
+				put_device(&pdev->dev);
+				return ret;
+			}
+
+			gsw->dsa_irq_claimed = true;
+		}
 #else
 		put_device(&pdev->dev);
 		return -ENODEV;
 #endif
 	}
 
-	ret = mt7620_ephy_init(gsw);
-	if (ret) {
-		put_device(&pdev->dev);
-		return ret;
-	}
+	mt7620_ephy_init(gsw);
 
 	/*
 	 * DSA phylink manages the user PHYs. Do not install the legacy switch
@@ -438,13 +452,19 @@ int mt7620_gsw_upstream_init(struct device *parent, struct net_device *conduit)
 
 	mt7620_mac_init(gsw);
 
-	/* Keep link IRQs masked until the DSA child and PHYs are ready. */
+	/* DSA polls the user PHYs, so acknowledge and mask the legacy IRQ. */
 	mtk_switch_w32(gsw, ~0, GSW_REG_IMR);
 	mtk_switch_w32(gsw, mtk_switch_r32(gsw, GSW_REG_ISR), GSW_REG_ISR);
+	if (gsw->irq && !gsw->dsa_irq_claimed) {
+		ret = devm_request_irq(&pdev->dev, gsw->irq,
+				       gsw_interrupt_mt7620_dsa,
+				       IRQF_NO_AUTOEN, "gsw-dsa", gsw);
+		if (ret)
+			goto out_put_device;
+		gsw->dsa_irq_claimed = true;
+	}
 
-	ret = mt7620_ephy_init(gsw);
-	if (ret)
-		goto out_put_device;
+	mt7620_ephy_init(gsw);
 	ret = mt7620_gsw_upstream_mdio_init(gsw, parent);
 	if (ret)
 		goto out_put_device;
@@ -455,12 +475,9 @@ int mt7620_gsw_upstream_init(struct device *parent, struct net_device *conduit)
 			     (mac[4] << 8) | mac[5], GSW_REG_SMACCR0);
 	mutex_unlock(&gsw->reg_mutex);
 
-	gsw->conduit = conduit;
 	ret = mt7620_gsw_dsa_device_register(gsw, parent);
-	if (ret) {
+	if (ret)
 		mt7620_gsw_upstream_mdio_cleanup(gsw);
-		gsw->conduit = NULL;
-	}
 
 out_put_device:
 	put_device(&pdev->dev);
@@ -505,7 +522,6 @@ EXPORT_SYMBOL_GPL(mt7620_gsw_upstream_cleanup);
 int mt7620_gsw_dsa_device_register(struct mt7620_gsw *gsw,
 				   struct device *parent)
 {
-	struct mt7620_gsw_platform_data pdata = { .gsw = gsw };
 	struct platform_device *dsa_dev;
 	int ret;
 
@@ -527,9 +543,7 @@ int mt7620_gsw_dsa_device_register(struct mt7620_gsw *gsw,
 
 	dsa_dev->dev.parent = parent;
 	dsa_dev->dev.of_node = of_node_get(gsw->dev->of_node);
-	ret = platform_device_add_data(dsa_dev, &pdata, sizeof(pdata));
-	if (ret)
-		goto err_put_device;
+	platform_set_drvdata(dsa_dev, gsw);
 
 	ret = device_set_driver_override(&dsa_dev->dev, "mt7620-dsa");
 	if (ret)
@@ -574,8 +588,6 @@ static int mt7620_gsw_probe(struct platform_device *pdev)
 	mutex_init(&gsw->reg_mutex);
 
 	gsw->irq = platform_get_irq(pdev, 0);
-	if (gsw->irq < 0)
-		return gsw->irq;
 
 	gsw->rst_ephy = devm_reset_control_get_exclusive(&pdev->dev, "ephy");
 	if (IS_ERR(gsw->rst_ephy)) {
