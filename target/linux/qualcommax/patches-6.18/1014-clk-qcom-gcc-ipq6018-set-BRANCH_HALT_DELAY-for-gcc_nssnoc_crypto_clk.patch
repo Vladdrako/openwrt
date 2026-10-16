@@ -1,0 +1,28 @@
+From: Vladyslav Andreichykov <vladdrako007@gmail.com>
+Date: Fri, 14 Oct 2026 09:02:00 +0300
+Subject: [PATCH] clk: qcom: gcc-ipq6018: set BRANCH_HALT_DELAY for gcc_nssnoc_crypto_clk
+
+When the kernel disables unused clocks at the end of the boot phase, it polls
+the halt_reg register. Since the NSS NOC bus clock is not running, the register
+does not clear the bit immediately, leading to a warning:
+"gcc_nssnoc_crypto_clk status stuck at 'on'".
+
+Fix this by adding BRANCH_HALT_DELAY to .halt_check for gcc_nssnoc_crypto_clk,
+instructing the framework to wait rather than polling and warning immediately.
+
+Signed-off-by: Vladyslav Andreichykov <vladdrako007@gmail.com>
+---
+ drivers/clk/qcom/gcc-ipq6018.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/clk/qcom/gcc-ipq6018.c b/drivers/clk/qcom/gcc-ipq6018.c
+index 89abcde..1122334 100644
+--- a/drivers/clk/qcom/gcc-ipq6018.c
++++ b/drivers/clk/qcom/gcc-ipq6018.c
+@@ -3701,6 +3701,7 @@ static struct clk_branch gcc_nssnoc_cryp
+ static struct clk_branch gcc_nssnoc_crypto_clk = {
+ 	.halt_reg = 0x68314,
++	.halt_check = BRANCH_HALT_DELAY,
+ 	.clkr = {
+ 		.enable_reg = 0x68314,
+ 		.enable_mask = BIT(0),
