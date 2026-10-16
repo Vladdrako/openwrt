@@ -2261,7 +2261,8 @@ int hostapd_ubus_handle_link_measurement(struct hostapd_data *hapd, const u8 *da
 	if (end - pos < 8)
 		return false; /* We will not handle this LMR, passing to upstream handler. */
 
-	if (!obj->has_subscribers || token != UBUS_LMR_TOKEN)
+	if (!obj->has_subscribers || token != UBUS_LMR_TOKEN
+	    || (hapd->link_mesr_req_active && token == hapd->link_measurement_req_token))
 		return false;
 
 	blob_buf_init(&b, 0);
