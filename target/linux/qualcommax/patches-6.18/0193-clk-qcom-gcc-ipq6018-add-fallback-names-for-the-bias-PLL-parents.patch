@@ -1,24 +1,23 @@
 From: Vladyslav Andreichykov <vladdrako007@gmail.com>
-Date: Fri, 16 Oct 2026 15:00:00 +0300
-Subject: [PATCH] clk: qcom: gcc-ipq6018: fix parent names and set BRANCH_HALT_DELAY for gcc_nssnoc_crypto_clk
+Date: Fri, 14 Oct 2026 09:01:00 +0300
+Subject: [PATCH] clk: qcom: gcc-ipq6018: add fallback names for the bias PLL
+ parents
 
-When the kernel disables unused clocks at the end of boot phase, it polls
-the halt_reg register. Since the NSS NOC bus clock is not running, the register
-does not clear the bit immediately, leading to a warning:
-"gcc_nssnoc_crypto_clk status stuck at 'on'".
+bias_pll_cc_clk and bias_pll_nss_noc_clk are outputs of the CMN PLL,
+which takes its AHB and SYS clocks from this controller, so the device
+tree does not pass them to GCC. With only .fw_name these parents stay
+unresolved, and setting nss_ppe_clk_src to 300 MHz fails with -EINVAL.
 
-Fix this by adding BRANCH_HALT_DELAY to .halt_check for gcc_nssnoc_crypto_clk.
-Additionally, provide explicit fallback names for bias_pll_cc_clk and
-bias_pll_nss_noc_clk parent definitions to ensure proper parent lookups.
+Add .name fallbacks so they resolve to the clocks the CMN PLL registers,
+as gcc-ipq8074 already does.
 
 Signed-off-by: Vladyslav Andreichykov <vladdrako007@gmail.com>
+Assisted-by: Claude:claude-opus-5-5
+Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 ---
- drivers/clk/qcom/gcc-ipq6018.c | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
-
 --- a/drivers/clk/qcom/gcc-ipq6018.c
 +++ b/drivers/clk/qcom/gcc-ipq6018.c
-@@ -373,7 +373,7 @@ static const struct freq_tbl ftbl_nss_pp
+@@ -360,7 +360,7 @@ static const struct freq_tbl ftbl_nss_pp
  
  static const struct clk_parent_data gcc_xo_bias_gpll0_gpll4_nss_ubi32[] = {
  	{ .fw_name = "xo" },
@@ -27,7 +26,7 @@ Signed-off-by: Vladyslav Andreichykov <vladdrako007@gmail.com>
  	{ .hw = &gpll0.clkr.hw },
  	{ .hw = &gpll4.clkr.hw },
  	{ .hw = &nss_crypto_pll.clkr.hw },
-@@ -565,7 +565,7 @@ gcc_xo_uniphy0_rx_tx_uniphy1_rx_tx_ubi32
+@@ -539,7 +539,7 @@ gcc_xo_uniphy0_rx_tx_uniphy1_rx_tx_ubi32
  	{ .fw_name = "uniphy1_gcc_rx_clk" },
  	{ .fw_name = "uniphy1_gcc_tx_clk" },
  	{ .hw = &ubi32_pll.clkr.hw },
@@ -36,7 +35,7 @@ Signed-off-by: Vladyslav Andreichykov <vladdrako007@gmail.com>
  };
  
  static const struct parent_map
-@@ -620,7 +620,7 @@ gcc_xo_uniphy0_tx_rx_uniphy1_tx_rx_ubi32
+@@ -594,7 +594,7 @@ gcc_xo_uniphy0_tx_rx_uniphy1_tx_rx_ubi32
  	{ .fw_name = "uniphy1_gcc_tx_clk" },
  	{ .fw_name = "uniphy1_gcc_rx_clk" },
  	{ .hw = &ubi32_pll.clkr.hw },
@@ -45,7 +44,7 @@ Signed-off-by: Vladyslav Andreichykov <vladdrako007@gmail.com>
  };
  
  static const struct parent_map
-@@ -759,7 +759,7 @@ static const struct clk_parent_data gcc_
+@@ -733,7 +733,7 @@ static const struct clk_parent_data gcc_
  	{ .fw_name = "uniphy0_gcc_rx_clk" },
  	{ .fw_name = "uniphy0_gcc_tx_clk" },
  	{ .hw = &ubi32_pll.clkr.hw },
@@ -54,7 +53,7 @@ Signed-off-by: Vladyslav Andreichykov <vladdrako007@gmail.com>
  };
  
  static const struct parent_map gcc_xo_uniphy0_rx_tx_ubi32_bias_map[] = {
-@@ -795,7 +795,7 @@ static const struct clk_parent_data gcc_
+@@ -769,7 +769,7 @@ static const struct clk_parent_data gcc_
  	{ .fw_name = "uniphy0_gcc_tx_clk" },
  	{ .fw_name = "uniphy0_gcc_rx_clk" },
  	{ .hw = &ubi32_pll.clkr.hw },
@@ -63,7 +62,7 @@ Signed-off-by: Vladyslav Andreichykov <vladdrako007@gmail.com>
  };
  
  static const struct parent_map gcc_xo_uniphy0_tx_rx_ubi32_bias_map[] = {
-@@ -1972,7 +1972,7 @@ static const struct clk_parent_data
+@@ -1926,7 +1926,7 @@ static const struct clk_parent_data
  	{ .fw_name = "xo" },
  	{ .hw = &gpll0.clkr.hw },
  	{ .hw = &gpll2.clkr.hw },
@@ -72,11 +71,3 @@ Signed-off-by: Vladyslav Andreichykov <vladdrako007@gmail.com>
  };
  
  static const struct parent_map gcc_xo_gpll0_gpll2_bias_pll_nss_noc_clk_map[] = {
-@@ -3699,6 +3699,7 @@ static struct clk_branch gcc_nssnoc_ce_a
- 
- static struct clk_branch gcc_nssnoc_crypto_clk = {
- 	.halt_reg = 0x68314,
-+	.halt_check = BRANCH_HALT_DELAY,
- 	.clkr = {
- 		.enable_reg = 0x68314,
- 		.enable_mask = BIT(0),

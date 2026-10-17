@@ -1970,6 +1970,7 @@ static void ppe_port_queue_limit_set(struct qca_ppe_priv *priv, int port)
 		for (i = 0; i < port_l0[0].ucast_base; i++)
 			ppe_ac_uni_write(priv, i,
 					 i == PPE_CPU_PORT_DL_QUEUE ? w0 : def);
+		ppe_pause_update(priv);
 		return;
 	}
 
@@ -2022,6 +2023,38 @@ static void ppe_port_queue_limit_set(struct qca_ppe_priv *priv, int port)
 								    nport));
 
 		ppe_ac_uni_write(priv, p->ucast_base + i, w);
+	}
+
+	ppe_pause_update(priv);
+}
+
+/* A shaper's queue is where SQM drops, and a port that pauses its link when
+ * its ingress buffers fill moves that queue into the device on the other end
+ * instead: the client on an upload, the modem on a download. While anything on
+ * the switch is shaped, no port asks its link to pause.
+ */
+void ppe_pause_update(struct qca_ppe_priv *priv)
+{
+	static DEFINE_MUTEX(lock);
+	bool shaped = false;
+	int port, i, bm;
+
+	guard(mutex)(&lock);
+
+	for (port = 0; port < PPE_NUM_PORTS; port++) {
+		struct ppe_port_shaper *sh = &priv->shaper[port];
+
+		shaped |= !!sh->rate_bps;
+		for (i = 0; i < ARRAY_SIZE(sh->queue_rate); i++)
+			shaped |= !!sh->queue_rate[i];
+	}
+
+	for (port = 1; port < PPE_NUM_PORTS; port++) {
+		bm = PPE_BM_PHY_START + port - 1;
+		if (bm <= priv->data->bm_phy_end)
+			regmap_write(priv->regmap, PPE_BM_FC_MODE(bm),
+				     priv->port_tx_pause[port] && !shaped ?
+				     PPE_BM_FC_EN : 0);
 	}
 }
 
@@ -3481,11 +3514,35 @@ static void ppe_rss_hash_init(struct qca_ppe_priv *priv)
  * download when the rule is on the uplink, and nothing else. A bridged
  * transfer to a Wi-Fi client crosses this port unmarked and is not held.
  */
+/* The CPU port's bands as ppe_qm_init() writes them: priorities 0-3, 4-7 and
+ * 8 up to its first three queues.
+ */
+static void ppe_cpu_pri_map_set(struct qca_ppe_priv *priv)
+{
+	int pri;
+
+	for (pri = 0; pri < 16; pri++) {
+		u32 cls = FIELD_PREP(PPE_QM_PRI_CLASS,
+				     min(pri / PPE_FLOW_SPREAD_QUEUES, 2));
+
+		/* Profiles 0 and 15 both resolve to the CPU port. */
+		regmap_write(priv->regmap, PPE_QM_UCAST_PRI_MAP(pri), cls);
+		regmap_write(priv->regmap, PPE_QM_UCAST_PRI_MAP(15 * 16 + pri),
+			     cls);
+	}
+}
+
 static int ppe_cpu_port_dl_set(struct qca_ppe_priv *priv, u64 rate_bps)
 {
 	struct ppe_port_shaper *sh = &priv->shaper[QCA_PPE_CPU_PORT];
 	u32 depth = div_u64(rate_bps * 10, BITS_PER_BYTE * 1000);
 	int ret;
+
+	/* The NSS firmware writes its own priority map for this port when it
+	 * boots, which puts the mark and the small-frame priority in one
+	 * queue. The band split is put back before the band is shaped.
+	 */
+	ppe_cpu_pri_map_set(priv);
 
 	/* A user port's queue depth comes from its tbf limit. Nothing can put a
 	 * tbf on this port, so the depth is the driver's to choose, and it is

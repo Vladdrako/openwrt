@@ -1477,6 +1477,8 @@ struct qca_ppe_priv {
 	u16 mirror_ref[2];
 	u8 mirror_dir_ref[QCA_PPE_MAX_PORTS][2];
 	struct ppe_port_shaper shaper[QCA_PPE_MAX_PORTS];
+	/* the pause each port's link resolved, which shaping overrides */
+	bool port_tx_pause[PPE_NUM_PORTS];
 	/* Owner of each egress admission group: port * 2 + kind + 1, or 0. */
 	u8 ac_grp_owner[PPE_AC_GROUPS];
 	struct ppe_sb_occ sb_occ_ing[PPE_NUM_PORTS];
@@ -1625,6 +1627,7 @@ int ppe_trap_policer_set(struct qca_ppe_priv *priv, u32 id, u64 rate,
 			 u64 burst);
 u64 ppe_trap_policer_drops(struct qca_ppe_priv *priv, u32 id);
 void ppe_port_queues_enable(struct qca_ppe_priv *priv, int port, bool en);
+void ppe_pause_update(struct qca_ppe_priv *priv);
 void ppe_port_queue_drops(struct qca_ppe_priv *priv, int port, u32 *early,
 			  u32 *tail);
 int ppe_port_qstats(struct qca_ppe_priv *priv, int port, u8 **names,
