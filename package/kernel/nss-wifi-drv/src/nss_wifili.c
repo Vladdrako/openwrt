@@ -162,6 +162,7 @@ void nss_wifi_soc_unregister(void)
 	 */
 	WRITE_ONCE(nss_wifili_soc.link_desc_return, NULL);
 	WRITE_ONCE(nss_wifili_soc.rx_80211, NULL);
+	WRITE_ONCE(nss_wifili_soc.peer_stats, NULL);
 	if (!nss_wifili_core)
 		return;
 	if (nss_wifili_core->wifili_started)
@@ -274,23 +275,77 @@ void nss_wifili_stats_print(struct seq_file *s)
 		   st.rxwbm_stats.err_src_invalid);
 }
 
+static void nss_wifili_peer_stats(const struct nss_cmn_msg *ncm, u32 len)
+{
+	void (*report)(void *priv, u16 peer_id,
+		       const struct nss_wifi_peer_stats *st);
+	const struct nss_wifili_peer_stats_msg *m;
+	u32 body, n, stride, i;
+	const u8 *p;
+
+	report = READ_ONCE(nss_wifili_soc.peer_stats);
+	body = len - sizeof(*ncm);
+	if (!report || body < sizeof(*m) || ncm->len < sizeof(*m))
+		return;
+
+	/* The length names a message of one peer, whatever the count. */
+	stride = ncm->len - sizeof(*m);
+	if (stride < sizeof(m->wpcs[0]))
+		return;
+
+	m = (const void *)(ncm + 1);
+	n = min_t(u32, m->npeers, (body - sizeof(*m)) / stride);
+
+	for (i = 0, p = (const u8 *)m->wpcs; i < n; i++, p += stride) {
+		const struct nss_wifili_peer_ctrl_stats *c = (const void *)p;
+		struct nss_wifi_peer_stats st = {
+			.tx_packets = c->tx.tx_ucast_cnt + c->tx.tx_mcast_cnt +
+				      c->tx.tx_bcast_cnt,
+			.tx_bytes = c->tx.tx_ucast_bytes + c->tx.tx_mcast_bytes +
+				    c->tx.tx_bcast_bytes,
+			.tx_acked = c->tx.tx_success_cnt,
+			.tx_retries = c->tx.retries,
+			.rx_packets = c->rx.rx_recvd,
+			.rx_bytes = c->rx.rx_recvd_bytes,
+		};
+		int j;
+
+		for (j = 0; j < ARRAY_SIZE(c->tx.drop_stats); j++)
+			st.tx_failed += c->tx.drop_stats[j];
+
+		report(nss_wifili_soc.priv, c->peer_id, &st);
+	}
+}
+
 void nss_wifili_notify(struct nss_core *core, const struct nss_cmn_msg *ncm,
 		       u32 len)
 {
 	void (*home)(void *priv, const u32 *buf_addr_info);
 	const struct nss_wifili_msg *m;
 
+	if (ncm->type == NSS_WIFILI_PEER_STATS_MSG) {
+		nss_wifili_peer_stats(ncm, len);
+		return;
+	}
+
 	/* The firmware counts its own receive path, and those counters are the
 	 * only place that separates a radio whose buffers were never filled
 	 * from one that fills and drops. They arrive unasked once statistics
-	 * are on, so the newest is kept whole and read out on demand.
+	 * are on, so the newest is kept and read out on demand.
 	 */
 	if (ncm->type == NSS_WIFILI_STATS_MSG &&
 	    len >= offsetof(struct nss_wifili_msg, msg) +
-		   sizeof(struct nss_wifili_stats_sync_msg)) {
+		   sizeof(struct nss_wifili_stats_sync_msg) -
+		   core->fw->soc_stats_skip) {
+		const size_t head = offsetof(struct nss_wifili_device_stats,
+					     rxreo_stats);
+
 		m = container_of_const(ncm, struct nss_wifili_msg, cm);
 		spin_lock_bh(&nss_wifili_stats_lock);
-		nss_wifili_stats = m->msg.wlsoc_stats.stats;
+		memcpy((u8 *)&nss_wifili_stats + head,
+		       (const u8 *)&m->msg.wlsoc_stats.stats + head -
+		       core->fw->soc_stats_skip,
+		       sizeof(nss_wifili_stats) - head);
 		nss_wifili_stats_seen++;
 		spin_unlock_bh(&nss_wifili_stats_lock);
 		return;
@@ -565,16 +620,12 @@ static unsigned int nss_wifili_ap_opmode = NSS_WIFI_VDEV_OPMODE_AP;
 module_param_named(ap_opmode, nss_wifili_ap_opmode, uint, 0644);
 MODULE_PARM_DESC(ap_opmode, "operating mode an access point's virtual device is given");
 
-/* One per WLAN interface. Two radios with a handful of access points each is
- * what this hardware is asked for; the limit is here so a leak shows up as a
- * refusal rather than as an interface number nobody owns.
+/* One per WLAN interface, and one per station plus one per access point vdev:
+ * what ath11k allows on IPQ8074 and IPQ6018, 16 vdevs and 512 stations on
+ * each of two radios. A WLAN interface or station beyond these gets no data.
  */
-#define NSS_WIFILI_VDEV_MAX	16
-
-/* Stations. The record the firmware keeps for one is host memory, so this
- * bounds what a leak can cost rather than what the radio can hold.
- */
-#define NSS_WIFILI_PEER_MAX	64
+#define NSS_WIFILI_VDEV_MAX	(2 * 16)
+#define NSS_WIFILI_PEER_MAX	(2 * 512 + NSS_WIFILI_VDEV_MAX)
 
 /* Give a dynamic interface number back to the firmware. */
 static void nss_wifili_vdev_free(struct nss_core *core, int if_num)
@@ -616,17 +667,18 @@ static struct {
  * the same breath, and it does so several times a second, so the newest
  * message on its own says only what happened since the last one and is almost
  * always zero. They are summed here to get a total. Every field is a 32-bit
- * count, so the sum is elementwise over the message.
+ * count, so the sum is elementwise over the message, skipping the word a
+ * line lacks.
  */
 void nss_wifili_vdev_notify(struct nss_core *core, const struct nss_cmn_msg *ncm,
 			    u32 len)
 {
+	const struct nss_fw_line *fw = core->fw;
 	const struct nss_wifi_vdev_msg *m;
 	int i;
 
 	if (ncm->type != NSS_WIFI_VDEV_STATS_MSG ||
-	    len < offsetof(struct nss_wifi_vdev_msg, msg) +
-		  sizeof(struct nss_wifi_vdev_stats_sync_msg))
+	    len < offsetof(struct nss_wifi_vdev_msg, msg) + fw->vdev_stats_len)
 		return;
 
 	m = container_of_const(ncm, struct nss_wifi_vdev_msg, cm);
@@ -642,8 +694,8 @@ void nss_wifili_vdev_notify(struct nss_core *core, const struct nss_cmn_msg *ncm
 		int w;
 
 		nss_wifili_vdev_stats[i].if_num = ncm->interface;
-		for (w = 0; w < sizeof(m->msg.vdev_stats) / sizeof(u32); w++)
-			acc[w] += in[w];
+		for (w = 0; w < fw->vdev_stats_len / sizeof(u32); w++)
+			acc[w + (w >= fw->vdev_stats_hole)] += in[w];
 		nss_wifili_vdev_stats[i].seen++;
 		return;
 	}
@@ -892,7 +944,6 @@ int nss_wifi_vdev_register(struct net_device *dev, u8 radio, u32 vdev_id,
 }
 EXPORT_SYMBOL_GPL(nss_wifi_vdev_register);
 
-#ifdef NSS_FIRMWARE_VERSION_11_4
 /* A mesh interface's virtual device. It carries 802.11 both ways, and what
  * it receives goes on to the mesh decapsulation node rather than to the host,
  * so the network device is bound to the mesh nodes, not to it.
@@ -982,14 +1033,6 @@ int nss_wifi_mesh_register(struct net_device *dev, u8 radio, u32 vdev_id,
 
 	return if_num;
 }
-#else
-int nss_wifi_mesh_register(struct net_device *dev, u8 radio, u32 vdev_id,
-			   const u8 *mac, u8 mode,
-			   const struct nss_wifi_mesh_ops *ops, void *priv)
-{
-	return -EOPNOTSUPP;
-}
-#endif
 EXPORT_SYMBOL_GPL(nss_wifi_mesh_register);
 
 static void nss_wifili_peer_flush(struct nss_core *core, u32 vdev_id);
@@ -1124,6 +1167,24 @@ int nss_wifi_vdev_security(int if_num, u32 cipher)
 }
 EXPORT_SYMBOL_GPL(nss_wifi_vdev_security);
 
+/* An access point vdev forwards between its own stations unless told not to,
+ * so AP isolation has to reach it.
+ */
+int nss_wifi_vdev_ap_isolate(int if_num, bool isolate)
+{
+	struct nss_core *core;
+
+	guard(mutex)(&nss_wifili_lock);
+
+	core = nss_wifili_core;
+	if (!core || !core->wifili_started || if_num < 0)
+		return -ENODEV;
+
+	return nss_wifili_vdev_cmd(core, if_num,
+				   NSS_WIFI_VDEV_CFG_AP_BRIDGE_CMD, !isolate);
+}
+EXPORT_SYMBOL_GPL(nss_wifi_vdev_ap_isolate);
+
 /* Tell the firmware about a station.
  *
  * The firmware keeps its own record of a peer, in memory the host owns and
@@ -1198,7 +1259,7 @@ static int nss_wifili_soc_msg(struct nss_core *core, u32 type,
 static int nss_wifili_peer_msg(struct nss_core *core, u32 type,
 			       const struct nss_wifili_peer_msg *pm)
 {
-	return nss_wifili_soc_msg(core, type, pm, sizeof(*pm));
+	return nss_wifili_soc_msg(core, type, pm, core->fw->peer_msg_len);
 }
 
 static void nss_wifili_peer_release(struct nss_core *core, int i);
@@ -1252,12 +1313,10 @@ int nss_wifi_peer_create(u32 vdev_id, const u8 *mac, u16 peer_id,
 	pm.tx_ast_hash = tx_ast_hash;
 	pm.nss_peer_mem = dma;
 
-#ifndef NSS_FIRMWARE_VERSION_11_4
 	/* The working stack sends a size of 0. With a size declared, most
 	 * frames queued to the peer are dropped.
 	 */
 	pm.peer_memory_size = 0;
-#endif
 
 	ret = nss_wifili_peer_msg(core, NSS_WIFILI_PEER_CREATE_MSG, &pm);
 	if (ret) {
@@ -1410,7 +1469,7 @@ int nss_wifi_vdev_tx(int if_num, struct sk_buff *skb)
 	if (!core || if_num < 0)
 		return -ENODEV;
 
-	return nss_data_send(core, skb, if_num);
+	return nss_data_send(core, skb, if_num, 0);
 }
 EXPORT_SYMBOL_GPL(nss_wifi_vdev_tx);
 
@@ -1991,7 +2050,7 @@ int nss_wifili_tx(struct seq_file *s)
 		skb->data[12] = 0x88;
 		skb->data[13] = 0xb5;
 
-		ret = nss_data_send(core, skb, if_num);
+		ret = nss_data_send(core, skb, if_num, 0);
 		if (ret) {
 			dev_kfree_skb_any(skb);
 			seq_printf(s, "post %d: rc %d\n", i, ret);
@@ -2347,7 +2406,7 @@ static int nss_wifili_start_locked(struct nss_core *core, struct seq_file *s)
 		   m->cm.response, m->cm.error);
 	if (!ret) {
 		core->wifili_started = true;
-		core->mesh_capable = nss_mesh_probe(core);
+		core->mesh_capable = core->fw->mesh && nss_mesh_probe(core);
 		core->wifi_on = true;
 
 		ret = nss_wifili_vdev_next_hop(core);

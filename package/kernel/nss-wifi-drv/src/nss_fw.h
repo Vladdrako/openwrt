@@ -4,7 +4,8 @@
  * Every layout here is fixed by the firmware. Space the driver never reads or
  * writes is kept as reserved bytes, and a message union carries only the
  * messages the driver uses, sized so that the whole message keeps the size
- * the firmware's own union gives it.
+ * the firmware's own union gives it. The layouts are those of 12.5; struct
+ * nss_fw_line holds where 11.4 differs.
  */
 
 #ifndef __NSS_FW_H
@@ -118,11 +119,18 @@ struct nss_if_vsi_assign {
 
 struct nss_if_msg {
 	struct nss_cmn_msg cm;
-#ifdef NSS_FIRMWARE_VERSION_11_4
-	u8 msg[120];
-#else
 	u8 msg[56];
-#endif
+};
+
+/* The configuration of each node of a generic redirect pair. */
+
+#define NSS_VIRT_IF_TX_CONFIG_MSG	10000
+
+struct nss_virt_if_config_msg {
+	u32 flags;
+	u32 sibling;
+	u32 nexthop;
+	u8 mac_addr[ETH_ALEN];
 };
 
 /* IPv4 and IPv6 connection rules. Addresses and ports are in host order. */
@@ -498,6 +506,7 @@ struct nss_ipv6_msg {
 #define NSS_WIFILI_PEER_CREATE_MSG		6
 #define NSS_WIFILI_PEER_DELETE_MSG		7
 #define NSS_WIFILI_STATS_MSG			10
+#define NSS_WIFILI_PEER_STATS_MSG		12
 #define NSS_WIFILI_STATS_CFG_MSG		17
 #define NSS_WIFILI_LINK_DESC_INFO_MSG		20
 #define NSS_WIFILI_PEER_SECURITY_TYPE_MSG	21
@@ -592,9 +601,7 @@ struct nss_wifili_peer_msg {
 	u32 tx_ast_hash;
 	u32 pext_stats_mem;
 	u32 flags;
-#ifndef NSS_FIRMWARE_VERSION_11_4
-	u32 peer_memory_size;
-#endif
+	u32 peer_memory_size;	/* not on 11.4 */
 };
 
 struct nss_wifili_peer_security_type_msg {
@@ -641,13 +648,9 @@ struct nss_wifili_rx_wbm_ring_stats {
 	u32 err_internal_codes[5];
 };
 
-/* The transmit counters that lead the block are shorter on 11.4. */
+/* The transmit counters that lead the block are 32 bytes shorter on 11.4. */
 struct nss_wifili_device_stats {
-#ifdef NSS_FIRMWARE_VERSION_11_4
-	u32 rsvd0[107];
-#else
 	u32 rsvd0[115];
-#endif
 	struct nss_wifili_rx_reo_ring_stats rxreo_stats[NSS_WIFILI_MAX_REO_DATA_RINGS_MSG];
 	struct nss_wifili_rx_sw_pool_stats rx_sw_pool_stats[NSS_WIFILI_MAX_PDEV_NUM_MSG];
 	u32 rsvd1[72];
@@ -663,6 +666,54 @@ struct nss_wifili_stats_sync_msg {
 
 struct nss_wifili_stats_cfg_msg {
 	u32 cfg;
+};
+
+struct nss_wifili_tx_ctrl_stats {
+	u32 ofdma;
+	u32 non_amsdu_cnt;
+	u32 amsdu_cnt;
+	u32 tx_mcast_cnt;
+	u32 tx_mcast_bytes;
+	u32 tx_ucast_cnt;
+	u32 tx_ucast_bytes;
+	u32 tx_bcast_bytes;
+	u32 tx_bcast_cnt;
+	u32 drop_stats[7];
+	u32 tx_nawds_mcast_drop_cnt;
+	u32 tx_success_cnt;
+	u32 tx_success_bytes;
+	u32 tx_nawds_mcast_cnt;
+	u32 tx_nawds_mcast_bytes;
+	u32 retries;
+};
+
+/* Both lines agree up to here; 12.5 appends more per peer. */
+struct nss_wifili_rx_ctrl_stats {
+	u32 mic_err;
+	u32 decrypt_err;
+	u32 multipass_rx_pkt_drop;
+	u32 peer_unauth_rx_pkt_drop;
+	u32 reserved_type[2];
+	u32 non_amsdu_cnt;
+	u32 amsdu_cnt;
+	u32 mcast_rcv_cnt;
+	u32 mcast_rcv_bytes;
+	u32 rx_recvd;
+	u32 rx_recvd_bytes;
+};
+
+struct nss_wifili_peer_ctrl_stats {
+	u32 peer_id;
+	struct nss_wifili_tx_ctrl_stats tx;
+	struct nss_wifili_rx_ctrl_stats rx;
+};
+
+/* The message declares the length of a message of one peer; that less npeers
+ * is the stride between peers.
+ */
+struct nss_wifili_peer_stats_msg {
+	u32 npeers;
+	struct nss_wifili_peer_ctrl_stats wpcs[];
 };
 
 struct nss_wifili_soc_linkdesc_buf_info_msg {
@@ -696,11 +747,7 @@ struct nss_wifili_msg {
 		struct nss_wifili_radio_cfg_msg radiocfgmsg;
 		struct nss_wifili_soc_linkdesc_buf_info_msg linkdescinfomsg;
 		struct nss_wifili_mesh_capability_info cap_info;
-#ifdef NSS_FIRMWARE_VERSION_11_4
-		u8 rsvd[1668];
-#else
 		u8 rsvd[2052];
-#endif
 	} msg;
 };
 
@@ -720,6 +767,7 @@ struct nss_wifili_msg {
 #define NSS_WIFI_VDEV_ENCAP_TYPE_CMD		1
 #define NSS_WIFI_VDEV_DECAP_TYPE_CMD		2
 #define NSS_WIFI_VDEV_ENABLE_ME_CMD		3
+#define NSS_WIFI_VDEV_CFG_AP_BRIDGE_CMD		14
 #define NSS_WIFI_VDEV_SECURITY_TYPE_CMD		15
 #define NSS_WIFI_VDEV_CFG_MCBC_EXC_TO_HOST_CMD	22
 
@@ -827,9 +875,7 @@ struct nss_wifi_vdev_mcast_enhance_stats {
 	u32 mcast_rcvd_bytes;
 	u32 igmp_rcvd;
 	u32 igmp_ucast_converted;
-#ifndef NSS_FIRMWARE_VERSION_11_4
-	u32 mcast_mbr_alloc_failed;
-#endif
+	u32 mcast_mbr_alloc_failed;	/* not on 11.4 */
 };
 
 struct nss_wifi_vdev_stats_sync_msg {
@@ -868,12 +914,11 @@ struct nss_wifi_vdev_stats_sync_msg {
 	u32 rx_decrypt_err;
 	u32 rx_mic_err;
 	u32 mcbc_exc_host_fail_cnt;
-#ifndef NSS_FIRMWARE_VERSION_11_4
+	/* not on 11.4 */
 	u32 addr4_exc_fail;
 	u32 addr4_exc_pass;
 	u32 eapol_over_nl_exc_fail_cnt;
 	u32 eapol_over_nl_exc_pass_cnt;
-#endif
 };
 
 struct nss_wifi_vdev_msg {

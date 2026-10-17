@@ -192,7 +192,7 @@ out:
 	spin_unlock_bh(&nss_br_lock);
 
 	if (kick)
-		mod_delayed_work(system_wq, &nss_br_work, 0);
+		mod_delayed_work(system_percpu_wq, &nss_br_work, 0);
 
 	return NF_ACCEPT;
 }
@@ -233,7 +233,7 @@ static int nss_br_fdb_event(struct notifier_block *nb, unsigned long event,
 	spin_unlock_bh(&nss_br_lock);
 
 	if (kick)
-		mod_delayed_work(system_wq, &nss_br_work, 0);
+		mod_delayed_work(system_percpu_wq, &nss_br_work, 0);
 
 	return NOTIFY_DONE;
 }

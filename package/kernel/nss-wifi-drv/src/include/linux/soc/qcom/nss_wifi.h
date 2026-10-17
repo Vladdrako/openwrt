@@ -52,6 +52,17 @@ struct nss_wifi_pdev {
 	u32 num_rx_swdesc;
 };
 
+/* What the firmware counted for one peer since its previous report. */
+struct nss_wifi_peer_stats {
+	u32 tx_packets;
+	u32 tx_bytes;
+	u32 tx_acked;
+	u32 tx_retries;
+	u32 tx_failed;
+	u32 rx_packets;
+	u32 rx_bytes;
+};
+
 struct nss_wifi_soc {
 	u32 dev_base;
 	u32 shadow_rd;
@@ -94,6 +105,14 @@ struct nss_wifi_soc {
 	 */
 	bool (*rx_80211)(void *priv, struct net_device *dev,
 			 struct sk_buff *skb, struct napi_struct *napi);
+
+	/*
+	 * Offloaded frames never pass the WLAN driver, so the firmware's
+	 * per-peer counts are the only record of a station's traffic.
+	 * Called from softirq.
+	 */
+	void (*peer_stats)(void *priv, u16 peer_id,
+			   const struct nss_wifi_peer_stats *st);
 };
 
 /*
@@ -160,6 +179,7 @@ int nss_wifi_peer_create(u32 vdev_id, const u8 *mac, u16 peer_id,
 			 u16 hw_ast_idx, u32 tx_ast_hash);
 void nss_wifi_peer_delete(u32 vdev_id, const u8 *mac, u16 peer_id);
 int nss_wifi_vdev_security(int if_num, u32 cipher);
+int nss_wifi_vdev_ap_isolate(int if_num, bool isolate);
 int nss_wifi_peer_security(u16 peer_id, bool group, u32 cipher,
 			   const u8 *mic_key);
 int nss_wifi_peer_authorize(u16 peer_id);
@@ -213,6 +233,11 @@ static inline void nss_wifi_peer_delete(u32 vdev_id, const u8 *mac,
 }
 
 static inline int nss_wifi_vdev_security(int if_num, u32 cipher)
+{
+	return -ENODEV;
+}
+
+static inline int nss_wifi_vdev_ap_isolate(int if_num, bool isolate)
 {
 	return -ENODEV;
 }
