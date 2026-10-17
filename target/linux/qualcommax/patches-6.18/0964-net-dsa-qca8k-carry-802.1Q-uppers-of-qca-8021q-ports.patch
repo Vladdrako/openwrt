@@ -24,11 +24,9 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
  from the bridges instead of per-port bitmaps]
 Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
-Index: linux-6.18.55/drivers/net/dsa/qca/qca8k-8xxx.c
-===================================================================
---- linux-6.18.55.orig/drivers/net/dsa/qca/qca8k-8xxx.c
-+++ linux-6.18.55/drivers/net/dsa/qca/qca8k-8xxx.c
-@@ -1810,6 +1810,9 @@ static int qca8k_tag_8021q_set(struct ds
+--- a/drivers/net/dsa/qca/qca8k-8xxx.c
++++ b/drivers/net/dsa/qca/qca8k-8xxx.c
+@@ -1811,6 +1811,9 @@ static int qca8k_tag_8021q_set(struct ds
  			return ret;
  	}
  
@@ -38,10 +36,8 @@ Index: linux-6.18.55/drivers/net/dsa/qca/qca8k-8xxx.c
  	return enable ? dsa_tag_8021q_register(ds, htons(ETH_P_8021Q)) : 0;
  }
  
-Index: linux-6.18.55/drivers/net/dsa/qca/qca8k-common.c
-===================================================================
---- linux-6.18.55.orig/drivers/net/dsa/qca/qca8k-common.c
-+++ linux-6.18.55/drivers/net/dsa/qca/qca8k-common.c
+--- a/drivers/net/dsa/qca/qca8k-common.c
++++ b/drivers/net/dsa/qca/qca8k-common.c
 @@ -10,6 +10,7 @@
  #include <linux/dsa/8021q.h>
  #include <net/dsa.h>
@@ -216,10 +212,8 @@ Index: linux-6.18.55/drivers/net/dsa/qca/qca8k-common.c
  	ret = qca8k_vlan_del(priv, port, vlan->vid);
  	if (ret)
  		dev_err(priv->dev, "Failed to delete VLAN from port %d (%d)", port, ret);
-Index: linux-6.18.55/net/dsa/tag_qca.c
-===================================================================
---- linux-6.18.55.orig/net/dsa/tag_qca.c
-+++ linux-6.18.55/net/dsa/tag_qca.c
+--- a/net/dsa/tag_qca.c
++++ b/net/dsa/tag_qca.c
 @@ -9,6 +9,7 @@
  #include <linux/dsa/tag_qca.h>
  

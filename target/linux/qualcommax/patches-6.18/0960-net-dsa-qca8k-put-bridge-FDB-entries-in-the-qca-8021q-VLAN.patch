@@ -21,10 +21,8 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
 [julius: ported to the qca-8021q support of this tree]
 Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
-Index: linux-6.18.55/drivers/net/dsa/qca/qca8k-common.c
-===================================================================
---- linux-6.18.55.orig/drivers/net/dsa/qca/qca8k-common.c
-+++ linux-6.18.55/drivers/net/dsa/qca/qca8k-common.c
+--- a/drivers/net/dsa/qca/qca8k-common.c
++++ b/drivers/net/dsa/qca/qca8k-common.c
 @@ -864,6 +864,29 @@ int qca8k_port_fdb_insert(struct qca8k_p
  			     QCA8K_ATU_STATUS_STATIC);
  }

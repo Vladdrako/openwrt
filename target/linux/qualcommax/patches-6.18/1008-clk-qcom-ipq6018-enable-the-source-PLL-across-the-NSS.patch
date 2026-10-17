@@ -37,13 +37,13 @@ again afterwards, so the PLL is spinning while the RCG latches. It is
 the same flag other qcom controllers carry on RCGs whose parents are
 gated at switch time.
 
-Signed-off-by: OpenWrt
+Signed-off-by: Vladyslav Andreichykov <vladdrako007@gmail.com>
 ---
 --- a/drivers/clk/qcom/gcc-ipq6018.c
 +++ b/drivers/clk/qcom/gcc-ipq6018.c
-@@ -997,6 +997,13 @@ static struct clk_rcg2 nss_crypto_clk_sr
- 		.name = "nss_crypto_clk_src",
- 		.parent_data = gcc_xo_nss_crypto_pll_gpll0,
+@@ -1214,6 +1214,13 @@ static struct clk_rcg2 blsp1_qup1_i2c_ap
+ 		.name = "blsp1_qup1_i2c_apps_clk_src",
+ 		.parent_data = gcc_xo_gpll0_gpll0_out_main_div2,
  		.num_parents = 3,
 +		/*
 +		 * The reparent onto NSS_CRYPTO_PLL runs from

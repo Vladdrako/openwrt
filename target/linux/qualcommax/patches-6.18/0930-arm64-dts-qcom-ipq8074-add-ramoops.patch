@@ -12,7 +12,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 
 --- a/arch/arm64/boot/dts/qcom/ipq8074.dtsi
 +++ b/arch/arm64/boot/dts/qcom/ipq8074.dtsi
-@@ -198,6 +198,14 @@
+@@ -199,6 +199,14 @@
  			no-map;
  			reg = <0x0 0x51000000 0x0 0x100000>;
  		};

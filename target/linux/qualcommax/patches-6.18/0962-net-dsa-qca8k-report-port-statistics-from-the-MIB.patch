@@ -18,10 +18,8 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
 [julius: ported to this tree, where register reads may go over Ethernet]
 Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
-Index: linux-6.18.55/drivers/net/dsa/qca/qca8k-8xxx.c
-===================================================================
---- linux-6.18.55.orig/drivers/net/dsa/qca/qca8k-8xxx.c
-+++ linux-6.18.55/drivers/net/dsa/qca/qca8k-8xxx.c
+--- a/drivers/net/dsa/qca/qca8k-8xxx.c
++++ b/drivers/net/dsa/qca/qca8k-8xxx.c
 @@ -2056,6 +2056,156 @@ static void qca8k_setup_hol_fixup(struct
  			   mask);
  }
@@ -203,10 +201,8 @@ Index: linux-6.18.55/drivers/net/dsa/qca/qca8k-8xxx.c
  	.set_ageing_time	= qca8k_set_ageing_time,
  	.support_eee		= dsa_supports_eee,
  	.set_mac_eee		= qca8k_set_mac_eee,
-Index: linux-6.18.55/drivers/net/dsa/qca/qca8k.h
-===================================================================
---- linux-6.18.55.orig/drivers/net/dsa/qca/qca8k.h
-+++ linux-6.18.55/drivers/net/dsa/qca/qca8k.h
+--- a/drivers/net/dsa/qca/qca8k.h
++++ b/drivers/net/dsa/qca/qca8k.h
 @@ -447,6 +447,51 @@ struct qca8k_led {
  	struct led_classdev cdev;
  };

@@ -536,15 +536,6 @@ index 6f4be3aa0acfce..bcd3823b743446 100644
  			interrupts = <GIC_SPI 320 IRQ_TYPE_EDGE_RISING>,
  				     <GIC_SPI 319 IRQ_TYPE_EDGE_RISING>,
  				     <GIC_SPI 318 IRQ_TYPE_EDGE_RISING>,
-@@ -962,7 +962,7 @@
- 					  "host2rxdma-monitor-ring3",
- 					  "host2rxdma-monitor-ring2",
- 					  "host2rxdma-monitor-ring1",
--					  "reo2ost-exception", "wbm2host-rx-release",
-+					  "reo2host-exception", "wbm2host-rx-release",
- 					  "reo2host-status",
- 					  "reo2host-destination-ring4",
- 					  "reo2host-destination-ring3",
 
 From f9e7b3bea6d498c30e51fdcc3f55099e21391e11 Mon Sep 17 00:00:00 2001
 From: BrainSlayer <s.gottschall@dd-wrt.com>
@@ -951,22 +942,6 @@ index dd6a14392da6..b3ee9ce25c22 100644
  
  			interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>,
  				     <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
-@@ -697,6 +703,15 @@
- 			pinctrl-0 = <&qpic_pins>;
- 			pinctrl-names = "default";
- 			status = "disabled";
-+		};
-+		
-+		sram@8600000 {
-+			compatible = "qcom,ipq6018-imem", "syscon", "simple-mfd";
-+			reg = <0x0 0x08600000 0x0 0x8000>;
-+			ranges = <0 0 0x08600000 0x8000>;
-+
-+			#address-cells = <1>;
-+			#size-cells = <1>;
- 		};
- 
- 		usb3: usb@8a00000 {
 
 From fd4bc44f7546b0c606102f8ee89ad44a8a94a13f Mon Sep 17 00:00:00 2001
 From: BrainSlayer <s.gottschall@dd-wrt.com>

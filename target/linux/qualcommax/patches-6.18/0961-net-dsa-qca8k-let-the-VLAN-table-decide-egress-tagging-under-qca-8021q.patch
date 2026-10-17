@@ -15,10 +15,8 @@ Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
 [julius: ported to the qca-8021q support of this tree, kept on the way back]
 Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
-Index: linux-6.18.55/drivers/net/dsa/qca/qca8k-8xxx.c
-===================================================================
---- linux-6.18.55.orig/drivers/net/dsa/qca/qca8k-8xxx.c
-+++ linux-6.18.55/drivers/net/dsa/qca/qca8k-8xxx.c
+--- a/drivers/net/dsa/qca/qca8k-8xxx.c
++++ b/drivers/net/dsa/qca/qca8k-8xxx.c
 @@ -1801,6 +1801,14 @@ static int qca8k_tag_8021q_set(struct ds
  					 QCA8K_PORT_LOOKUP_VLAN_MODE_NONE);
  		if (ret)
@@ -34,10 +32,8 @@ Index: linux-6.18.55/drivers/net/dsa/qca/qca8k-8xxx.c
  	}
  
  	return enable ? dsa_tag_8021q_register(ds, htons(ETH_P_8021Q)) : 0;
-Index: linux-6.18.55/drivers/net/dsa/qca/qca8k.h
-===================================================================
---- linux-6.18.55.orig/drivers/net/dsa/qca/qca8k.h
-+++ linux-6.18.55/drivers/net/dsa/qca/qca8k.h
+--- a/drivers/net/dsa/qca/qca8k.h
++++ b/drivers/net/dsa/qca/qca8k.h
 @@ -194,6 +194,8 @@
  #define   QCA8K_PORT_VLAN_SVID_MASK			GENMASK(11, 0)
  #define   QCA8K_PORT_VLAN_SVID(x)			FIELD_PREP(QCA8K_PORT_VLAN_SVID_MASK, x)
