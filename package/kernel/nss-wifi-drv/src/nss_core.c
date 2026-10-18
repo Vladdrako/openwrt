@@ -32,6 +32,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/seq_file.h>
 #include <linux/soc/qcom/qca_edma.h>
+#include <linux/soc/qcom/qca_ppe.h>
 
 #include "nss_drv.h"
 
@@ -480,7 +481,7 @@ static void nss_core_halt(struct nss_core *core)
 	nss_bridge_stop();
 	nss_flow_flush();
 	nss_mc_flush();
-	nss_rawip_halt(core);
+	nss_redir_halt(core);
 
 	nss_log_shadow_stop(core);
 	nss_rings_stop(core);
@@ -538,6 +539,7 @@ unsigned int nss_pool_ceiling(void)
 	return nss_pool_size;
 }
 
+#define NSS_N2H_RPS_CFG			1
 #define NSS_N2H_SET_WATER_MARK		6
 #define NSS_N2H_GET_WATER_MARK		7
 #define NSS_N2H_WIFI_POOL_BUF_CFG	8
@@ -553,6 +555,14 @@ struct nss_n2h_payload_info {
 	__be32 pool_size;
 	__be32 low_water;
 	__be32 high_water;
+};
+
+/* Unlike the counts beside it, the flag goes as is: byte-swapped, it leaves
+ * the firmware on the first data queue.
+ */
+struct nss_n2h_rps {
+	struct nss_cmn_msg cm;
+	u32 enable;
 };
 
 struct nss_n2h_wifi_pool {
@@ -592,6 +602,24 @@ static int nss_pool_set(struct nss_core *core, u32 payloads)
 		return ret;
 
 	return 0;
+}
+
+/* Spread host-bound frames over the four data queues by flow, as
+ * qca-nss-drv's dev.nss.rps.enable does; the firmware otherwise uses only
+ * the first.
+ */
+static void nss_rps_enable(struct nss_core *core)
+{
+	struct nss_n2h_rps m = {};
+	int ret;
+
+	m.cm.interface = NSS_INTERFACE_N2H;
+	m.cm.type = NSS_N2H_RPS_CFG;
+	m.enable = 1;
+	ret = nss_msg_send(core, &m, sizeof(m));
+	if (ret)
+		dev_warn(core->dev, "data queue spreading not enabled: %d\n",
+			 ret);
 }
 
 static void nss_pool_configure(struct nss_core *core)
@@ -827,7 +855,21 @@ static int nss_core_boot(struct nss_core *core)
 		return -ETIMEDOUT;
 	}
 
+	/* The firmware maps CPU queues 4-7 to receive ring 3 and never drains
+	 * it. Ring 3 takes its buffers from the same fill ring as ring 0, so
+	 * 255 frames there stop all receive from the CPU port. Ring 0 hands
+	 * the host everything it receives.
+	 */
+	ret = qca_edma_cpu_queues_to_ring(core->conduit, 0);
+	if (ret)
+		dev_err(core->dev, "CPU queues not moved to ring 0: %d\n", ret);
+
+	ret = qca_ppe_fw_booted(core->conduit);
+	if (ret)
+		dev_err(core->dev, "PPE tables not restored: %d\n", ret);
+
 	nss_pool_configure(core);
+	nss_rps_enable(core);
 	nss_pbuf_pool_add(core, nss_pbuf_bytes);
 	nss_core_stats_off(core);
 	nss_bridge_start(core);
@@ -1157,12 +1199,12 @@ static int nss_wifi_me_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(nss_wifi_me);
 
-static int nss_rawip_show(struct seq_file *s, void *unused)
+static int nss_redir_show(struct seq_file *s, void *unused)
 {
-	nss_rawip_print(s);
+	nss_redir_print(s);
 	return 0;
 }
-DEFINE_SHOW_ATTRIBUTE(nss_rawip);
+DEFINE_SHOW_ATTRIBUTE(nss_redir);
 
 static int nss_mesh_show(struct seq_file *s, void *unused)
 {
@@ -1361,7 +1403,7 @@ static int nss_probe(struct platform_device *pdev)
 	nss_wifili_bind(core);
 	nss_flow_bind(core);
 	nss_mc_bind(core);
-	nss_rawip_bind(core);
+	nss_redir_bind(core);
 
 	core->debugfs = debugfs_create_dir(dev_name(dev), NULL);
 	debugfs_create_file("boot", 0600, core->debugfs, core, &nss_boot_fops);
@@ -1387,8 +1429,8 @@ static int nss_probe(struct platform_device *pdev)
 			    &nss_wifi_me_fops);
 	debugfs_create_file("mesh", 0400, core->debugfs, core,
 			    &nss_mesh_fops);
-	debugfs_create_file("rawip", 0400, core->debugfs, core,
-			    &nss_rawip_fops);
+	debugfs_create_file("redir", 0400, core->debugfs, core,
+			    &nss_redir_fops);
 
 	return 0;
 }
@@ -1409,7 +1451,7 @@ static void nss_remove(struct platform_device *pdev)
 	flush_work(&core->arm);
 	flush_work(&core->edma_reset);
 	/* After the halt, which forgets the bound core's node pairs. */
-	nss_rawip_bind(NULL);
+	nss_redir_bind(NULL);
 	dev_put(core->conduit);
 	nss_clocks_disable(core);
 }
@@ -1445,18 +1487,18 @@ static int __init nss_module_init(void)
 	if (ret)
 		goto flow;
 
-	ret = nss_rawip_init();
+	ret = nss_redir_init();
 	if (ret)
 		goto mc;
 
 	ret = platform_driver_register(&nss_driver);
 	if (ret)
-		goto rawip;
+		goto redir;
 
 	return 0;
 
-rawip:
-	nss_rawip_exit();
+redir:
+	nss_redir_exit();
 mc:
 	nss_mc_exit();
 flow:
@@ -1469,7 +1511,7 @@ module_init(nss_module_init);
 static void __exit nss_module_exit(void)
 {
 	platform_driver_unregister(&nss_driver);
-	nss_rawip_exit();
+	nss_redir_exit();
 	nss_wifili_me_exit();
 	nss_mesh_exit();
 	nss_mc_exit();

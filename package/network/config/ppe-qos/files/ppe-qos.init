@@ -342,11 +342,16 @@ apply() {
 	config_foreach add_pair dscp
 
 	# Every DSA user port classifies on ingress; the set is derived from
-	# what is present, never hardcoded.
-	for port in $(switch_ports); do
-		dcb app flush dev "$port" dscp-prio 2>/dev/null
-		[ -n "$pairs" ] && dcb app add dev "$port" $pairs
-	done
+	# what is present, never hardcoded. The maps need a kernel with DCB;
+	# without it the marking rules below still apply.
+	if command -v dcb >/dev/null; then
+		for port in $(switch_ports); do
+			dcb app flush dev "$port" dscp-prio 2>/dev/null
+			[ -n "$pairs" ] && dcb app add dev "$port" $pairs
+		done
+	elif [ -n "$pairs" ]; then
+		logger -t ppe-qos "dscp maps skipped: the kernel is built without DCB"
+	fi
 
 	flush_filters
 
@@ -430,9 +435,10 @@ teardown() {
 
 	flush_filters
 	[ -w "$PARAM_DIR/small_pkt_len" ] && echo 0 > "$PARAM_DIR/small_pkt_len"
-	for dev in $(switch_ports); do
-		dcb app flush dev "$dev" dscp-prio 2>/dev/null
-	done
+	command -v dcb >/dev/null &&
+		for dev in $(switch_ports); do
+			dcb app flush dev "$dev" dscp-prio 2>/dev/null
+		done
 	for dev in $(wifi_devs); do
 		wifi_clear "$dev"
 	done

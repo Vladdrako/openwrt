@@ -224,17 +224,24 @@ static enum dma_data_direction nss_tx_dir(const struct sk_buff *skb)
 int nss_data_send(struct nss_core *core, struct sk_buff *skb, u32 if_num,
 		  u16 flags)
 {
-	struct nss_h2n_ring *ring = &core->h2n[NSS_H2N_RING_DATA];
 	struct nss_if_mem_map *map = core->if_map;
+	struct nss_h2n_ring *ring;
 	bool bidir = flags & NSS_H2N_FLAG_VIRTUAL_BUFFER;
 	enum dma_data_direction dir = bidir ? DMA_BIDIRECTIONAL : DMA_TO_DEVICE;
 	struct h2n_descriptor *desc;
 	dma_addr_t dma;
 	u32 next, shift;
-	int slot;
+	int slot, qid;
 
 	if (!core->running)
 		return -ENODEV;
+
+	/* The firmware serves every data ring alike. One per flow keeps a
+	 * flow in order and spreads flows over the rings' locks.
+	 */
+	qid = NSS_H2N_RING_DATA +
+	      skb_get_hash(skb) % (NSS_H2N_RINGS - NSS_H2N_RING_DATA);
+	ring = &core->h2n[qid];
 
 	if (skb_is_nonlinear(skb) && skb_linearize(skb))
 		return -ENOMEM;
@@ -275,7 +282,7 @@ int nss_data_send(struct nss_core *core, struct sk_buff *skb, u32 if_num,
 
 	scoped_guard(spinlock_bh, &ring->lock) {
 		next = (ring->hlos_index + 1) & (NSS_RING_ENTRIES - 1);
-		if (next == READ_ONCE(map->h2n_nss_index[NSS_H2N_RING_DATA])) {
+		if (next == READ_ONCE(map->h2n_nss_index[qid])) {
 			nss_lent_put(core, slot);
 			dma_unmap_single(core->dev, dma,
 					 skb_end_pointer(skb) - skb->head, dir);
@@ -312,7 +319,7 @@ int nss_data_send(struct nss_core *core, struct sk_buff *skb, u32 if_num,
 
 		dma_wmb();
 		ring->hlos_index = next;
-		WRITE_ONCE(map->h2n_hlos_index[NSS_H2N_RING_DATA], next);
+		WRITE_ONCE(map->h2n_hlos_index[qid], next);
 	}
 
 	nss_doorbell(core, NSS_H2N_INTR_DATA_CMD);
@@ -770,7 +777,7 @@ static int nss_poll_n2h(struct napi_struct *napi, int budget)
 				 * firmware did not route comes back in its own
 				 * buffer, as a packet rather than a completion.
 				 */
-				if (nss_rawip_recv(core, desc, skb))
+				if (nss_redir_recv(core, desc, skb))
 					goto next;
 				dma_unmap_single(core->dev, NSS_SKB_CB(skb)->dma,
 						 skb_end_pointer(skb) - skb->head,
@@ -783,7 +790,7 @@ static int nss_poll_n2h(struct napi_struct *napi, int budget)
 					goto next;
 				}
 				atomic_dec(&core->buffers_queued);
-				if (nss_rawip_recv(core, desc, skb) ||
+				if (nss_redir_recv(core, desc, skb) ||
 				    nss_mesh_recv(core, napi, desc, skb) ||
 				    nss_data_recv(core, napi, desc, skb))
 					goto next;
@@ -881,6 +888,7 @@ static nss_poll_t nss_poll_fn(enum nss_cause cause)
 int nss_rings_start(struct nss_core *core)
 {
 	struct platform_device *pdev = to_platform_device(core->dev);
+	unsigned int cpu;
 	int i, ret;
 
 	core->ndev = alloc_netdev_dummy(0);
@@ -914,6 +922,16 @@ int nss_rings_start(struct nss_core *core)
 				  dev_name(core->dev), ctx);
 		if (ret)
 			goto err;
+
+		/* One CPU per data queue, which the firmware spreads
+		 * host-bound frames over by flow.
+		 */
+		if (i >= NSS_CAUSE_DATA_QUEUE_0 &&
+		    i <= NSS_CAUSE_DATA_QUEUE_3) {
+			cpu = cpumask_local_spread(i - NSS_CAUSE_DATA_QUEUE_0,
+						   NUMA_NO_NODE);
+			irq_set_affinity_and_hint(ctx->irq, cpumask_of(cpu));
+		}
 
 		netif_napi_add_weight(core->ndev, &ctx->napi, poll,
 				      NSS_NAPI_WEIGHT);
@@ -959,6 +977,7 @@ void nss_rings_stop(struct nss_core *core)
 		 * still be claimed. A disabled NAPI ignores the interrupt.
 		 */
 		napi_disable(&ctx->napi);
+		irq_update_affinity_hint(ctx->irq, NULL);
 		free_irq(ctx->irq, ctx);
 		netif_napi_del(&ctx->napi);
 		ctx->napi_added = false;

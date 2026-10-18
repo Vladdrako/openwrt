@@ -242,17 +242,38 @@ s_system() {
 
 	printf '\n# crash records\n'
 	ls -l /sys/fs/pstore 2>/dev/null
+	has ubus && run "ubus call system watchdog"
 	if [ -d /root/pstore ]; then
 		newest=$(ls -dt /root/pstore/*/ 2>/dev/null | head -n 1)
-		echo "boot_id now: $(cut -c1-8 /proc/sys/kernel/random/boot_id)"
+		bid=$(cut -c1-8 /proc/sys/kernel/random/boot_id)
+		echo "boot_id now: $bid"
 		ls -dt /root/pstore/*/ 2>/dev/null | head -n 5
+		# pstore-archive names the directory after the boot that archived it,
+		# so a record of the previous boot carries the current boot_id
+		case "$newest" in
+		*-$bid/) ;;
+		*)
+			newest=
+			hint "the previous boot left no pstore record: the RAM lost power (power cut or a power-cycle) before it could be read"
+			;;
+		esac
 		if [ -n "$newest" ]; then
 			ls -l "$newest"
+			panic=
 			for f in "$newest"dmesg-ramoops-*; do
 				[ -r "$f" ] || continue
+				panic=1
 				hint "a kernel panic was recorded in $f; attach that whole file and $(ls "$newest"console-ramoops-* 2>/dev/null | head -n 1)"
 				printf '\n# %s (last 80 lines)\n' "$f"
 				tail -n 80 "$f"
+				break
+			done
+			for f in "$newest"console-ramoops-*; do
+				[ -r "$f" ] || continue
+				printf '\n# %s: the end of the previous boot (last 60 lines)\n' "$f"
+				tail -n 60 "$f"
+				[ -z "$panic" ] && ! grep -qE 'reboot: (Restarting system|Power down|System halted)' "$f" &&
+					hint "the previous boot ended without a clean reboot or a panic: a hang, a watchdog reset or a power cut. Attach $f, and say whether the router answered ping and rebooted by itself"
 				break
 			done
 		fi
