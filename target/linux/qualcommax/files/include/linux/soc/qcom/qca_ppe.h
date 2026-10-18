@@ -10,5 +10,6 @@
 
 int qca_ppe_port_fw_vsi_get(struct net_device *netdev);
 int qca_ppe_port_vsi_restore(struct net_device *netdev);
+int qca_ppe_fw_booted(struct net_device *conduit);
 
 #endif /* __LINUX_SOC_QCOM_QCA_PPE_H__ */

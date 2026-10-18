@@ -871,7 +871,7 @@ static const struct devlink_trap_group ppe_trap_groups[] = {
 	},
 	/* Unpoliced: TCP does not retransmit a dropped RST. */
 	{
-		.name = "tcp_fin_rst",
+		.name = "tcp_fin_syn_rst",
 		.id = PPE_TRAP_GROUP_FIN_RST,
 	},
 };
@@ -918,7 +918,7 @@ static const struct devlink_trap ppe_traps[] = {
 	DEVLINK_TRAP_DRIVER(CONTROL, TRAP, PPE_TRAP_ID_MLD, "mld",
 			    DEVLINK_TRAP_GROUP_GENERIC_ID_MC_SNOOPING, 0),
 	DEVLINK_TRAP_DRIVER(EXCEPTION, TRAP, PPE_TRAP_ID_FIN_RST,
-			    "tcp_fin_rst", PPE_TRAP_GROUP_FIN_RST, 0),
+			    "tcp_fin_syn_rst", PPE_TRAP_GROUP_FIN_RST, 0),
 	DEVLINK_TRAP_DRIVER(CONTROL, TRAP, PPE_TRAP_ID_LINK_LOCAL, "link_local",
 			    PPE_TRAP_GROUP_LINK_LOCAL, 0),
 	DEVLINK_TRAP_GENERIC(EXCEPTION, TRAP, TTL_ERROR,
@@ -939,6 +939,7 @@ static const struct {
 	{ PPE_TRAP_ID_MLD, DEVLINK_TRAP_GROUP_GENERIC_ID_MC_SNOOPING, 107 },
 	{ PPE_TRAP_ID_FIN_RST, PPE_TRAP_GROUP_FIN_RST, 47 },
 	{ PPE_TRAP_ID_FIN_RST, PPE_TRAP_GROUP_FIN_RST, 48 },
+	{ PPE_TRAP_ID_FIN_RST, PPE_TRAP_GROUP_FIN_RST, 49 },
 	{ PPE_TRAP_ID_LINK_LOCAL, PPE_TRAP_GROUP_LINK_LOCAL, 174 },
 	{ DEVLINK_TRAP_GENERIC_ID_TTL_ERROR,
 	  DEVLINK_TRAP_GROUP_GENERIC_ID_L3_EXCEPTIONS, 85 },
@@ -3433,6 +3434,31 @@ int qca_ppe_port_vsi_restore(struct net_device *netdev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qca_ppe_port_vsi_restore);
+
+/*
+ * qca_ppe_fw_booted - write back the tables the NSS firmware set at boot
+ * @conduit: the conduit of a qca-ppe switch
+ *
+ * The firmware writes its own priority maps, flow exceptions and RSS hash
+ * when it boots, which gives every priority a queue of its own across the
+ * bands and removes a flow entry on any exception. Put the driver's back.
+ */
+int qca_ppe_fw_booted(struct net_device *conduit)
+{
+	struct qca_ppe_priv *priv;
+
+	if (!conduit || !netdev_uses_dsa(conduit) ||
+	    conduit->dsa_ptr->ds->ops != &qca_ppe_ops)
+		return -ENODEV;
+
+	priv = ds_to_priv(conduit->dsa_ptr->ds);
+	ppe_qm_pri_map_init(priv);
+	ppe_flow_excep_init(priv);
+	ppe_rss_hash_init(priv);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qca_ppe_fw_booted);
 
 static void ppe_mac_hw_init(struct qca_ppe_priv *priv)
 {

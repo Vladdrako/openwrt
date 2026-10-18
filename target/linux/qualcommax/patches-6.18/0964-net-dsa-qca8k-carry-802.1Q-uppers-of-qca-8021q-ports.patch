@@ -1,4 +1,4 @@
-From: Stanislaw Pal <kuncy7@gmail.com>
+From: Julius Bairaktaris <julius@bairaktaris.de>
 Subject: [PATCH] net: dsa: qca8k: carry 802.1Q uppers of qca-8021q ports
 
 Under qca-8021q every port filters by VLAN, so the switch drops the
@@ -19,9 +19,6 @@ VLAN-unaware bridge keeps its VLANs in software, as its default VLAN 1
 would otherwise take that VID on every bridged port. They go into the
 switch when the bridge turns VLAN-aware and leave when it turns back.
 
-Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
-[julius: ported to the qca-8021q support of this tree; VID ownership read
- from the bridges instead of per-port bitmaps]
 Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 --- a/drivers/net/dsa/qca/qca8k-8xxx.c

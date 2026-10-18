@@ -8,8 +8,15 @@
 
 #if IS_REACHABLE(CONFIG_QCOM_EDMA)
 int qca_edma_cpu_queues_to_host(struct net_device *conduit);
+int qca_edma_cpu_queues_to_ring(struct net_device *conduit, unsigned int ring);
 #else
 static inline int qca_edma_cpu_queues_to_host(struct net_device *conduit)
+{
+	return -ENODEV;
+}
+
+static inline int qca_edma_cpu_queues_to_ring(struct net_device *conduit,
+					      unsigned int ring)
 {
 	return -ENODEV;
 }

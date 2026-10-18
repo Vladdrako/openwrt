@@ -1,4 +1,4 @@
-From: Stanislaw Pal <kuncy7@gmail.com>
+From: Julius Bairaktaris <julius@bairaktaris.de>
 Subject: [PATCH] net: dsa: qca8k: let the VLAN table decide egress tagging under qca-8021q
 
 qca-8021q needs the CPU port to send every frame with the VLAN tag of
@@ -11,8 +11,6 @@ Set the egress mode of every port to "untouched" with the tag protocol.
 It is left so when the header returns, where the VLAN table decides the
 egress tagging of a VLAN-aware bridge as well.
 
-Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
-[julius: ported to the qca-8021q support of this tree, kept on the way back]
 Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 --- a/drivers/net/dsa/qca/qca8k-8xxx.c

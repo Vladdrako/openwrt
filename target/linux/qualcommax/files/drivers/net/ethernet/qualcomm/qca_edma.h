@@ -182,12 +182,18 @@
 #define EDMA_QID2RID_TABLE_MEM(n)	(0x5a000 + (0x4 * (n)))
 #define EDMA_QID2RID_DEPTH		0x40
 #define EDMA_QID2RID_RING_MASK		0xf
+#define EDMA_QID2RID_QUEUES_PER_ENTRY	8
+#define EDMA_RSS_QUEUES			4
+#define EDMA_RSS_HASHED_QUEUES		12
+/* The switch CPU port owns queues 0-15. */
+#define EDMA_CPU_QUEUES			16
 
 /* TXDESC to TXCMPL ring mapping */
 #define EDMA_REG_TXDESC2CMPL_MAP(n) (0x0c + 0x4 * (n))
 
 /* Registers the ethtool dump reports, as offset and value pairs. */
-#define EDMA_REGS_COUNT 34
+#define EDMA_REGS_GLOBAL 4
+#define EDMA_REGS_QUEUE 30
 
 /* Sizes and ring configuration */
 #define EDMA_MAX_FRAME_SIZE	12288
@@ -210,8 +216,8 @@
  * registers are sixteen bits wide, but a fill ring pins a page per entry and
  * the ceiling below is that, not the field.
  */
-#define EDMA_MIN_RING_SIZE 64
-#define EDMA_MAX_RING_SIZE 8192
+#define EDMA_MIN_RING_SIZE	64
+#define EDMA_MAX_RING_SIZE	8192
 
 /* Descriptor accessors */
 #define EDMA_GET_DESC(R, i, type) (&(((type *)((R)->desc))[i]))
@@ -302,7 +308,6 @@ struct edma_stats {
 	u64 rx_fill_starved;
 	u64 tx_desc_error;
 	u64 tx_unnamed_frame;
-	u64 misc_error;
 };
 
 struct edma_soc_data {
@@ -326,15 +331,53 @@ struct edma_ring {
 	struct page **page_store;
 };
 
+/* The rings a transmit and a receive queue each run on, the hardware numbers
+ * of those rings, and the interrupts and NAPI contexts that serve them.
+ */
+struct edma_queue {
+	struct edma_priv *priv;
+	struct napi_struct napi;
+	struct page_pool *page_pool;
+
+	/* The frame a run of completions belongs to, named by the first of
+	 * them and released on the last.
+	 */
+	struct sk_buff *txcmpl_skb;
+	u32 txcmpl_idx;
+	bool txcmpl_run;
+
+	struct edma_ring txdesc_ring;
+	struct edma_ring txcmpl_ring;
+	struct edma_ring rxfill_ring;
+	struct edma_ring rxdesc_ring;
+
+	spinlock_t tx_lock;
+
+	/* Counted here rather than in netdev->stats, which cannot say which of
+	 * the reasons a frame went missing for.
+	 */
+	struct edma_stats stats;
+
+	u8 idx;
+	u8 txdesc;
+	u8 txcmpl;
+	u8 rxfill;
+	u8 rxdesc;
+
+	int txcmpl_irq;
+	int rxfill_irq;
+	int rxdesc_irq;
+};
+
+#define EDMA_MAX_QUEUES 4
+#define EDMA_IRQS_PER_QUEUE 3
+
 struct edma_priv {
 	const struct edma_soc_data *soc;
-	struct napi_struct tx_napi;
-	struct napi_struct rx_napi;
 	struct net_device *netdev;
 	struct platform_device *pdev;
 	struct regmap *regmap;
 	struct reset_control *rst;
-	struct page_pool *page_pool;
 	u32 rx_buffer_size;
 	u8 rx_page_order;
 	u16 tx_ring_size;
@@ -345,28 +388,17 @@ struct edma_priv {
 	u16 tx_ugt_thre;
 	u16 rx_ugt_thre;
 
-	/* The frame a run of completions belongs to, named by the first of
-	 * them and released on the last.
+	u64 misc_error;
+
+	struct edma_queue q[EDMA_MAX_QUEUES];
+	unsigned int num_queues;
+	unsigned int max_queues;
+	/* The PPE spreads unicast to the CPU by hash over four switch queues
+	 * from each of the bases 0, 4 and 8.
 	 */
-	struct sk_buff *txcmpl_skb;
-	u32 txcmpl_idx;
-	bool txcmpl_run;
+	u8 rss_indir[EDMA_RSS_QUEUES];
+	bool threaded_set;
 
-	/* Counted here rather than in netdev->stats, which cannot say which of
-	 * the reasons a frame went missing for.
-	 */
-	struct edma_stats stats;
-
-	struct edma_ring txdesc_ring;
-	struct edma_ring txcmpl_ring;
-	struct edma_ring rxfill_ring;
-	struct edma_ring rxdesc_ring;
-
-	spinlock_t tx_lock;
-
-	int txcmpl_irq;
-	int rxfill_irq;
-	int rxdesc_irq;
 	int misc_irq;
 };
 

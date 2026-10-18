@@ -495,7 +495,6 @@ static int ppe_uplink_get(struct qca_ppe_priv *priv, int port, u16 vid,
 	regmap_write(priv->regmap, PPE_IN_L3_IF_TBL(vsi) + 4,
 		     FIELD_PREP(PPE_L3_IF_TTL_EXCEED_CMD,
 				PPE_L3_IF_TTL_EXCEED_TO_CPU) |
-		     PPE_L3_IF_TTL_EXCEED_DEACCEL |
 		     FIELD_PREP(PPE_L3_IF_MAC_BITMAP, GENMASK(7, 0)));
 	ppe_l3_if_mtu_set(priv, vsi, mtu + VLAN_ETH_HLEN + PPPOE_SES_HLEN);
 	regmap_write(priv->regmap, PPE_L3_VSI_TBL(vsi),
@@ -772,7 +771,6 @@ static int ppe_flow_alloc_ingress(struct qca_ppe_priv *priv, int iport,
 	regmap_write(priv->regmap, PPE_IN_L3_IF_TBL(vsi) + 4,
 		     FIELD_PREP(PPE_L3_IF_TTL_EXCEED_CMD,
 				PPE_L3_IF_TTL_EXCEED_TO_CPU) |
-		     PPE_L3_IF_TTL_EXCEED_DEACCEL |
 		     FIELD_PREP(PPE_L3_IF_MAC_BITMAP, GENMASK(7, 0)));
 	ppe_l3_if_mtu_set(priv, vsi, mtu);
 	regmap_write(priv->regmap, PPE_L3_VSI_TBL(vsi),

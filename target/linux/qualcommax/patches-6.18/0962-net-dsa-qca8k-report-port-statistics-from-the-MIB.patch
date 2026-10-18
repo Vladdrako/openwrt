@@ -1,4 +1,4 @@
-From: Stanislaw Pal <kuncy7@gmail.com>
+From: Julius Bairaktaris <julius@bairaktaris.de>
 Subject: [PATCH] net: dsa: qca8k: report port statistics from the MIB
 
 Without .get_stats64 a DSA user port only counts the frames that cross
@@ -14,8 +14,6 @@ counters are cumulative; only the difference since the previous read is
 added, so a 32-bit counter wrapping between reads does not corrupt the
 total.
 
-Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
-[julius: ported to this tree, where register reads may go over Ethernet]
 Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 --- a/drivers/net/dsa/qca/qca8k-8xxx.c

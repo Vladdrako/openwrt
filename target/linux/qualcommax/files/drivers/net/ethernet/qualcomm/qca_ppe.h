@@ -689,9 +689,14 @@
 /* Per exception: what happens to the frame, and whether the exception is
  * raised at all for a packet that hit a routed flow entry.
  */
+#define PPE_L3_EXCEPTIONS		72
+#define PPE_EXCEP_IPV4_OPTION		6
+#define PPE_EXCEP_IPV6_EXT_HDR		25
+#define PPE_EXCEP_TCP_HDR_SHORT		42
 #define PPE_EXCEP_TCP_FLAGS(n)		(46 + (n))
+#define PPE_EXCEP_UDP_HDR_SHORT		55
 /* The TCP flags trapped from offloaded flows, one pattern each. */
-#define PPE_FLOW_TCP_TRAP		(TCPHDR_FIN | TCPHDR_RST)
+#define PPE_FLOW_TCP_TRAP		(TCPHDR_FIN | TCPHDR_SYN | TCPHDR_RST)
 #define PPE_L3_EXCEP_CMD(e)		(PPE_L3_BASE + 0x544 + (e) * 0x4)
 #define   PPE_L3_EXCEP_ACTION		GENMASK(1, 0)
 #define     PPE_L3_EXCEP_RDT_TO_CPU	3
@@ -1204,8 +1209,8 @@
 #define PPE_L0_QUEUES			300
 #define PPE_L0_UCAST_QUEUES		256
 /* The CPU port's unicast queues the L0 scheduler serves (l0_port0[]). */
-#define PPE_CPU_UCAST_QUEUES		12
-#define PPE_CPU_CODE_QUEUE		4
+#define PPE_CPU_UCAST_QUEUES		16
+#define PPE_CPU_CODE_QUEUE		12
 #define PPE_TRAP_BURST_MAX		64
 /* Trap policer n is CPU queue PPE_CPU_CODE_QUEUE + n. */
 #define PPE_TRAP_POLICERS		3
@@ -1732,6 +1737,9 @@ int qca_ppe_port_vlan_del(struct dsa_switch *ds, int port,
 			  const struct switchdev_obj_port_vlan *vlan);
 
 void ppe_flow_init(struct qca_ppe_priv *priv);
+void ppe_flow_excep_init(struct qca_ppe_priv *priv);
+void ppe_qm_pri_map_init(struct qca_ppe_priv *priv);
+void ppe_rss_hash_init(struct qca_ppe_priv *priv);
 int ppe_flow_op(struct qca_ppe_priv *priv, u32 op_type,
 		const u32 *entry, int nentry, const u32 *host, int nhost,
 		u32 *index, u32 *host_index);

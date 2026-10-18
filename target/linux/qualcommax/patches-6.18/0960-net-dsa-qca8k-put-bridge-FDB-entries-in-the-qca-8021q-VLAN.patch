@@ -1,4 +1,4 @@
-From: Stanislaw Pal <kuncy7@gmail.com>
+From: Julius Bairaktaris <julius@bairaktaris.de>
 Subject: [PATCH] net: dsa: qca8k: put bridge FDB entries in the qca-8021q VLAN
 
 Under qca-8021q the switch learns and looks up the addresses of a
@@ -17,8 +17,6 @@ On a GL-B3000 used as an access point, a laptop roaming onto its Wi-Fi
 got no DHCP lease in five of five attempts before, and one in all five
 after.
 
-Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
-[julius: ported to the qca-8021q support of this tree]
 Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 --- a/drivers/net/dsa/qca/qca8k-common.c
