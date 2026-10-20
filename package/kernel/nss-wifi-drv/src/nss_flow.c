@@ -1059,6 +1059,7 @@ static int nss_flow_replace(struct nss_core *core, struct flow_cls_offload *f)
 	struct flow_match_meta meta;
 	struct flow_match_basic basic;
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
+	struct nss_flow_dir old;
 	u32 fw_err = 0;
 	int ret;
 
@@ -1113,6 +1114,7 @@ static int nss_flow_replace(struct nss_core *core, struct flow_cls_offload *f)
 		}
 	}
 
+	old = e->dir[dir];
 	ret = nss_flow_take_dir(core, e, dir, f);
 	if (ret)
 		goto drop;
@@ -1121,11 +1123,16 @@ static int nss_flow_replace(struct nss_core *core, struct flow_cls_offload *f)
 	    !e->dir[FLOW_OFFLOAD_DIR_REPLY].seen)
 		return 0;
 
-	/* The connection is only complete now, and a refresh of one already
-	 * installed asks for nothing new.
+	/* The connection is only complete now. A refresh of one already
+	 * installed asks for nothing new unless the next hop moved, which the
+	 * firmware can only be told by a new rule.
 	 */
-	if (e->installed)
-		return 0;
+	if (e->installed) {
+		if (ether_addr_equal(old.mac, e->dir[dir].mac) &&
+		    old.ifnum == e->dir[dir].ifnum)
+			return 0;
+		nss_flow_withdraw(core, e);
+	}
 
 	if (!flow->ct) {
 		ret = nss_flow_reject_at(NSS_FLOW_REJECT_NO_CT, -EOPNOTSUPP, f, 0);
@@ -1315,7 +1322,9 @@ void nss_flow_notify(const struct nss_cmn_msg *ncm, u32 len)
  *
  * The request names a start index and how much room the answer has; the
  * answer carries as many per-connection records as fit and the index to ask
- * from next, zero once the table has wrapped. After the first sweep the
+ * from next, zero once the table has wrapped. One answer covers a stretch of
+ * the table, not all of it, so each sweep resumes where the last one stopped
+ * and the whole table comes round every few sweeps. After the first sweep the
  * per-connection sync messages stop arriving on their own, which otherwise
  * cost one message every couple of milliseconds per connection.
  */
@@ -1324,8 +1333,8 @@ static void nss_flow_sweep_v4(struct nss_core *core)
 	struct nss_ipv4_msg *m __free(kfree) =
 		kzalloc(NSS_EMPTY_BUFFER_SIZE, GFP_KERNEL);
 	struct nss_ipv4_conn_sync_many_msg *s;
+	static u16 index;
 	int rounds = 8;
-	u16 index = 0;
 	int i;
 
 	if (!m)
@@ -1357,8 +1366,8 @@ static void nss_flow_sweep_v6(struct nss_core *core)
 	struct nss_ipv6_msg *m __free(kfree) =
 		kzalloc(NSS_EMPTY_BUFFER_SIZE, GFP_KERNEL);
 	struct nss_ipv6_conn_sync_many_msg *s;
+	static u16 index;
 	int rounds = 8;
-	u16 index = 0;
 	int i;
 
 	if (!m)
@@ -1533,6 +1542,7 @@ static int nss_flow_block(struct net_device *dev, struct flow_block_offload *f,
 			else
 				flow_block_cb_remove(block_cb, f);
 			list_del(&block_cb->driver_list);
+			nss_flow_bound--;
 		}
 		return 0;
 	default:

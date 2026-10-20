@@ -206,6 +206,15 @@ static void ppe_port_mtu_write(struct qca_ppe_priv *priv, int port)
 			   FIELD_PREP(PPE_MC_MTU_CTRL_MTU_CMD, cmd));
 }
 
+static void ppe_ports_mtu_write(struct qca_ppe_priv *priv)
+{
+	int port;
+
+	guard(mutex)(&priv->mtu_lock);
+	for (port = 0; port < priv->data->num_ports; port++)
+		ppe_port_mtu_write(priv, port);
+}
+
 static void ppe_port_mtu_set(struct qca_ppe_priv *priv, int port,
 			     u32 frame_size)
 {
@@ -988,7 +997,6 @@ static int qca_ppe_devlink_trap_action_set(struct dsa_switch *ds,
 {
 	struct qca_ppe_priv *priv = ds_to_priv(ds);
 	int i = ppe_trap_index(trap->id);
-	int port;
 
 	if (trap->type != DEVLINK_TRAP_TYPE_DROP) {
 		if (action == DEVLINK_TRAP_ACTION_TRAP)
@@ -1009,13 +1017,10 @@ static int qca_ppe_devlink_trap_action_set(struct dsa_switch *ds,
 		return -EOPNOTSUPP;
 	}
 
-	if (i == PPE_TRAP_VLAN_FILTER) {
+	if (i == PPE_TRAP_VLAN_FILTER)
 		ppe_vlan_xlt_miss_apply(priv);
-	} else {
-		guard(mutex)(&priv->mtu_lock);
-		for (port = 0; port < priv->data->num_ports; port++)
-			ppe_port_mtu_write(priv, port);
-	}
+	else
+		ppe_ports_mtu_write(priv);
 
 	return 0;
 }
@@ -3377,10 +3382,30 @@ int qca_ppe_fw_booted(struct net_device *conduit)
 	ppe_qm_pri_map_init(priv);
 	ppe_flow_qos_init(priv);
 	ppe_flow_excep_init(priv);
+	ppe_ports_mtu_write(priv);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qca_ppe_fw_booted);
+
+/*
+ * qca_ppe_fw_ports_set - write back the port frame sizes after the NSS firmware
+ * @conduit: the conduit of a qca-ppe switch
+ *
+ * Arming ports rewrites the MRU and MTU of ports the firmware was not given
+ * as well, with its own size and actions. Put the driver's back.
+ */
+int qca_ppe_fw_ports_set(struct net_device *conduit)
+{
+	if (!conduit || !netdev_uses_dsa(conduit) ||
+	    conduit->dsa_ptr->ds->ops != &qca_ppe_ops)
+		return -ENODEV;
+
+	ppe_ports_mtu_write(ds_to_priv(conduit->dsa_ptr->ds));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qca_ppe_fw_ports_set);
 
 /*
  * qca_ppe_fw_carrier_set - name the devices the NSS firmware forwards to

@@ -30,6 +30,7 @@
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
+#include <linux/soc/qcom/qca_ppe.h>
 #include <net/dsa.h>
 
 #include "nss_drv.h"
@@ -76,7 +77,9 @@ static void nss_phys_port_close(struct nss_core *core, int if_num,
 static int nss_phys_port_open(struct nss_core *core, int if_num,
 			      struct net_device *dev)
 {
-	struct nss_if_link_state_notify link = { .state = 1 };
+	struct nss_if_link_state_notify link = {
+		.state = netif_carrier_ok(dev),
+	};
 	struct nss_if_mac_address_set mac = {};
 	struct nss_if_mtu_change mtu = {};
 	struct nss_if_open open = {};
@@ -167,7 +170,50 @@ int nss_phys_arm(struct nss_core *core, unsigned long mask)
 		}
 	}
 
+	/* The firmware sizes every port's frames its own way on each change. */
+	if (changed)
+		qca_ppe_fw_ports_set(core->conduit);
+
 	return ret;
+}
+
+/* Tell the firmware what changed on an armed port since it was opened. */
+void nss_phys_event(struct nss_core *core, unsigned long event,
+		    struct net_device *dev)
+{
+	struct nss_if_link_state_notify link = {};
+	struct nss_if_mac_address_set mac = {};
+	struct nss_if_mtu_change mtu = {};
+	unsigned int i;
+
+	if ((event != NETDEV_CHANGEMTU && event != NETDEV_CHANGEADDR &&
+	     event != NETDEV_CHANGE) || !dsa_user_dev_check(dev))
+		return;
+
+	guard(mutex)(&core->lock);
+
+	for_each_set_bit(i, &core->phys_armed, BITS_PER_LONG)
+		if (rcu_access_pointer(core->iface[i]) == dev)
+			break;
+	if (i >= BITS_PER_LONG)
+		return;
+
+	switch (event) {
+	case NETDEV_CHANGEMTU:
+		mtu.min_buf_size = dev->mtu;
+		nss_phys_msg(core, i, NSS_IF_MTU_CHANGE, &mtu, sizeof(mtu));
+		break;
+	case NETDEV_CHANGEADDR:
+		ether_addr_copy(mac.mac_addr, dev->dev_addr);
+		nss_phys_msg(core, i, NSS_IF_MAC_ADDR_SET, &mac, sizeof(mac));
+		break;
+	case NETDEV_CHANGE:
+		link.state = netif_carrier_ok(dev);
+		nss_phys_msg(core, i, NSS_IF_LINK_STATE_NOTIFY, &link,
+			     sizeof(link));
+		break;
+	}
+	qca_ppe_fw_ports_set(core->conduit);
 }
 
 /* A flow is pushed only between interfaces the firmware owns, so every switch

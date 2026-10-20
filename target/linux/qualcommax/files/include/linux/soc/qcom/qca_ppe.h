@@ -9,6 +9,7 @@
 #include <linux/netdevice.h>
 
 int qca_ppe_fw_booted(struct net_device *conduit);
+int qca_ppe_fw_ports_set(struct net_device *conduit);
 int qca_ppe_fw_carrier_set(struct net_device *conduit,
 			   bool (*carries)(int ifindex));
 

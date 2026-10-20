@@ -125,7 +125,7 @@ static bool nss_data_recv(struct nss_core *core, struct napi_struct *napi,
 	    desc->interface_num >= NSS_INTERFACE_MAX)
 		return false;
 
-	dev = rcu_dereference(core->iface[desc->interface_num]);
+	dev = rcu_dereference_bh(core->iface[desc->interface_num]);
 	if (!dev || end > NSS_EMPTY_BUFFER_ALLOC || desc->payload_len < ETH_HLEN)
 		return false;
 
@@ -747,7 +747,7 @@ static int nss_poll_n2h(struct napi_struct *napi, int budget)
 				    NSS_SKB_CB(skb)->dma == desc->buffer;
 
 			if (!ours) {
-				core->rx_desync++;
+				atomic64_inc(&core->rx_desync);
 				dev_warn_ratelimited(core->dev,
 						     "n2h: desync cookie %llx buf %x dma %llx type %u q %d - leaked\n",
 						     desc->opaque, desc->buffer,
@@ -772,7 +772,7 @@ static int nss_poll_n2h(struct napi_struct *napi, int budget)
 							     desc->interface_num);
 					goto next;
 				}
-				core->tx_done++;
+				atomic64_inc(&core->tx_done);
 				/* A frame sent to a host-side node that the
 				 * firmware did not route comes back in its own
 				 * buffer, as a packet rather than a completion.
@@ -786,7 +786,7 @@ static int nss_poll_n2h(struct napi_struct *napi, int budget)
 			} else {
 				/* Before the stack owns the buffer and its cb. */
 				if (!nss_lent_claim(core, NSS_SKB_CB(skb)->slot, skb)) {
-					core->rx_desync++;
+					atomic64_inc(&core->rx_desync);
 					goto next;
 				}
 				atomic_dec(&core->buffers_queued);

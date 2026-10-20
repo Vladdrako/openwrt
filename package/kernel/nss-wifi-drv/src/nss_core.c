@@ -977,6 +977,7 @@ static void nss_core_restart(struct work_struct *work)
 
 		scoped_guard(mutex, &core->lock)
 			nss_core_halt(core);
+		nss_wifili_halted(core);
 	}
 
 	nss_edma_settle(core);
@@ -1016,6 +1017,7 @@ static int nss_boot_set(void *data, u64 val)
 
 		scoped_guard(mutex, &core->lock)
 			nss_core_halt(core);
+		nss_wifili_halted(core);
 		return 0;
 	}
 
@@ -1103,15 +1105,17 @@ static int nss_rx_show(struct seq_file *s, void *unused)
 				   core->rx_iface[i]);
 
 	seq_printf(s, "notify: %llu link-desc seen: %llu returned: %llu tx: %llu done: %llu\n",
-		   core->notify, core->link_desc_seen,
-		   core->link_desc_returned, core->tx_posted, core->tx_done);
+		   core->notify, atomic64_read(&core->link_desc_seen),
+		   core->link_desc_returned, core->tx_posted,
+		   atomic64_read(&core->tx_done));
 
 	/* How many buffers the firmware is holding. It takes one per
 	 * accelerated connection, so a create rule refused for want of a
 	 * buffer is read here rather than inferred.
 	 */
 	seq_printf(s, "buffers in firmware custody: %d  desync: %llu\n",
-		   atomic_read(&core->buffers_queued), core->rx_desync);
+		   atomic_read(&core->buffers_queued),
+		   atomic64_read(&core->rx_desync));
 	seq_printf(s, "tx returned twice: %llu\n", core->tx_dup);
 
 	for (i = 0; i < core->ext_seen; i++) {
@@ -1477,6 +1481,7 @@ static void nss_remove(struct platform_device *pdev)
 	WRITE_ONCE(core->up, false);
 	scoped_guard(mutex, &core->lock)
 		nss_core_halt(core);
+	nss_wifili_halted(core);
 	cancel_work_sync(&core->restart);
 	complete_all(&core->resumed);
 	flush_work(&core->arm);

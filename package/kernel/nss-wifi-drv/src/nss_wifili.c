@@ -135,6 +135,8 @@ struct nss_wifili_soc {
 	struct device *radio;
 	struct nss_wifili_mem txdesc;
 	struct nss_wifili_mem txdescext;
+	struct nss_wifili_device_stats stats;
+	u32 stats_seen;
 };
 
 static const struct {
@@ -235,6 +237,7 @@ EXPORT_SYMBOL_GPL(nss_wifi_soc_register);
 
 static void nss_wifili_soc_stop(struct nss_core *core,
 				struct nss_wifili_soc *soc);
+static void nss_wifili_forget(struct nss_core *core);
 
 static bool nss_wifili_any_started(void)
 {
@@ -284,8 +287,10 @@ void nss_wifi_soc_unregister(int id)
 			nss_wifili_soc_stop(core, soc);
 	} else if (soc->started) {
 		soc->started = false;
-		if (!nss_wifili_any_started())
+		if (!nss_wifili_any_started()) {
 			nss_core_stop(core);
+			nss_wifili_forget(core);
+		}
 	} else {
 		nss_rings_quiesce(core);
 	}
@@ -364,25 +369,25 @@ bool nss_wifili_reset(struct nss_core *core, bool started)
  * and this may not be deferred.
  */
 static DEFINE_SPINLOCK(nss_wifili_stats_lock);
-static struct nss_wifili_device_stats nss_wifili_stats;
-static u32 nss_wifili_stats_seen;
 
 /* What the firmware says about its own receive path. Empty rings and full
  * rings that drop look identical from the host, and these are what tell them
  * apart.
  */
-void nss_wifili_stats_print(struct seq_file *s)
+static void nss_wifili_soc_stats_print(struct seq_file *s,
+				       const struct nss_wifili_soc *soc)
 {
 	struct nss_wifili_device_stats st;
 	u32 seen;
 	int i;
 
 	spin_lock_bh(&nss_wifili_stats_lock);
-	st = nss_wifili_stats;
-	seen = nss_wifili_stats_seen;
+	st = soc->stats;
+	seen = soc->stats_seen;
 	spin_unlock_bh(&nss_wifili_stats_lock);
 
-	seq_printf(s, "reports %u\n", seen);
+	seq_printf(s, "wifili %u reports %u\n", nss_wifili_soc_ifnum(soc),
+		   seen);
 	if (!seen)
 		return;
 
@@ -406,6 +411,14 @@ void nss_wifili_stats_print(struct seq_file *s)
 		   st.rxwbm_stats.err_src_rxdma,
 		   st.rxwbm_stats.err_src_reo,
 		   st.rxwbm_stats.err_src_invalid);
+}
+
+void nss_wifili_stats_print(struct seq_file *s)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(nss_wifili_socs); i++)
+		nss_wifili_soc_stats_print(s, &nss_wifili_socs[i]);
 }
 
 static void nss_wifili_peer_stats(const struct nss_wifili_soc *soc,
@@ -477,11 +490,11 @@ void nss_wifili_notify(struct nss_core *core, const struct nss_cmn_msg *ncm,
 
 		m = container_of_const(ncm, struct nss_wifili_msg, cm);
 		spin_lock_bh(&nss_wifili_stats_lock);
-		memcpy((u8 *)&nss_wifili_stats + head,
+		memcpy((u8 *)&soc->stats + head,
 		       (const u8 *)&m->msg.wlsoc_stats.stats + head -
 		       core->fw->soc_stats_skip,
-		       sizeof(nss_wifili_stats) - head);
-		nss_wifili_stats_seen++;
+		       sizeof(soc->stats) - head);
+		soc->stats_seen++;
 		spin_unlock_bh(&nss_wifili_stats_lock);
 		return;
 	}
@@ -496,7 +509,7 @@ void nss_wifili_notify(struct nss_core *core, const struct nss_cmn_msg *ncm,
 	 * measuring: there is no receive to lose yet, and no route back until
 	 * the shape of what arrives has been read off the device.
 	 */
-	core->link_desc_seen++;
+	atomic64_inc(&core->link_desc_seen);
 
 	home = READ_ONCE(soc->desc.link_desc_return);
 	if (!home)
@@ -791,6 +804,8 @@ static struct nss_wifili_vdev nss_wifili_vdev_tbl[NSS_WIFILI_VDEV_MAX];
  */
 static DECLARE_BITMAP(nss_wifili_vdev_on, NSS_INTERFACE_MAX);
 static struct nss_wifili_soc *nss_wifili_vdev_soc[NSS_INTERFACE_MAX];
+/* Every virtual device, mesh links included: whose statistics are taken. */
+static DECLARE_BITMAP(nss_wifili_vdev_live, NSS_INTERFACE_MAX);
 
 static struct {
 	int if_num;
@@ -812,12 +827,15 @@ static struct {
 void nss_wifili_vdev_notify(struct nss_core *core, const struct nss_cmn_msg *ncm,
 			    u32 len)
 {
+	u32 if_num = NSS_INTERFACE_NUM_GET(ncm->interface);
 	const struct nss_fw_line *fw = core->fw;
 	const struct nss_wifi_vdev_msg *m;
 	int i;
 
 	if (ncm->type != NSS_WIFI_VDEV_STATS_MSG ||
-	    len < offsetof(struct nss_wifi_vdev_msg, msg) + fw->vdev_stats_len)
+	    len < offsetof(struct nss_wifi_vdev_msg, msg) + fw->vdev_stats_len ||
+	    if_num >= NSS_INTERFACE_MAX ||
+	    !test_bit(if_num, nss_wifili_vdev_live))
 		return;
 
 	m = container_of_const(ncm, struct nss_wifi_vdev_msg, cm);
@@ -826,18 +844,31 @@ void nss_wifili_vdev_notify(struct nss_core *core, const struct nss_cmn_msg *ncm
 
 	for (i = 0; i < ARRAY_SIZE(nss_wifili_vdev_stats); i++) {
 		if (nss_wifili_vdev_stats[i].seen &&
-		    nss_wifili_vdev_stats[i].if_num != ncm->interface)
+		    nss_wifili_vdev_stats[i].if_num != if_num)
 			continue;
 		const u32 *in = (const u32 *)&m->msg.vdev_stats;
 		u32 *acc = (u32 *)&nss_wifili_vdev_stats[i].st;
 		int w;
 
-		nss_wifili_vdev_stats[i].if_num = ncm->interface;
+		nss_wifili_vdev_stats[i].if_num = if_num;
 		for (w = 0; w < fw->vdev_stats_len / sizeof(u32); w++)
 			acc[w + (w >= fw->vdev_stats_hole)] += in[w];
 		nss_wifili_vdev_stats[i].seen++;
 		return;
 	}
+}
+
+/* A released interface number is handed out again, @if_num < 0 is all. */
+static void nss_wifili_vdev_stats_clear(int if_num)
+{
+	int i;
+
+	guard(spinlock_bh)(&nss_wifili_stats_lock);
+
+	for (i = 0; i < ARRAY_SIZE(nss_wifili_vdev_stats); i++)
+		if (if_num < 0 || nss_wifili_vdev_stats[i].if_num == if_num)
+			memset(&nss_wifili_vdev_stats[i], 0,
+			       sizeof(nss_wifili_vdev_stats[i]));
 }
 
 void nss_wifili_vdev_stats_print(struct seq_file *s)
@@ -1082,6 +1113,7 @@ int nss_wifi_vdev_register(int id, struct net_device *dev, u8 radio,
 	WRITE_ONCE(nss_wifili_vdev_soc[if_num], soc);
 	rcu_assign_pointer(core->iface[if_num], dev);
 	set_bit(if_num, nss_wifili_vdev_on);
+	set_bit(if_num, nss_wifili_vdev_live);
 
 	dev_info(core->dev, "vdev %u on radio %u is interface %d, encap %u decap %u\n",
 		 vdev_id, radio, if_num, encap, decap);
@@ -1184,6 +1216,7 @@ int nss_wifi_mesh_register(int id, struct net_device *dev, u8 radio,
 	nss_wifili_vdev_tbl[i].if_num = if_num;
 	nss_wifili_vdev_tbl[i].vdev_id = vdev_id;
 	nss_wifili_vdev_tbl[i].soc = soc;
+	set_bit(if_num, nss_wifili_vdev_live);
 
 	dev_info(core->dev, "mesh vdev %u on radio %u is interface %d\n",
 		 vdev_id, radio, if_num);
@@ -1207,6 +1240,8 @@ static void nss_wifili_vdev_release(struct nss_core *core, int i)
 	 * there rather than against this having been the one to remove it.
 	 */
 	clear_bit(if_num, nss_wifili_vdev_on);
+	clear_bit(if_num, nss_wifili_vdev_live);
+	nss_wifili_vdev_stats_clear(if_num);
 	if (rcu_replace_pointer(core->iface[if_num], NULL, true)) {
 		synchronize_rcu();
 		dev_put(dev);
@@ -2211,7 +2246,7 @@ int nss_wifili_tx(struct seq_file *s)
 		return 0;
 	}
 
-	before = core->tx_done;
+	before = atomic64_read(&core->tx_done);
 
 	for (i = 0; i < 8; i++) {
 		skb = alloc_skb(128 + NET_SKB_PAD, GFP_KERNEL);
@@ -2243,7 +2278,7 @@ int nss_wifili_tx(struct seq_file *s)
 	}
 
 	msleep(200);
-	after = core->tx_done;
+	after = atomic64_read(&core->tx_done);
 
 	seq_printf(s, "posted %d to interface %d, completed %llu\n",
 		   sent, if_num, after - before);
@@ -2682,6 +2717,49 @@ out:
 	return soc->started ? 0 : ret;
 }
 
+/* What a halted core held went with it, its memory freed by the halt and its
+ * interface numbers free for the next boot to hand out again. The records are
+ * freed rather than deleted, because the next firmware never knew them, and
+ * the device references went with the halt's interface table.
+ */
+static void nss_wifili_forget(struct nss_core *core)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(nss_wifili_peer_tbl); i++) {
+		struct nss_wifili_peer *p = &nss_wifili_peer_tbl[i];
+
+		if (p->mem)
+			dma_free_coherent(core->dev, p->size, p->mem, p->dma);
+		p->mem = NULL;
+	}
+	for (i = 0; i < ARRAY_SIZE(nss_wifili_vdev_tbl); i++) {
+		nss_wifili_vdev_tbl[i].dev = NULL;
+		nss_wifili_vdev_tbl[i].if_num = -1;
+	}
+	bitmap_zero(nss_wifili_vdev_on, NSS_INTERFACE_MAX);
+	bitmap_zero(nss_wifili_vdev_live, NSS_INTERFACE_MAX);
+	nss_wifili_vdev_stats_clear(-1);
+	nss_me_drop(-1);
+	nss_mesh_reset();
+
+	for (i = 0; i < ARRAY_SIZE(nss_wifili_socs); i++) {
+		struct nss_wifili_soc *soc = &nss_wifili_socs[i];
+
+		soc->started = false;
+		memset(&soc->txdesc, 0, sizeof(soc->txdesc));
+		memset(&soc->txdescext, 0, sizeof(soc->txdescext));
+		memset(soc->radio_if, 0xff, sizeof(soc->radio_if));
+	}
+}
+
+/* After every halt, before the core can boot again. */
+void nss_wifili_halted(struct nss_core *core)
+{
+	guard(mutex)(&nss_wifili_lock);
+	nss_wifili_forget(core);
+}
+
 /* Start every instance that has described its radios and is not running yet.
  * A resume waits for every radio of an instance; a start asked for by hand
  * takes the radios there are.
@@ -2698,35 +2776,8 @@ static void nss_wifili_start_locked(struct nss_core *core, struct seq_file *s,
 	if (!core->running)
 		return;
 
-	/* What a halted core held went with it. Its records are freed here
-	 * rather than deleted, because the new firmware never knew them.
-	 */
-	if (!core->wifili_started) {
-		for (i = 0; i < ARRAY_SIZE(nss_wifili_peer_tbl); i++) {
-			struct nss_wifili_peer *p = &nss_wifili_peer_tbl[i];
-
-			if (p->mem)
-				dma_free_coherent(core->dev, p->size, p->mem,
-						  p->dma);
-			p->mem = NULL;
-		}
-		for (i = 0; i < ARRAY_SIZE(nss_wifili_vdev_tbl); i++)
-			nss_wifili_vdev_tbl[i].dev = NULL;
-		nss_me_drop(-1);
-		nss_mesh_reset();
-	}
-
 	for (i = 0; i < ARRAY_SIZE(nss_wifili_socs); i++) {
 		soc = &nss_wifili_socs[i];
-
-		/* A halt freed what the firmware held, this instance's
-		 * descriptors with it.
-		 */
-		if (!core->wifili_probed) {
-			soc->started = false;
-			memset(&soc->txdesc, 0, sizeof(soc->txdesc));
-			memset(&soc->txdescext, 0, sizeof(soc->txdescext));
-		}
 
 		if (!soc->used || soc->started || !soc->pdevs ||
 		    (resume && !nss_wifili_described(soc)))

@@ -613,6 +613,9 @@ static int nss_redir_event(struct notifier_block *nb, unsigned long event,
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct nss_core *core = READ_ONCE(nss_redir_core);
 
+	if (core)
+		nss_phys_event(core, event, dev);
+
 	switch (event) {
 	case NETDEV_UP:
 		if (!nss_redir_wanted(dev))

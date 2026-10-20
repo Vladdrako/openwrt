@@ -434,9 +434,10 @@ struct nss_core {
 	u64 rx_type[8];
 	u64 notify;
 	u64 tx_posted;
-	u64 tx_done;
-	u64 rx_desync;
-	u64 link_desc_seen;
+	/* Several receive polls at once. */
+	atomic64_t tx_done;
+	atomic64_t rx_desync;
+	atomic64_t link_desc_seen;
 	u64 link_desc_returned;
 	atomic_t buffers_queued;
 	u64 tx_dup;		/* transmitted buffers the firmware returned again */
@@ -486,6 +487,7 @@ void nss_msg_seen(struct nss_core *core, const struct nss_cmn_msg *ncm,
 int nss_wifili_probe(struct nss_core *core, struct seq_file *s);
 int nss_wifili_start(struct seq_file *s);
 void nss_wifili_resume(struct nss_core *core);
+void nss_wifili_halted(struct nss_core *core);
 bool nss_wifili_reset(struct nss_core *core, bool started);
 int nss_wifili_tx(struct seq_file *s);
 void nss_msg_census(const struct nss_cmn_msg *ncm);
@@ -527,6 +529,8 @@ int nss_phys_arm(struct nss_core *core, unsigned long mask);
 int nss_phys_msg(struct nss_core *core, int if_num, u32 type,
 		 const void *body, size_t len);
 void nss_phys_arm_ports(struct nss_core *core);
+void nss_phys_event(struct nss_core *core, unsigned long event,
+		    struct net_device *dev);
 void nss_flow_bind(struct nss_core *core);
 bool nss_flow_is_ours(int ifindex);
 int nss_flow_ifnum(struct nss_core *core, int ifindex, u32 *mtu);
