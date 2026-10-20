@@ -43,6 +43,16 @@ struct nss_cmn_node_stats {
 	u32 rx_dropped[4];
 };
 
+/* Node statistics of the Ethernet receive, IPv4 and IPv6 nodes: the common
+ * block, then 3 (Ethernet), 20 (IPv4) or 21 (IPv6) counters of their own,
+ * then one counter per exception event, cumulative.
+ */
+#define NSS_IPV4_NODE_EXCEPTIONS_OFF	(sizeof(struct nss_cmn_node_stats) + 20 * 4)
+#define NSS_IPV6_NODE_EXCEPTIONS_OFF	(sizeof(struct nss_cmn_node_stats) + 21 * 4)
+#define NSS_ETH_RX_NODE_EXCEPTIONS_OFF	(sizeof(struct nss_cmn_node_stats) + 3 * 4)
+#define NSS_NODE_EXCEPTIONS_MAX		96
+#define NSS_ETH_RX_NODE_STATS_SYNC_MSG	0
+
 /* Dynamic interfaces. */
 
 #define NSS_DYNAMIC_INTERFACE_ALLOC_NODE	0
@@ -56,6 +66,8 @@ enum nss_dynamic_interface_type {
 	NSS_DYNAMIC_INTERFACE_TYPE_WIFILI_INTERNAL = 19,
 	NSS_DYNAMIC_INTERFACE_TYPE_GENERIC_REDIR_N2H = 32,
 	NSS_DYNAMIC_INTERFACE_TYPE_GENERIC_REDIR_H2N = 33,
+	NSS_DYNAMIC_INTERFACE_TYPE_WIFILI_EXTERNAL0 = 61,
+	NSS_DYNAMIC_INTERFACE_TYPE_WIFILI_EXTERNAL1 = 62,
 	NSS_DYNAMIC_INTERFACE_TYPE_WIFI_MESH_INNER = 70,
 	NSS_DYNAMIC_INTERFACE_TYPE_WIFI_MESH_OUTER = 71,
 };
@@ -85,8 +97,6 @@ struct nss_dynamic_interface_msg {
 #define NSS_IF_LINK_STATE_NOTIFY	2
 #define NSS_IF_MTU_CHANGE	3
 #define NSS_IF_MAC_ADDR_SET	4
-#define NSS_IF_VSI_ASSIGN	13
-#define NSS_IF_VSI_UNASSIGN	14
 
 #define NSS_IF_DATA_ALIGN_2BYTE	0
 
@@ -113,10 +123,6 @@ struct nss_if_mac_address_set {
 	u8 mac_addr[ETH_ALEN];
 };
 
-struct nss_if_vsi_assign {
-	u32 vsi;
-};
-
 struct nss_if_msg {
 	struct nss_cmn_msg cm;
 	u8 msg[56];
@@ -138,8 +144,20 @@ struct nss_virt_if_config_msg {
 #define NSS_IPV4_TX_CREATE_RULE_MSG		0
 #define NSS_IPV4_TX_DESTROY_RULE_MSG		1
 #define NSS_IPV4_RX_CONN_STATS_SYNC_MSG		3
+#define NSS_IPV4_RX_NODE_STATS_SYNC_MSG		4
 #define NSS_IPV4_TX_CREATE_MC_RULE_MSG		6
 #define NSS_IPV4_TX_CONN_STATS_SYNC_MANY_MSG	7
+#define NSS_IPV4_TX_ACCEL_MODE_CFG_MSG		8
+
+/* Where the IPv4 and IPv6 engines accelerate: in the cores, or handed to the
+ * switch, which they boot with.
+ */
+#define NSS_ACCEL_MODE_CORE			0
+
+struct nss_accel_mode_cfg {
+	struct nss_cmn_msg cm;
+	__be32 mode;
+};
 
 #define NSS_IPV4_RULE_SYNC_REASON_FLUSH		1
 #define NSS_IPV4_RULE_SYNC_REASON_EVICT		2
@@ -168,8 +186,10 @@ struct nss_virt_if_config_msg {
 #define NSS_IPV6_TX_CREATE_RULE_MSG		0
 #define NSS_IPV6_TX_DESTROY_RULE_MSG		1
 #define NSS_IPV6_RX_CONN_STATS_SYNC_MSG		3
+#define NSS_IPV6_RX_NODE_STATS_SYNC_MSG		4
 #define NSS_IPV6_TX_CREATE_MC_RULE_MSG		6
 #define NSS_IPV6_TX_CONN_STATS_SYNC_MANY_MSG	7
+#define NSS_IPV6_TX_ACCEL_MODE_CFG_MSG		8
 
 #define NSS_IPV6_RULE_SYNC_REASON_FLUSH		1
 #define NSS_IPV6_RULE_SYNC_REASON_EVICT		2
@@ -501,8 +521,11 @@ struct nss_ipv6_msg {
 /* The wifili node: the Wi-Fi SoC and its radios. */
 
 #define NSS_WIFILI_INIT_MSG			0
+#define NSS_WIFILI_SOC_RESET_MSG		1
 #define NSS_WIFILI_PDEV_INIT_MSG		2
+#define NSS_WIFILI_PDEV_DEINIT_MSG		3
 #define NSS_WIFILI_START_MSG			4
+#define NSS_WIFILI_STOP_MSG			5
 #define NSS_WIFILI_PEER_CREATE_MSG		6
 #define NSS_WIFILI_PEER_DELETE_MSG		7
 #define NSS_WIFILI_STATS_MSG			10
@@ -587,6 +610,11 @@ struct nss_wifili_pdev_init_msg {
 	u32 target_pdev_id;
 	u8 scheme_id;
 	u8 reserved[3];
+};
+
+/* Names the radio by its index in the instance, not by its node. */
+struct nss_wifili_pdev_deinit_msg {
+	u32 ifnum;
 };
 
 struct nss_wifili_peer_msg {
@@ -742,6 +770,7 @@ struct nss_wifili_msg {
 	union {
 		struct nss_wifili_init_msg init;
 		struct nss_wifili_pdev_init_msg pdevmsg;
+		struct nss_wifili_pdev_deinit_msg pdevdeinit;
 		struct nss_wifili_stats_sync_msg wlsoc_stats;
 		struct nss_wifili_stats_cfg_msg scm;
 		struct nss_wifili_radio_cfg_msg radiocfgmsg;

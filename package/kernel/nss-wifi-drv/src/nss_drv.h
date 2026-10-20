@@ -92,6 +92,9 @@ unsigned int nss_pool_ceiling(void);
 #define NSS_INTERFACE_VAP_BASE	200
 
 #define NSS_INTERFACE_WIFILI	203
+/* The instances for radios on their own chip. */
+#define NSS_INTERFACE_WIFILI_EXT0	215
+#define NSS_INTERFACE_WIFILI_EXT1	216
 #define NSS_INTERFACE_MAX	228
 
 /* Interrupt causes, one GIC line each: there are no mask or status registers
@@ -392,8 +395,6 @@ struct nss_core {
 	struct clk **aux_clks;
 	int num_aux_clks;
 	unsigned long phys_armed;
-	/* Ports a halt left bound to the firmware's switch identities. */
-	unsigned long phys_stale;
 	struct work_struct arm;
 	/* Buffers the host lends this core, and the firmware's high-water
 	 * mark: the two are kept equal because the firmware hands back
@@ -459,6 +460,7 @@ struct nss_core {
 int nss_meminfo_init(struct nss_core *core);
 void *nss_mem_alloc(struct nss_core *core, size_t size, u32 align,
 		    u32 *addr_out);
+void nss_mem_free(struct nss_core *core, void *cpu);
 void nss_mem_free_all(struct nss_core *core);
 int nss_wifi_pool_set(struct nss_core *core, u32 payloads);
 void nss_pbuf_pool_free(struct nss_core *core);
@@ -495,6 +497,7 @@ void nss_wifili_notify(struct nss_core *core, const struct nss_cmn_msg *ncm,
 		       u32 len);
 void nss_wifili_bind(struct nss_core *core);
 bool nss_wifili_owns(const struct net_device *dev);
+bool nss_wifili_is_soc(u32 if_num);
 void nss_wifili_me_snoop(u32 if_num, struct sk_buff *skb);
 bool nss_wifili_rx_80211(u32 if_num, struct net_device *dev,
 			 struct sk_buff *skb, struct napi_struct *napi);
@@ -525,6 +528,7 @@ int nss_phys_msg(struct nss_core *core, int if_num, u32 type,
 		 const void *body, size_t len);
 void nss_phys_arm_ports(struct nss_core *core);
 void nss_flow_bind(struct nss_core *core);
+bool nss_flow_is_ours(int ifindex);
 int nss_flow_ifnum(struct nss_core *core, int ifindex, u32 *mtu);
 int nss_flow_port(struct nss_core *core, int ifindex, u16 flow_vid, u32 *mtu,
 		  u16 *vid);

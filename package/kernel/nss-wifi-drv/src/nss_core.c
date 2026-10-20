@@ -453,6 +453,7 @@ static void nss_core_halt(struct nss_core *core)
 	if (!core->loaded)
 		return;
 
+	qca_ppe_fw_carrier_set(core->conduit, NULL);
 	writel(1, core->nphys + NSS_CORE_RESET_CTRL);
 
 	val = readl(core->misc_reset);
@@ -473,11 +474,10 @@ static void nss_core_halt(struct nss_core *core)
 		core->msg.lost = false;
 	}
 	synchronize_net();
-	/* A core in reset cannot be asked to close its ports. */
-	core->phys_stale |= core->phys_armed;
+	/* A core in reset cannot be asked to close its ports, and holds
+	 * nothing of theirs in the switch.
+	 */
 	core->phys_armed = 0;
-	if (core->phys_stale)
-		schedule_work(&core->arm);
 	nss_bridge_stop();
 	nss_flow_flush();
 	nss_mc_flush();
@@ -620,6 +620,32 @@ static void nss_rps_enable(struct nss_core *core)
 	if (ret)
 		dev_warn(core->dev, "data queue spreading not enabled: %d\n",
 			 ret);
+}
+
+/* The engines otherwise program the switch themselves for a connection both
+ * ends of which they see on a switch port, into tables qca-ppe allocates.
+ */
+static void nss_accel_in_core(struct nss_core *core)
+{
+	static const u32 ifaces[][2] = {
+		{ NSS_INTERFACE_IPV4, NSS_IPV4_TX_ACCEL_MODE_CFG_MSG },
+		{ NSS_INTERFACE_IPV6, NSS_IPV6_TX_ACCEL_MODE_CFG_MSG },
+	};
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(ifaces); i++) {
+		struct nss_accel_mode_cfg m = {
+			.mode = cpu_to_be32(NSS_ACCEL_MODE_CORE),
+		};
+		int ret;
+
+		m.cm.interface = ifaces[i][0];
+		m.cm.type = ifaces[i][1];
+		ret = nss_msg_send(core, &m, sizeof(m));
+		if (ret)
+			dev_err(core->dev, "interface %u accelerates in the switch: %d\n",
+				ifaces[i][0], ret);
+	}
 }
 
 static void nss_pool_configure(struct nss_core *core)
@@ -868,7 +894,12 @@ static int nss_core_boot(struct nss_core *core)
 	if (ret)
 		dev_err(core->dev, "PPE tables not restored: %d\n", ret);
 
+	ret = qca_ppe_fw_carrier_set(core->conduit, nss_flow_is_ours);
+	if (ret)
+		dev_err(core->dev, "flows not steered to the firmware: %d\n", ret);
+
 	nss_pool_configure(core);
+	nss_accel_in_core(core);
 	nss_rps_enable(core);
 	nss_pbuf_pool_add(core, nss_pbuf_bytes);
 	nss_core_stats_off(core);

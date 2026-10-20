@@ -130,7 +130,7 @@ static unsigned int nss_br_hook(void *priv, struct sk_buff *skb,
 	u8 proto;
 
 	ct = nf_ct_get(skb, &ctinfo);
-	if (!ct || !test_bit(IPS_SEEN_REPLY_BIT, &ct->status))
+	if (!ct || !is_unicast_ether_addr(eth_hdr(skb)->h_dest))
 		return NF_ACCEPT;
 
 	e = nss_br_find(ct);
@@ -141,6 +141,9 @@ static unsigned int nss_br_hook(void *priv, struct sk_buff *skb,
 	if (!state->in->ieee80211_ptr && !state->out->ieee80211_ptr)
 		return NF_ACCEPT;
 
+	/* A UDP sender may fall silent once the reply starts, so its
+	 * direction is learned before there is one.
+	 */
 	proto = nf_ct_protonum(ct);
 	if (proto != IPPROTO_UDP &&
 	    (proto != IPPROTO_TCP ||

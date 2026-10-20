@@ -159,6 +159,50 @@ static const char *const nss_flow_reject_name[] = {
 static u32 nss_flow_pushed, nss_flow_bound, nss_flow_reject[NSS_FLOW_REJECT_MAX];
 static int nss_flow_last_ifindex;
 
+/* Where in the firmware a packet stopped and why it went to the host. */
+struct nss_flow_node {
+	const char *name;
+	u32 iface, type, excep_off;
+	struct nss_cmn_node_stats stats;
+	unsigned int n;
+	u32 excep[NSS_NODE_EXCEPTIONS_MAX];
+};
+
+static struct nss_flow_node nss_flow_nodes[] = {
+	{ "eth_rx", NSS_INTERFACE_ETH_RX, NSS_ETH_RX_NODE_STATS_SYNC_MSG,
+	  NSS_ETH_RX_NODE_EXCEPTIONS_OFF },
+	{ "ipv4", NSS_INTERFACE_IPV4, NSS_IPV4_RX_NODE_STATS_SYNC_MSG,
+	  NSS_IPV4_NODE_EXCEPTIONS_OFF },
+	{ "ipv6", NSS_INTERFACE_IPV6, NSS_IPV6_RX_NODE_STATS_SYNC_MSG,
+	  NSS_IPV6_NODE_EXCEPTIONS_OFF },
+};
+
+static bool nss_flow_node_sync(u32 iface, const struct nss_cmn_msg *ncm,
+			       u32 len)
+{
+	struct nss_flow_node *nd;
+	size_t off;
+
+	for (nd = nss_flow_nodes; nd < nss_flow_nodes + ARRAY_SIZE(nss_flow_nodes); nd++) {
+		if (nd->iface != iface || nd->type != ncm->type)
+			continue;
+
+		/* The buffer can be longer than the message it carries. */
+		len = min_t(u32, len, sizeof(*ncm) + ncm->len);
+		off = sizeof(*ncm) + nd->excep_off;
+		if (len <= off)
+			return true;
+
+		memcpy(&nd->stats, ncm + 1, sizeof(nd->stats));
+		nd->n = min_t(unsigned int, (len - off) / 4,
+			      NSS_NODE_EXCEPTIONS_MAX);
+		memcpy(nd->excep, (const u8 *)ncm + off, nd->n * 4);
+		return true;
+	}
+
+	return false;
+}
+
 /* The last few connections that were not taken, with the tuple of each.
  * The counters say how often a reason fires but not for which connection,
  * and a box carrying ordinary traffic fires most of them for flows nobody
@@ -364,7 +408,7 @@ static bool nss_flow_is_wireless(int ifindex)
 /* A connection this firmware may carry has a station or a modem at one end;
  * between two switch ports the switch carries it.
  */
-static bool nss_flow_is_ours(int ifindex)
+bool nss_flow_is_ours(int ifindex)
 {
 	return nss_flow_is_wireless(ifindex) || nss_redir_bound(ifindex);
 }
@@ -1236,6 +1280,9 @@ void nss_flow_notify(const struct nss_cmn_msg *ncm, u32 len)
 
 	m4 = container_of_const(ncm, struct nss_ipv4_msg, cm);
 	m6 = container_of_const(ncm, struct nss_ipv6_msg, cm);
+	if (nss_flow_node_sync(iface, ncm, len))
+		return;
+
 	if (iface == NSS_INTERFACE_IPV4) {
 		if (ncm->type != NSS_IPV4_RX_CONN_STATS_SYNC_MSG ||
 		    len < offsetofend(struct nss_ipv4_msg, msg.conn_stats) ||
@@ -1607,6 +1654,7 @@ void nss_flow_print(struct seq_file *s)
 {
 	struct rhashtable_iter iter;
 	struct nss_flow_entry *e;
+	struct nss_flow_node *nd;
 	int i;
 
 	seq_printf(s, "bound %u pushed %u last-ifindex %d\n",
@@ -1616,6 +1664,17 @@ void nss_flow_print(struct seq_file *s)
 		seq_printf(s, " %s %u", nss_flow_reject_name[i],
 			   nss_flow_reject[i]);
 	seq_putc(s, '\n');
+
+	for (nd = nss_flow_nodes; nd < nss_flow_nodes + ARRAY_SIZE(nss_flow_nodes); nd++) {
+		seq_printf(s, "node %s rx %u tx %u drop %u/%u/%u/%u exceptions",
+			   nd->name, nd->stats.rx_packets, nd->stats.tx_packets,
+			   nd->stats.rx_dropped[0], nd->stats.rx_dropped[1],
+			   nd->stats.rx_dropped[2], nd->stats.rx_dropped[3]);
+		for (i = 0; i < nd->n; i++)
+			if (nd->excep[i])
+				seq_printf(s, " %d:%u", i, nd->excep[i]);
+		seq_putc(s, '\n');
+	}
 
 	for (i = 0; i < ARRAY_SIZE(nss_flow_rej) && i < nss_flow_rej_seen; i++) {
 		const struct nss_flow_reject_rec *r = &nss_flow_rej[i];

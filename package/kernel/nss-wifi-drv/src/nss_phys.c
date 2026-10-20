@@ -8,13 +8,15 @@
  * lives in. Opening a port points its receive at the firmware's own ethernet
  * node instead, which is where the IPv4 and IPv6 engines are.
  *
- * Three things have to be said before the port is opened, because none of them
- * comes from the rule: the address, which appears as the source address of
- * everything transmitted there; the maximum frame size; and the switch's own
- * forwarding identity for the port, without which the port has ingress and
- * nothing leaves through the fabric. The link state comes last, because a
- * freshly opened interface starts with its link down and nothing transmits on
- * it until the link is up.
+ * Two things have to be said before the port is opened, because neither comes
+ * from the rule: the address, which appears as the source address of
+ * everything transmitted there, and the maximum frame size. The link state
+ * comes last, because a freshly opened interface starts with its link down and
+ * nothing transmits on it until the link is up.
+ *
+ * The port is never given a VSI of the firmware's own: the firmware transmits
+ * on a port by its number, and a VSI would have it create interfaces and
+ * router addresses in switch tables the switch driver allocates.
  *
  * The port set is whatever the switch topology has: the driver already holds
  * one network device per user port, so a port is named by its index and the
@@ -28,7 +30,6 @@
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
-#include <linux/soc/qcom/qca_ppe.h>
 #include <net/dsa.h>
 
 #include "nss_drv.h"
@@ -63,22 +64,10 @@ static void nss_phys_port_close(struct nss_core *core, int if_num,
 				struct net_device *dev)
 {
 	struct nss_if_link_state_notify link = {};
-	struct nss_if_vsi_assign vsi = {};
 
 	nss_phys_msg(core, if_num, NSS_IF_LINK_STATE_NOTIFY, &link,
 		     sizeof(link));
-
-	vsi.vsi = qca_ppe_port_fw_vsi_get(dev);
-	if (vsi.vsi >= 0)
-		nss_phys_msg(core, if_num, NSS_IF_VSI_UNASSIGN, &vsi,
-			     sizeof(vsi));
-
 	nss_phys_msg(core, if_num, NSS_IF_CLOSE, NULL, 0);
-
-	/* The port's binding reads back cleared after the unassign, so the
-	 * switch driver puts back the one the bridge implies.
-	 */
-	qca_ppe_port_vsi_restore(dev);
 
 	dev_info(core->dev, "%s: port %d back to the host\n",
 		 netdev_name(dev), if_num);
@@ -90,24 +79,8 @@ static int nss_phys_port_open(struct nss_core *core, int if_num,
 	struct nss_if_link_state_notify link = { .state = 1 };
 	struct nss_if_mac_address_set mac = {};
 	struct nss_if_mtu_change mtu = {};
-	struct nss_if_vsi_assign vsi = {};
 	struct nss_if_open open = {};
-	int ret, id;
-
-	/* The identity's member and flood masks read back zero after the
-	 * assign, which would silence the port's own broadcast egress, so it
-	 * is asked for again straight after, which writes them back.
-	 */
-	id = qca_ppe_port_fw_vsi_get(dev);
-	if (id < 0)
-		return id;
-
-	vsi.vsi = id;
-	ret = nss_phys_msg(core, if_num, NSS_IF_VSI_ASSIGN, &vsi, sizeof(vsi));
-	if (ret)
-		return ret;
-
-	qca_ppe_port_fw_vsi_get(dev);
+	int ret;
 
 	ether_addr_copy(mac.mac_addr, dev->dev_addr);
 	ret = nss_phys_msg(core, if_num, NSS_IF_MAC_ADDR_SET, &mac, sizeof(mac));
@@ -130,8 +103,8 @@ static int nss_phys_port_open(struct nss_core *core, int if_num,
 	if (ret)
 		goto err;
 
-	dev_info(core->dev, "%s: port %d routes in the firmware, vsi %d\n",
-		 netdev_name(dev), if_num, id);
+	dev_info(core->dev, "%s: port %d routes in the firmware\n",
+		 netdev_name(dev), if_num);
 
 	return 0;
 
@@ -156,8 +129,8 @@ int nss_phys_arm(struct nss_core *core, unsigned long mask)
 	if (!core->running)
 		return -ENODEV;
 
-	/* The switch driver reads and writes a port's forwarding identity
-	 * under rtnl, and this is what asks it to.
+	/* The port's address and MTU go to the firmware, and their writers
+	 * hold rtnl.
 	 */
 	ASSERT_RTNL();
 
@@ -204,33 +177,7 @@ static unsigned long nss_phys_allowed = ~0UL;
 module_param_named(arm_ports, nss_phys_allowed, ulong, 0644);
 MODULE_PARM_DESC(arm_ports, "switch ports, by DSA index, handed to the firmware");
 
-/* Give @ports back the binding the bridge implies. Their netdevs are no
- * longer in the interface table, which the halt cleared.
- */
-static void nss_phys_restore(struct nss_core *core, unsigned long ports)
-{
-	struct net_device *dev;
-
-	for_each_netdev(&init_net, dev) {
-		struct dsa_port *dp;
-
-		if (!dsa_user_dev_check(dev))
-			continue;
-
-		dp = dsa_port_from_netdev(dev);
-		if (IS_ERR(dp) || dp->index >= BITS_PER_LONG ||
-		    !(ports & BIT(dp->index)) ||
-		    dsa_port_to_conduit(dp) != core->conduit)
-			continue;
-
-		qca_ppe_port_vsi_restore(dev);
-		netdev_info(dev, "port %d back to the host\n", dp->index);
-	}
-}
-
-/* Arm every port on a running core, and give back whatever a halt left
- * bound to the firmware and is not armed again.
- */
+/* Arm every port on a running core. */
 void nss_phys_arm_ports(struct nss_core *core)
 {
 	unsigned long mask = 0;
@@ -250,8 +197,6 @@ void nss_phys_arm_ports(struct nss_core *core)
 		nss_phys_arm(core, mask & nss_phys_allowed);
 	}
 	nss_redir_arm(core);
-	nss_phys_restore(core, core->phys_stale & ~core->phys_armed);
-	core->phys_stale = 0;
 	mutex_unlock(&core->lock);
 	rtnl_unlock();
 }
