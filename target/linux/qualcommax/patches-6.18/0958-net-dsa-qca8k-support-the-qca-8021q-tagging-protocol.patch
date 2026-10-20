@@ -1,5 +1,5 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Julius Bairaktaris <julius@bairaktaris.de>
+From: Stanislaw Pal <kuncy7@gmail.com>
 Date: Sat, 10 Oct 2026 10:24:05 +0200
 Subject: [PATCH] net: dsa: qca8k: support the qca-8021q tagging protocol
 
@@ -23,7 +23,10 @@ VLANs, bridge VLANs in the tag_8021q range are refused, and a bridged
 port keeps its standalone VLAN, which the tagger uses for frames the
 bridge does not forward in hardware, such as IGMP and MLD.
 
+Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
+Link: https://github.com/kuncy7/openwrt-nss-edma/commit/1b0fe6d65873
 Assisted-by: Claude:claude-opus-5-5
+Co-developed-by: Julius Bairaktaris <julius@bairaktaris.de>
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 --- a/drivers/net/dsa/qca/qca8k-8xxx.c
 +++ b/drivers/net/dsa/qca/qca8k-8xxx.c

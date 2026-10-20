@@ -1694,6 +1694,23 @@ int qca_ppe_port_del_pcp_prio(struct dsa_switch *ds, int port, u8 pcp,
 /* Which classifier's internal priority wins when several offer one: the flow
  * table first, then the CPU preheader, ACL, DSCP and last a VLAN's PCP.
  */
+/* A flow entry names a profile, not a priority, so give the profiles the
+ * identity mapping and let the entry carry the number itself. Profile 0 is
+ * left at priority 0: it is what an entry given no priority holds, and leaving
+ * it there is what lets DSCP still decide those. The sparse list sits above
+ * the bands and takes its own.
+ */
+void ppe_flow_qos_init(struct qca_ppe_priv *priv)
+{
+	int i;
+
+	for (i = 1; i <= PPE_QOS_MAX_PRI; i++)
+		regmap_write(priv->regmap, PPE_FLOW_QOS_GROUP(0, i),
+			     FIELD_PREP(PPE_QOS_INFO_PRI, i));
+	regmap_write(priv->regmap, PPE_FLOW_QOS_GROUP(0, PPE_QOS_SPARSE_PRI),
+		     FIELD_PREP(PPE_QOS_INFO_PRI, PPE_QOS_SPARSE_PRI));
+}
+
 static void ppe_qos_init(struct qca_ppe_priv *priv)
 {
 	int i;
@@ -1720,17 +1737,7 @@ static void ppe_qos_init(struct qca_ppe_priv *priv)
 		regmap_write(priv->regmap, PPE_PCP_QOS_GROUP(0, i),
 			     FIELD_PREP(PPE_QOS_INFO_PRI, i >> 1));
 
-	/* A flow entry names a profile, not a priority, so give the profiles
-	 * the identity mapping and let the entry carry the number itself.
-	 * Profile 0 is left at priority 0: it is what an entry given no
-	 * priority holds, and leaving it there is what lets DSCP still decide
-	 * those. The sparse list sits above the bands and takes its own.
-	 */
-	for (i = 1; i <= PPE_QOS_MAX_PRI; i++)
-		regmap_write(priv->regmap, PPE_FLOW_QOS_GROUP(0, i),
-			     FIELD_PREP(PPE_QOS_INFO_PRI, i));
-	regmap_write(priv->regmap, PPE_FLOW_QOS_GROUP(0, PPE_QOS_SPARSE_PRI),
-		     FIELD_PREP(PPE_QOS_INFO_PRI, PPE_QOS_SPARSE_PRI));
+	ppe_flow_qos_init(priv);
 }
 
 const struct psch_tdm_data cppe_psch_tdm_data = {
@@ -1757,7 +1764,7 @@ const struct bm_tdm_data hppe_bm_tdm_data = {
  * puts every flow in one bucket. The seed is fixed so that a flow keeps its
  * bucket across a reboot.
  */
-void ppe_rss_hash_init(struct qca_ppe_priv *priv)
+static void ppe_rss_hash_init(struct qca_ppe_priv *priv)
 {
 	static const u32 mix[5] = { 0x13, 0xb, 0x13, 0xb, 0x13 };
 	static const u32 fin[5] = { 0x205, 0x264, 0x227, 0x245, 0x201 };

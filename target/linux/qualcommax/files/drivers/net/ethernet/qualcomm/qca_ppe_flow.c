@@ -286,7 +286,6 @@ static const char * const ppe_flow_reject_name[] = {
 	[PPE_REJECT_ACTION]		= "unsupported_action",
 	[PPE_REJECT_L2]			= "no_egress_l2_header",
 	[PPE_REJECT_EGRESS_PORT]	= "egress_not_switch_port",
-	[PPE_REJECT_HAIRPIN]		= "egress_is_ingress",
 	[PPE_REJECT_NAT_BOTH]		= "snat_and_dnat",
 	[PPE_REJECT_NAT_IPV6]		= "ipv6_nat",
 	[PPE_REJECT_RESOURCE]		= "table_full",

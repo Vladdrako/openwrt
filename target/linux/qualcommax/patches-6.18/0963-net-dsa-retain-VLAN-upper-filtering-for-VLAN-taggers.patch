@@ -1,4 +1,4 @@
-From: Julius Bairaktaris <julius@bairaktaris.de>
+From: Adriel Santos <adriel@adriel.eu>
 Subject: [PATCH] net: dsa: retain VLAN upper filtering for VLAN taggers
 
 VLAN taggers need upper membership even while a port is in a VLAN-unaware
@@ -12,6 +12,8 @@ upper membership when the subsequent CPU VLAN add fails.
 Restrict the opt-in C-tag mode to 802.1Q bridge protocol on runtime
 changes.
 
+Signed-off-by: Adriel Santos <adriel@adriel.eu>
+Link: https://github.com/kuncy7/openwrt-nss-edma/pull/19
 Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 --- a/include/net/dsa.h

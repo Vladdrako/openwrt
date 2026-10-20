@@ -1,5 +1,5 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
-From: Julius Bairaktaris <julius@bairaktaris.de>
+From: Stanislaw Pal <kuncy7@gmail.com>
 Date: Sat, 10 Oct 2026 10:24:05 +0200
 Subject: [PATCH] net: dsa: tag_qca: add a tag_8021q variant
 
@@ -12,7 +12,10 @@ forwards in, is one 802.1Q VLAN in both directions. Register and MIB
 frames keep the header, behind the "qca-etype" type, and go to the
 qca8k handlers as before.
 
+Signed-off-by: Stanislaw Pal <kuncy7@gmail.com>
+Link: https://github.com/kuncy7/openwrt-nss-edma/commit/1b0fe6d65873
 Assisted-by: Claude:claude-opus-5-5
+Co-developed-by: Julius Bairaktaris <julius@bairaktaris.de>
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 --- a/include/net/dsa.h
 +++ b/include/net/dsa.h
