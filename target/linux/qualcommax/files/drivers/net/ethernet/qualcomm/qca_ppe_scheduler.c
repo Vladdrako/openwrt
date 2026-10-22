@@ -6,6 +6,7 @@
 #include <net/dcbnl.h>
 #include <net/flow_offload.h>
 #include <net/pkt_cls.h>
+#include <net/pkt_sched.h>
 #include <net/red.h>
 
 #include "qca_ppe.h"
@@ -510,13 +511,12 @@ void ppe_qm_pri_map_init(struct qca_ppe_priv *priv)
 			 * class for every packet, so a class must be as wide as
 			 * the spread or the smear crosses into the next, and
 			 * the third band is the second scheduler node's queues.
-			 * l0_port0[] and ppe_l0_scheduler_init() have already
-			 * put each band a strict priority above
-			 * the one below, which is what the small-frame
-			 * classifier in the ACL needs to be worth anything:
-			 * without it every priority shares one queue, and a
-			 * frame on its way to a Wi-Fi client waits behind
-			 * whatever bulk that queue is holding.
+			 * l0_port0[] and ppe_l0_scheduler_init() put each band
+			 * a strict priority above the one below, which is what
+			 * the small-frame classifier in the ACL needs to be
+			 * worth anything: without it every priority shares one
+			 * queue, and a frame on its way to a Wi-Fi client waits
+			 * behind whatever bulk that queue is holding.
 			 *
 			 * Priorities eight and up select the third band. No
 			 * classifier resolves there on its own - the DSCP and
@@ -1058,9 +1058,7 @@ struct l0_cfg {
 
 /* The CPU port's bands are four queues each, one DRR node per band: queues 0
  * to 3 at the bottom, queues 4 to 7 a strict priority above, and queues 8 to
- * 11 on the port's second L1 node, which sits above the first. Queues 12 to
- * 15 are the trap policers', a strict priority above the bands of the
- * first node.
+ * 11 on the port's second L1 node, which sits above the first.
  */
 static const struct l0_cfg l0_port0[] = {
 	{   0, 0, 0, 0, 0, 0, 0 }, {   1, 0, 0, 0, 0, 0, 0 },
@@ -1073,8 +1071,6 @@ static const struct l0_cfg l0_port0[] = {
 	{ 257, 0, 0, 1, 1, 1, 1 }, { 261, 0, 0, 1, 1, 1, 1 },
 	{ 258, 0, 0, 2, 2, 2, 2 }, { 262, 0, 0, 2, 2, 2, 2 },
 	{ 259, 0, 0, 3, 3, 3, 3 }, { 263, 0, 0, 3, 3, 3, 3 },
-	{  12, 0, 0, 3, 3, 3, 3 }, {  13, 0, 0, 3, 3, 3, 3 },
-	{  14, 0, 0, 3, 3, 3, 3 }, {  15, 0, 0, 3, 3, 3, 3 },
 };
 
 static void ppe_l0_entry_write(struct qca_ppe_priv *priv, const struct l0_cfg *c)
@@ -1119,6 +1115,17 @@ static const struct port_l0_params port_l0[] = {
 	{ 224, 16, 292, 4, 56, 128, 6 },
 	{ 240, 16, 296, 1, 60, 144, 7 },
 };
+
+static const struct port_l0_params *ppe_port_l0(int port)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(port_l0); i++)
+		if (port_l0[i].port == port)
+			return &port_l0[i];
+
+	return NULL;
+}
 
 static void ppe_l0_scheduler_init(struct qca_ppe_priv *priv)
 {
@@ -1251,9 +1258,7 @@ void ppe_port_queues_enable(struct qca_ppe_priv *priv, int port, bool en)
 	const struct port_l0_params *p = NULL;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(port_l0); i++)
-		if (port_l0[i].port == port)
-			p = &port_l0[i];
+	p = ppe_port_l0(port);
 	if (!p)
 		return;
 
@@ -1314,47 +1319,36 @@ static __printf(4, 5) void ppe_qstat(struct ppe_qstats *q, u32 reg, bool bytes,
 	q->n++;
 }
 
-/* The frames a port's queues dropped on egress, as 32-bit sums for the caller
- * to fold: by WRED, and at the queue limit. The CPU port's are its unicast
- * queues below the first user port's.
+/* The frames a port's queues dropped on egress, as a 32-bit sum for the caller
+ * to fold.
  */
-void ppe_port_queue_drops(struct qca_ppe_priv *priv, int port, u32 *early,
-			  u32 *tail)
+u32 ppe_port_queue_drops(struct qca_ppe_priv *priv, int port)
 {
 	const struct port_l0_params *p = NULL;
-	u16 base = 0, ucast = port_l0[0].ucast_base, mcast = 0;
-	u32 w[PPE_CNT_WORDS];
+	u32 w[PPE_CNT_WORDS], tx = 0;
 	int i, t;
 
-	*early = *tail = 0;
-	for (i = 0; i < ARRAY_SIZE(port_l0); i++)
-		if (port_l0[i].port == port)
-			p = &port_l0[i];
-	if (p) {
-		base = p->ucast_base;
-		ucast = p->ucast_count;
-		mcast = p->mcast_count;
-	} else if (port) {
-		return;
-	}
+	p = ppe_port_l0(port);
+	if (!p)
+		return 0;
 
-	for (i = 0; i < ucast; i++)
+	for (i = 0; i < p->ucast_count; i++)
 		for (t = 0; t < PPE_UNI_DROP_TYPES; t++) {
 			regmap_bulk_read(priv->regmap,
-					 PPE_QM_UNI_DROP_CNT(base + i, t),
+					 PPE_QM_UNI_DROP_CNT(p->ucast_base + i,
+							     t),
 					 w, ARRAY_SIZE(w));
-			if (t < PPE_UNI_DROP_TYPES / 2)
-				*early += w[0];
-			else
-				*tail += w[0];
+			tx += w[0];
 		}
-	for (i = 0; i < mcast; i++)
+	for (i = 0; i < p->mcast_count; i++)
 		for (t = 0; t < PPE_MUL_DROP_TYPES; t++) {
 			regmap_bulk_read(priv->regmap,
 					 PPE_QM_MUL_DROP_CNT(port, i, t),
 					 w, ARRAY_SIZE(w));
-			*tail += w[0];
+			tx += w[0];
 		}
+
+	return tx;
 }
 
 /* A port's queue-side counters for ethtool -S: what each of its queues sent
@@ -1376,9 +1370,7 @@ int ppe_port_qstats(struct qca_ppe_priv *priv, int port, u8 **names,
 	int bm = PPE_BM_PHY_START + port - 1;
 	int i, c;
 
-	for (i = 0; i < ARRAY_SIZE(port_l0); i++)
-		if (port_l0[i].port == port)
-			p = &port_l0[i];
+	p = ppe_port_l0(port);
 	if (!p)
 		return 0;
 
@@ -1561,37 +1553,6 @@ int qca_ppe_port_set_apptrust(struct dsa_switch *ds, int port, const u8 *sel,
 	return 0;
 }
 
-/* An untagged frame takes the port's default C-PCP, and the PCP map turns that
- * into its priority, so the default is a PCP whose entry maps to the priority.
- */
-int qca_ppe_port_get_default_prio(struct dsa_switch *ds, int port)
-{
-	struct qca_ppe_priv *priv = ds_to_priv(ds);
-	u32 val;
-
-	regmap_read(priv->regmap, PPE_PORT_DEF_PCP(port), &val);
-
-	return qca_ppe_port_get_pcp_prio(ds, port,
-					 FIELD_GET(PPE_PORT_DEF_CPCP, val));
-}
-
-int qca_ppe_port_set_default_prio(struct dsa_switch *ds, int port, u8 prio)
-{
-	int pcp;
-
-	for (pcp = 0; pcp <= FIELD_MAX(PPE_PORT_DEF_CPCP); pcp++)
-		if (qca_ppe_port_get_pcp_prio(ds, port, pcp) == prio)
-			break;
-	if (pcp > FIELD_MAX(PPE_PORT_DEF_CPCP))
-		return -EBUSY;
-
-	regmap_update_bits(ds_to_priv(ds)->regmap, PPE_PORT_DEF_PCP(port),
-			   PPE_PORT_DEF_CPCP,
-			   FIELD_PREP(PPE_PORT_DEF_CPCP, pcp));
-
-	return 0;
-}
-
 /* One DSCP table serves every port - the hardware has two of them and selects
  * between them per port, which is not the per-port mapping DCB describes, so
  * the driver keeps every port on the same one and tells DSA the mapping is
@@ -1639,54 +1600,6 @@ int qca_ppe_port_del_dscp_prio(struct dsa_switch *ds, int port, u8 dscp,
 	regmap_update_bits(priv->regmap,
 			   PPE_DSCP_QOS_GROUP(PPE_QOS_GROUP, dscp),
 			   PPE_QOS_INFO_PRI, 0);
-
-	return 0;
-}
-
-/* The PCP table is shared the same way. DCB carries the DEI in bit 3, the
- * table is indexed by PCP << 1 | DEI. Its default is the identity map
- * ppe_qos_init() writes, so a deleted entry goes back to that.
- */
-#define PPE_PCP_QOS_IDX(pcp)	((((pcp) & 7) << 1) | ((pcp) >> 3))
-
-int qca_ppe_port_get_pcp_prio(struct dsa_switch *ds, int port, u8 pcp)
-{
-	struct qca_ppe_priv *priv = ds_to_priv(ds);
-	u32 val;
-
-	regmap_read(priv->regmap,
-		    PPE_PCP_QOS_GROUP(PPE_QOS_GROUP, PPE_PCP_QOS_IDX(pcp)), &val);
-
-	return FIELD_GET(PPE_QOS_INFO_PRI, val);
-}
-
-int qca_ppe_port_add_pcp_prio(struct dsa_switch *ds, int port, u8 pcp,
-			      u8 prio)
-{
-	struct qca_ppe_priv *priv = ds_to_priv(ds);
-
-	if (prio > PPE_QOS_MAX_PRI)
-		return -ERANGE;
-
-	regmap_update_bits(priv->regmap,
-			   PPE_PCP_QOS_GROUP(PPE_QOS_GROUP, PPE_PCP_QOS_IDX(pcp)),
-			   PPE_QOS_INFO_PRI, FIELD_PREP(PPE_QOS_INFO_PRI, prio));
-
-	return 0;
-}
-
-int qca_ppe_port_del_pcp_prio(struct dsa_switch *ds, int port, u8 pcp,
-			      u8 prio)
-{
-	struct qca_ppe_priv *priv = ds_to_priv(ds);
-
-	if (qca_ppe_port_get_pcp_prio(ds, port, pcp) != prio)
-		return 0;
-
-	regmap_update_bits(priv->regmap,
-			   PPE_PCP_QOS_GROUP(PPE_QOS_GROUP, PPE_PCP_QOS_IDX(pcp)),
-			   PPE_QOS_INFO_PRI,
-			   FIELD_PREP(PPE_QOS_INFO_PRI, pcp & 7));
 
 	return 0;
 }
@@ -1927,8 +1840,13 @@ static u32 ppe_ac_uni_static(struct qca_ppe_priv *priv, int port, u64 rate_bps,
  * therefore share one admission group, sized to the depth asked for, and each
  * may take the largest dynamic share of what is free in it: about two thirds
  * when it holds the group alone, while together they stay within the group.
- * Group 0 keeps the unshaped queues, so three bottlenecks get a group of their
- * own; any further one splits its depth into static per-queue limits.
+ * Group 0 keeps the unshaped queues, which leaves three groups; a bottleneck
+ * that finds none splits its depth into static per-queue limits.
+ *
+ * A shaped port is a bottleneck of its own. The rate-limited classes of
+ * several ports at the same depth are one: each carries a share of the same
+ * download, such as every LAN port's download band below one WAN rate, so
+ * their queues share a group, and the three groups go further.
  */
 #define PPE_AC_GRP_PORT		0
 #define PPE_AC_GRP_RATE		1
@@ -1936,22 +1854,43 @@ static u32 ppe_ac_uni_static(struct qca_ppe_priv *priv, int port, u64 rate_bps,
 static u8 ppe_ac_grp_get(struct qca_ppe_priv *priv, int port, int kind,
 			 u32 bufs)
 {
-	u8 owner = port * 2 + kind + 1, grp, free = 0;
+	struct ppe_ac_grp *g = priv->ac_grp;
+	u8 grp, cur = 0, free = 0;
 
-	for (grp = 1; grp < PPE_AC_GROUPS; grp++) {
-		if (priv->ac_grp_owner[grp] == owner)
-			break;
-		if (!free && !priv->ac_grp_owner[grp])
-			free = grp;
-	}
-	if (grp == PPE_AC_GROUPS)
-		grp = free;
+	for (grp = 1; grp < PPE_AC_GROUPS; grp++)
+		if (g[grp].kind == kind && (g[grp].ports & BIT(port)))
+			cur = grp;
 
-	if (grp)
-		priv->ac_grp_owner[grp] = bufs ? owner : 0;
-	if (!grp || !bufs)
+	/* A port's own group keeps its index across a change of depth. */
+	if (cur && (kind == PPE_AC_GRP_PORT || g[cur].bufs == bufs) && bufs)
+		goto write;
+
+	if (cur && !(g[cur].ports &= ~BIT(port)))
+		g[cur].bufs = 0;
+	cur = 0;
+	if (!bufs)
 		return 0;
 
+	for (grp = 1; grp < PPE_AC_GROUPS; grp++) {
+		if (!g[grp].ports) {
+			free = free ?: grp;
+			continue;
+		}
+		if (kind == PPE_AC_GRP_RATE && g[grp].kind == kind &&
+		    g[grp].bufs == bufs) {
+			g[grp].ports |= BIT(port);
+			return grp;
+		}
+	}
+	if (!free)
+		return 0;
+
+	cur = free;
+	g[cur].kind = kind;
+	g[cur].ports = BIT(port);
+write:
+	g[cur].bufs = bufs;
+	grp = cur;
 	regmap_write(priv->regmap, PPE_QM_AC_GRP_W0(grp), 0);
 	regmap_write(priv->regmap, PPE_QM_AC_GRP_W1(grp),
 		     FIELD_PREP(PPE_AC_GRP_LIMIT, bufs));
@@ -1998,12 +1937,11 @@ static void ppe_port_queue_limit_set(struct qca_ppe_priv *priv, int port)
 					      priv->data->qm_ceiling) :
 			    ppe_ac_uni_default(priv);
 
-	/* The CPU port owns every queue below the first user port's base, and it
-	 * is not in the table below because the driver does not build its
-	 * scheduler. Its admission entries are still ours to size: the band
-	 * cpu_port_rate shapes is a bottleneck the way a shaped port is, and
-	 * without this it keeps the dynamic limit every queue is probed with -
-	 * which the comment above this function explains does not bind.
+	/* The CPU port owns every queue below the first user port's base, laid
+	 * out by l0_port0[] rather than port_l0[]. The band cpu_port_rate
+	 * shapes is a bottleneck the way a shaped port is, and without this it
+	 * keeps the dynamic limit every queue is probed with - which the
+	 * comment above this function explains does not bind.
 	 */
 	if (port == QCA_PPE_CPU_PORT) {
 		u32 def = ppe_ac_uni_default(priv);
@@ -2026,9 +1964,7 @@ static void ppe_port_queue_limit_set(struct qca_ppe_priv *priv, int port)
 		return;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(port_l0); i++)
-		if (port_l0[i].port == port)
-			p = &port_l0[i];
+	p = ppe_port_l0(port);
 	if (!p)
 		return;
 
@@ -2261,57 +2197,13 @@ int qca_ppe_port_policer_add(struct dsa_switch *ds, int port,
 	return ppe_port_policer_set(priv, port, rate_bps, burst, pkt);
 }
 
-/* The meter counts every frame it colours; red is what it dropped. The counters
- * are free-running, 32-bit packets and 40-bit bytes, so tc gets the delta.
- */
-static void ppe_port_policer_delta(struct qca_ppe_priv *priv, int port,
-				   u64 *bytes, u32 *pkts, u32 *drops)
-{
-	u32 p = 0, w[3];
-	u64 b = 0;
-	int c;
-
-	/* green, yellow, red */
-	for (c = 0; c < 3; c++) {
-		regmap_bulk_read(priv->regmap, PPE_PORT_METER_CNT(port, c), w,
-				 ARRAY_SIZE(w));
-		p += ppe_entry_get(w, 0, 32);
-		b += ppe_entry_get(w, 32, 40);
-	}
-
-	*bytes = (b - priv->policer_base[port].bytes) & GENMASK_ULL(39, 0);
-	*pkts = p - priv->policer_base[port].pkts;
-	*drops = (u32)ppe_entry_get(w, 0, 32) - priv->policer_base[port].drops;
-	priv->policer_base[port].bytes = b;
-	priv->policer_base[port].pkts = p;
-	priv->policer_base[port].drops = ppe_entry_get(w, 0, 32);
-}
-
-int qca_ppe_port_policer_stats(struct dsa_switch *ds, int port,
-			       struct flow_stats *stats)
-{
-	u32 pkts, drops;
-	u64 bytes;
-
-	ppe_port_policer_delta(ds_to_priv(ds), port, &bytes, &pkts, &drops);
-	flow_stats_update(stats, bytes, pkts, drops,
-			  pkts ? jiffies : 0,
-			  FLOW_ACTION_HW_STATS_IMMEDIATE);
-
-	return 0;
-}
-
 void qca_ppe_port_policer_del(struct dsa_switch *ds, int port)
 {
 	struct qca_ppe_priv *priv = ds_to_priv(ds);
-	u32 pkts, drops;
-	u64 bytes;
 
 	regmap_write(priv->regmap, PPE_POLICER_CMPST_LEN(port),
 		     FIELD_PREP(PPE_CMPST_LENGTH, ETH_FCS_LEN));
 	ppe_port_policer_set(priv, port, 0, 0, false);
-	/* Start the next policer's statistics from here. */
-	ppe_port_policer_delta(priv, port, &bytes, &pkts, &drops);
 }
 
 /* The counters a shaped port can answer with are the MAC's own transmit MIB and
@@ -2329,15 +2221,37 @@ static void ppe_port_tx_counters(struct qca_ppe_priv *priv, int port,
 		ppe_mib_read(priv, port, PPE_MIB_TXMULTI);
 }
 
+/* What the host sent through the port's qdisc, which counts it itself. */
+static void ppe_port_host_tx(struct qca_ppe_priv *priv, int port, u64 *bytes,
+			     u64 *pkts)
+{
+	struct net_device *dev = dsa_to_port(&priv->ds, port)->user;
+	struct rtnl_link_stats64 sw = {};
+
+	if (dev)
+		dev_fetch_sw_netstats(&sw, dev->tstats);
+	*bytes = sw.tx_bytes;
+	*pkts = sw.tx_packets;
+}
+
+static void ppe_port_shaper_base(struct qca_ppe_priv *priv, int port)
+{
+	struct ppe_port_shaper *sh = &priv->shaper[port];
+
+	ppe_port_tx_counters(priv, port, &sh->base_bytes, &sh->base_pkts,
+			     &sh->base_drops);
+	ppe_port_host_tx(priv, port, &sh->base_host_bytes,
+			 &sh->base_host_pkts);
+	sh->base_backlog = 0;
+}
+
 static u32 ppe_port_backlog(struct qca_ppe_priv *priv, int port)
 {
 	const struct port_l0_params *p = NULL;
 	u32 val, bufs = 0;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(port_l0); i++)
-		if (port_l0[i].port == port)
-			p = &port_l0[i];
+	p = ppe_port_l0(port);
 	if (!p)
 		return 0;
 
@@ -2360,10 +2274,11 @@ static void ppe_port_shaper_stats(struct qca_ppe_priv *priv, int port,
 				  struct tc_qopt_offload_stats *stats)
 {
 	struct ppe_port_shaper *sh = &priv->shaper[port];
-	u32 pkts, drops, backlog;
-	u64 bytes;
+	u64 bytes, host_bytes, host_pkts, db, dhb;
+	u32 pkts, drops, backlog, dp, dhp;
 
 	ppe_port_tx_counters(priv, port, &bytes, &pkts, &drops);
+	ppe_port_host_tx(priv, port, &host_bytes, &host_pkts);
 
 	/* The qdisc's backlog is a gauge the software path also moves. */
 	backlog = ppe_port_backlog(priv, port);
@@ -2371,15 +2286,24 @@ static void ppe_port_shaper_stats(struct qca_ppe_priv *priv, int port,
 	sh->base_backlog = backlog;
 
 	/* The packet and drop counters are 32 bits wide and wrap, so their
-	 * deltas are taken in their own width.
+	 * deltas are taken in their own width. The MAC also sends what the
+	 * host put through the qdisc, which the qdisc has counted already; a
+	 * host frame the switch dropped is in the host's count and not the
+	 * MAC's, so the difference is floored at zero.
 	 */
-	_bstats_update(stats->bstats, bytes - sh->base_bytes,
-		       pkts - sh->base_pkts);
+	db = bytes - sh->base_bytes;
+	dp = pkts - sh->base_pkts;
+	dhb = host_bytes - sh->base_host_bytes;
+	dhp = host_pkts - sh->base_host_pkts;
+	_bstats_update(stats->bstats, db > dhb ? db - dhb : 0,
+		       dp > dhp ? dp - dhp : 0);
 	stats->qstats->drops += (u32)(drops - sh->base_drops);
 
 	sh->base_bytes = bytes;
 	sh->base_pkts = pkts;
 	sh->base_drops = drops;
+	sh->base_host_bytes = host_bytes;
+	sh->base_host_pkts = host_pkts;
 }
 
 /* The port scheduler serves the port's queues strictly, so a class that never
@@ -2442,70 +2366,6 @@ static int ppe_node_shaper_words(unsigned long clk, u32 slot, u64 min_bps,
 	       (max_bps ? PPE_SHP_E_EN : 0);
 
 	return 0;
-}
-
-/* A devlink trap policer is a CPU port queue of its own: the trap group's CPU
- * codes map to it, its L0 shaper counts frames, and a queue full at the burst
- * drops the rest. The burst stays at most PPE_TRAP_BURST_MAX buffers, below
- * the pressure at which the ingress port would send pause frames instead.
- */
-/* Counting frames, the shaper takes this many tokens per frame (measured). */
-#define PPE_FRAME_TOKENS	128
-
-/* Ports use source profile 0. Map profile 14 adds no offset, its priority map
- * never programmed and its hash map zeroed, so a policed group's codes land on
- * its queue alone.
- */
-void ppe_cpu_code_queue_set(struct qca_ppe_priv *priv, u8 code, u32 policer)
-{
-	ppe_qm_map_set(priv, QM_CPU_CODE_OFFSET + code,
-		       policer ? PPE_TRAP_QUEUE(policer) : 0,
-		       policer ? 14 : 0);
-}
-
-int ppe_trap_policer_set(struct qca_ppe_priv *priv, u32 id, u64 rate,
-			 u64 burst)
-{
-	u32 q = PPE_TRAP_QUEUE(id), w[3];
-	unsigned long clk = ppe_clk_rate(priv);
-	int ret;
-
-	if (!clk)
-		return -ENODEV;
-
-	ret = ppe_node_shaper_words(clk, PPE_L0_SHAPER_SLOT, 0,
-				    rate * PPE_FRAME_TOKENS * BITS_PER_BYTE,
-				    burst * PPE_FRAME_TOKENS, false, w);
-	if (ret)
-		return ret;
-
-	regmap_write(priv->regmap, PPE_TM_L0_SHP_CFG(q), w[0]);
-	regmap_write(priv->regmap, PPE_TM_L0_SHP_CFG(q) + 0x4, w[1]);
-	regmap_write(priv->regmap, PPE_TM_L0_SHP_CFG(q) + 0x8,
-		     w[2] | PPE_SHP_METER_UNIT);
-	regmap_write(priv->regmap, PPE_TM_L0_SHP_CREDIT(q), 0);
-	regmap_write(priv->regmap, PPE_TM_L0_SHP_CREDIT(q) + 0x4, 0);
-
-	ppe_ac_uni_write(priv, q,
-			 ppe_ac_uni_bufs(burst));
-
-	return 0;
-}
-
-u64 ppe_trap_policer_drops(struct qca_ppe_priv *priv, u32 id)
-{
-	u32 w[PPE_CNT_WORDS];
-	u64 drops = 0;
-	int t;
-
-	for (t = 0; t < PPE_UNI_DROP_TYPES; t++) {
-		regmap_bulk_read(priv->regmap,
-				 PPE_QM_UNI_DROP_CNT(PPE_TRAP_QUEUE(id), t),
-				 w, ARRAY_SIZE(w));
-		drops += w[0];
-	}
-
-	return drops;
 }
 
 static int ppe_node_shaper_set(struct qca_ppe_priv *priv, u32 cfg, u32 credit,
@@ -2634,11 +2494,24 @@ int qca_ppe_setup_tc_mqprio(struct qca_ppe_priv *priv, int port,
 	bool floor = false;
 	int i, tc;
 
-	for (i = 0; i < ARRAY_SIZE(port_l0); i++)
-		if (port_l0[i].port == port)
-			p = &port_l0[i];
+	p = ppe_port_l0(port);
 	if (!p)
 		return -EOPNOTSUPP;
+
+	/* A replacing qdisc programs the port before the one it replaces is
+	 * destroyed, and that removal names no qdisc, so it must not undo the
+	 * replacement.
+	 */
+	if (qopt->preemptible_tcs) {
+		NL_SET_ERR_MSG_MOD(qopt->extack,
+				   "the port has no frame preemption");
+		return -EOPNOTSUPP;
+	}
+
+	if (!q->num_tc && priv->shaper[port].mqprio_users > 1) {
+		priv->shaper[port].mqprio_users--;
+		return 0;
+	}
 
 	/* Nothing below touches the hardware: a request that turns out to be
 	 * unbuildable half way through would otherwise leave the port with its
@@ -2656,18 +2529,24 @@ int qca_ppe_setup_tc_mqprio(struct qca_ppe_priv *priv, int port,
 		return -ENODEV;
 
 	/* Which queue a packet leaves on is the internal priority a classifier
-	 * gave it, never the class the transmit queue it came from belongs to,
-	 * so a map that disagrees with the classes' queue ranges describes
-	 * something this hardware will not do.
+	 * gave it, never the class the transmit queue it came from belongs to:
+	 * the priority selects a band and the flow hash a queue in it
+	 * (ppe_qm_init()). A map whose class does not own the whole band its
+	 * priority selects describes something this hardware will not do.
 	 */
 	for (i = 0; q->num_tc && i <= PPE_QOS_MAX_PRI; i++) {
+		u16 first = min(i / PPE_FLOW_SPREAD_QUEUES, 2) *
+			    PPE_FLOW_SPREAD_QUEUES;
+
 		tc = q->prio_tc_map[i];
 
-		if (tc >= q->num_tc || i < q->offset[tc] ||
-		    i >= q->offset[tc] + q->count[tc]) {
+		if (tc >= q->num_tc || first < q->offset[tc] ||
+		    first + PPE_FLOW_SPREAD_QUEUES >
+		    q->offset[tc] + q->count[tc]) {
 			dev_err(priv->ds.dev,
-				"port %d: priority %d is mapped to class %d, which does not own queue %d\n",
-				port, i, tc, i);
+				"port %d: priority %d is mapped to class %d, which does not own queues %u-%u\n",
+				port, i, tc, first,
+				first + PPE_FLOW_SPREAD_QUEUES - 1);
 			return -EINVAL;
 		}
 	}
@@ -2711,8 +2590,10 @@ int qca_ppe_setup_tc_mqprio(struct qca_ppe_priv *priv, int port,
 	ppe_port_shapers_clear(priv, p);
 	netdev_reset_tc(dev);
 
-	if (!q->num_tc)
+	if (!q->num_tc) {
+		priv->shaper[port].mqprio_users = 0;
 		return 0;
+	}
 
 	for (tc = 0; tc < q->num_tc; tc++) {
 		if (!floor && !prog[tc].min_bps && !prog[tc].rate_bps)
@@ -2735,6 +2616,7 @@ int qca_ppe_setup_tc_mqprio(struct qca_ppe_priv *priv, int port,
 	netdev_set_num_tc(dev, q->num_tc);
 	for (tc = 0; tc < q->num_tc; tc++)
 		netdev_set_tc_queue(dev, tc, q->count[tc], q->offset[tc]);
+	priv->shaper[port].mqprio_users++;
 
 	return 0;
 }
@@ -2761,8 +2643,7 @@ int qca_ppe_tc_query_caps(struct tc_query_caps_base *base)
  * a hash spread served round robin rather than a ladder of their own. ETS and
  * prio are how that shape is expressed to tc, which numbers bands from the
  * top, so the top band is band 0. A shape this hardware cannot give is refused
- * rather than quietly flattened into one it can; nothing is programmed either
- * way, an accepted qdisc only gains the port's counters.
+ * rather than quietly flattened into one it can.
  */
 #define PPE_QOS_BANDS		3
 
@@ -2806,9 +2687,7 @@ static int ppe_qos_bands_set(struct qca_ppe_priv *priv, int port, u32 handle,
 	}
 
 	sh->bands_handle = handle;
-	ppe_port_tx_counters(priv, port, &sh->base_bytes, &sh->base_pkts,
-			     &sh->base_drops);
-	sh->base_backlog = 0;
+	ppe_port_shaper_base(priv, port);
 
 	return 0;
 }
@@ -2882,15 +2761,12 @@ int qca_ppe_setup_tc_ets(struct qca_ppe_priv *priv, int port,
 	const u32 *quanta = qopt->replace_params.quanta;
 	struct ppe_port_shaper *sh = &priv->shaper[port];
 	const struct port_l0_params *p = NULL;
-	unsigned int i;
 	int ret;
 
 	if (qopt->parent != TC_H_ROOT)
 		return -EOPNOTSUPP;
 
-	for (i = 0; i < ARRAY_SIZE(port_l0); i++)
-		if (port_l0[i].port == port)
-			p = &port_l0[i];
+	p = ppe_port_l0(port);
 
 	switch (qopt->command) {
 	case TC_ETS_REPLACE:
@@ -2989,9 +2865,7 @@ static int ppe_band_tbf(struct qca_ppe_priv *priv, int port,
 	u64 rate = 0;
 	int i, ret;
 
-	for (i = 0; i < ARRAY_SIZE(port_l0); i++)
-		if (port_l0[i].port == port)
-			p = &port_l0[i];
+	p = ppe_port_l0(port);
 	if (!p || ppe_class_node(port, p->ucast_base, offset,
 				 PPE_FLOW_SPREAD_QUEUES, &prog))
 		return -EOPNOTSUPP;
@@ -3176,9 +3050,7 @@ static int qca_ppe_setup_tc_red(struct qca_ppe_priv *priv, int port,
 	int i, scope;
 	u64 bytes;
 
-	for (i = 0; i < ARRAY_SIZE(port_l0); i++)
-		if (port_l0[i].port == port)
-			p = &port_l0[i];
+	p = ppe_port_l0(port);
 	if (!p)
 		return -EOPNOTSUPP;
 
@@ -3269,11 +3141,6 @@ static int qca_ppe_setup_tc_red(struct qca_ppe_priv *priv, int port,
 	}
 }
 
-/* The port shaper meters everything the port sends, which is a root tbf. The
- * qdisc's overhead, mpu and linklayer are not carried into the hardware, which
- * meters the frame it puts on the wire including preamble, inter-packet gap
- * and CRC.
- */
 /* GRED in WRED mode on the same queues a red takes: the queue manager compares
  * every colour against the one queue depth, with green's limit as the queue's
  * and yellow and red held below it. DP 0, 1 and 2 are green, yellow and red,
@@ -3357,9 +3224,7 @@ static int qca_ppe_setup_tc_gred(struct qca_ppe_priv *priv, int port,
 	u8 first, count;
 	int i, scope, ret;
 
-	for (i = 0; i < ARRAY_SIZE(port_l0); i++)
-		if (port_l0[i].port == port)
-			p = &port_l0[i];
+	p = ppe_port_l0(port);
 	if (!p)
 		return -EOPNOTSUPP;
 
@@ -3416,6 +3281,30 @@ static int qca_ppe_setup_tc_gred(struct qca_ppe_priv *priv, int port,
 	}
 }
 
+/* tbf keeps its limit as that of the bfifo it puts behind the shaper, which
+ * is in place when the offload is replaced. Once another child is grafted in
+ * its place tbf no longer applies a limit, and a change of the qdisc keeps
+ * the depth the port already has.
+ */
+static u32 ppe_tbf_limit(struct qca_ppe_priv *priv, int port,
+			 struct tc_tbf_qopt_offload *qopt)
+{
+	struct Qdisc *sch = container_of(qopt->replace_params.qstats,
+					 struct Qdisc, qstats);
+	struct Qdisc *child = sch->ops->cl_ops->leaf(sch, 1);
+
+	if (child->ops == &bfifo_qdisc_ops)
+		return READ_ONCE(child->limit);
+
+	return qopt->handle == priv->shaper[port].tbf_handle ?
+	       priv->shaper[port].limit : 0;
+}
+
+/* The port shaper meters everything the port sends, which is a root tbf. The
+ * qdisc's overhead, mpu and linklayer are not carried into the hardware, which
+ * meters the frame it puts on the wire including preamble, inter-packet gap
+ * and CRC.
+ */
 int qca_ppe_setup_tc_tbf(struct qca_ppe_priv *priv, int port,
 			 struct tc_tbf_qopt_offload *qopt)
 {
@@ -3433,7 +3322,7 @@ int qca_ppe_setup_tc_tbf(struct qca_ppe_priv *priv, int port,
 		 */
 		u32 limit = priv->shaper[port].limit;
 
-		priv->shaper[port].limit = qopt->replace_params.limit;
+		priv->shaper[port].limit = ppe_tbf_limit(priv, port, qopt);
 		ret = ppe_port_shaper_set(priv, port,
 					  qopt->replace_params.rate.rate_bytes_ps *
 					  BITS_PER_BYTE,
@@ -3444,11 +3333,7 @@ int qca_ppe_setup_tc_tbf(struct qca_ppe_priv *priv, int port,
 		}
 
 		priv->shaper[port].tbf_handle = qopt->handle;
-		ppe_port_tx_counters(priv, port,
-				     &priv->shaper[port].base_bytes,
-				     &priv->shaper[port].base_pkts,
-				     &priv->shaper[port].base_drops);
-		priv->shaper[port].base_backlog = 0;
+		ppe_port_shaper_base(priv, port);
 		return 0;
 	}
 	case TC_TBF_DESTROY:
@@ -3564,10 +3449,10 @@ static int ppe_cpu_port_dl_set(struct qca_ppe_priv *priv, u64 rate_bps)
 	 * shaped port falls back to with no limit - is too shallow to hold a
 	 * flow at the rate it was shaped to.
 	 *
-	 * The burst is the same ten milliseconds, and unlike a user port's
-	 * class it cannot be a frame: this port drains only as fast as the
-	 * host takes frames off the ring, and a bucket of one frame forgets
-	 * every token that accrues between two of the host's visits.
+	 * The burst is the same ten milliseconds a user port's class gets
+	 * (ppe_class_burst()): this port drains only as fast as the host takes
+	 * frames off the ring, and a bucket of one frame forgets every token
+	 * that accrues between two of the host's visits.
 	 */
 	ret = ppe_node_shaper_set(priv, PPE_TM_L1_SHP_CFG(PPE_CPU_PORT_DL_NODE),
 				  PPE_TM_L1_SHP_CREDIT(PPE_CPU_PORT_DL_NODE),
