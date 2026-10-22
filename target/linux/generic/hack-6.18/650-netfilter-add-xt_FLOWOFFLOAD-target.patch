@@ -413,6 +413,7 @@ Signed-off-by: Felix Fietkau <nbd@nbd.name>
 +		switch (path->type) {
 +		case DEV_PATH_ETHERNET:
 +		case DEV_PATH_DSA:
+		case DEV_PATH_IEEE80211:
 +		case DEV_PATH_VLAN:
 +		case DEV_PATH_PPPOE:
 +			info->indev = path->dev;
