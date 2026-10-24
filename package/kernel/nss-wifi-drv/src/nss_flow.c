@@ -23,10 +23,8 @@
  */
 
 #include <linux/cleanup.h>
-#include <linux/dsa/8021q.h>
 #include <linux/etherdevice.h>
 #include <linux/if_arp.h>
-#include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
@@ -61,7 +59,6 @@ struct nss_flow_dir {
 	int ifindex;		/* the device this direction arrives on */
 	int ifnum;
 	u32 mtu;
-	u16 cvid;		/* the ingress port's VLAN on its conduit, or 0 */
 	u16 vid;
 	u16 vtpid;		/* 0: untagged */
 	u16 sid;
@@ -320,80 +317,6 @@ int nss_flow_ifnum(struct nss_core *core, int ifindex, u32 *mtu)
 	return -ENODEV;
 }
 
-/* A port of a switch stacked behind an armed port on the qca-8021q tag is
- * that port in one 802.1Q VLAN: its own, that of the VLAN-unaware bridge it
- * forwards in, or in a VLAN-aware bridge the flow's bridge VLAN, which is
- * @flow_vid or, untagged, the port's PVID. The bridge is read as the tagger
- * reads it on transmit. An 802.1Q upper of the port crosses the switch with
- * its own tag; any other flow tag on top of the port's own VLAN would be a
- * second tag.
- */
-static u16 nss_flow_8021q_vid(struct dsa_port *dp, u16 flow_vid)
-{
-	struct net_device *br = dsa_port_bridge_dev_get(dp);
-	struct bridge_vlan_info vinfo;
-	struct net_device *upper;
-	u16 pvid;
-
-	if (!br || !br_vlan_enabled(br)) {
-		if (flow_vid) {
-			upper = __vlan_find_dev_deep_rcu(dp->user,
-							 htons(ETH_P_8021Q),
-							 flow_vid);
-			return upper && vlan_dev_real_dev(upper) == dp->user ?
-			       flow_vid : 0;
-		}
-		if (!br)
-			return dsa_tag_8021q_standalone_vid(dp);
-		return dsa_tag_8021q_bridge_vid(dsa_port_bridge_num_get(dp));
-	}
-	if (flow_vid)
-		return flow_vid;
-
-	if (br_vlan_get_pvid_rcu(dp->user, &pvid) || !pvid ||
-	    br_vlan_get_info_rcu(dp->user, pvid, &vinfo) ||
-	    !(vinfo.flags & BRIDGE_VLAN_INFO_UNTAGGED))
-		return 0;
-
-	return pvid;
-}
-
-/* The firmware's number for @ifindex, also for a port behind a stacked
- * switch, which has no interface of its own: there it is the conduit's,
- * with @vid the tag the port's frames carry on the conduit (else 0).
- */
-int nss_flow_port(struct nss_core *core, int ifindex, u16 flow_vid, u32 *mtu,
-		  u16 *vid)
-{
-	struct net_device *dev;
-	struct dsa_port *dp;
-	int ifnum;
-
-	*vid = 0;
-	ifnum = nss_flow_ifnum(core, ifindex, mtu);
-	if (ifnum != -ENODEV)
-		return ifnum;
-
-	guard(rcu)();
-
-	dev = dev_get_by_index_rcu(&init_net, ifindex);
-	if (!dev || !dsa_user_dev_check(dev))
-		return -ENODEV;
-	dp = dsa_port_from_netdev(dev);
-	if (IS_ERR(dp) || dp->cpu_dp->tag_ops->proto != DSA_TAG_PROTO_QCA_8021Q)
-		return -ENODEV;
-
-	ifnum = nss_flow_ifnum(core, dp->cpu_dp->conduit->ifindex, mtu);
-	if (ifnum < 0)
-		return ifnum;
-	*vid = nss_flow_8021q_vid(dp, flow_vid);
-	if (!*vid)
-		return -EOPNOTSUPP;
-	*mtu = dev->mtu;
-
-	return ifnum;
-}
-
 static bool nss_flow_is_wireless(int ifindex)
 {
 	struct net_device *dev;
@@ -426,7 +349,6 @@ static int nss_flow_take_dir(struct nss_core *core, struct nss_flow_entry *e,
 	struct flow_action_entry *act;
 	struct net_device *out = NULL;
 	struct ethhdr eth = {};
-	u16 kvid = 0;
 	int i;
 
 	/* A refresh offers the same direction again. */
@@ -435,18 +357,9 @@ static int nss_flow_take_dir(struct nss_core *core, struct nss_flow_entry *e,
 	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_META))
 		return nss_flow_reject_at(NSS_FLOW_REJECT_KEY, -EOPNOTSUPP, f, 0);
 
-	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
-		struct flow_match_vlan vlan;
-
-		flow_rule_match_vlan(rule, &vlan);
-		if (vlan.key->vlan_tpid == htons(ETH_P_8021Q))
-			kvid = vlan.key->vlan_id;
-	}
-
 	flow_rule_match_meta(rule, &meta);
 	d->ifindex = meta.key->ingress_ifindex;
-	d->ifnum = nss_flow_port(core, meta.key->ingress_ifindex, kvid, &d->mtu,
-				 &d->cvid);
+	d->ifnum = nss_flow_ifnum(core, meta.key->ingress_ifindex, &d->mtu);
 	if (d->ifnum < 0) {
 		nss_flow_last_ifindex = meta.key->ingress_ifindex;
 		return nss_flow_reject_at(NSS_FLOW_REJECT_INTERFACE, d->ifnum, f,
@@ -667,26 +580,6 @@ void nss_flow_pppoe_drop(struct nss_core *core, int if_num)
 	}
 }
 
-/* A stacked port's conduit tag is the bridge VLAN the direction towards it
- * pushes, if any; a different push would be a second tag.
- */
-static int nss_flow_cvid_take(struct nss_flow_entry *e)
-{
-	int d;
-
-	for (d = 0; d < FLOW_OFFLOAD_DIR_MAX; d++) {
-		struct nss_flow_dir *push = &e->dir[!d];
-
-		if (!e->dir[d].cvid || !push->vtpid)
-			continue;
-		if (push->vtpid != ETH_P_8021Q || push->vid != e->dir[d].cvid)
-			return -EOPNOTSUPP;
-		push->vtpid = 0;
-	}
-
-	return 0;
-}
-
 /* The session the PPPoE side of @e rides on. The direction that pushes the
  * PPPoE header carries the concentrator's address as its destination and
  * ours as its source.
@@ -738,15 +631,10 @@ static void nss_flow_encap_get(const struct nss_flow_entry *e,
 	int side;
 
 	for (side = 0; side < FLOW_OFFLOAD_DIR_MAX; side++) {
-		/* A side's encapsulation is a stacked ingress port's conduit
-		 * tag, or what the other direction pushes.
-		 */
+		/* A side's encapsulation is what the other direction pushes. */
 		const struct nss_flow_dir *push = &e->dir[!side];
 
-		if (e->dir[side].cvid)
-			x->vlan[side] = (u32)ETH_P_8021Q << 16 |
-					e->dir[side].cvid;
-		else if (push->vtpid)
+		if (push->vtpid)
 			x->vlan[side] = (u32)push->vtpid << 16 | push->vid;
 		else
 			x->vlan[side] = NSS_FLOW_VLAN_NONE;
@@ -1139,7 +1027,7 @@ static int nss_flow_replace(struct nss_core *core, struct flow_cls_offload *f)
 		goto drop;
 	}
 
-	ret = nss_flow_cvid_take(e) ?: nss_flow_pppoe_take(core, e);
+	ret = nss_flow_pppoe_take(core, e);
 	if (ret) {
 		nss_flow_reject_at(NSS_FLOW_REJECT_FIRMWARE, ret, f, -ret);
 		goto drop;
@@ -1597,7 +1485,6 @@ int nss_flow_br_add(struct nf_conn *ct, const struct nss_flow_br_dir *dir,
 	for (d = 0; d < FLOW_OFFLOAD_DIR_MAX; d++) {
 		e->dir[d].ifnum = dir[d].ifnum;
 		e->dir[d].mtu = dir[d].mtu;
-		e->dir[d].cvid = dir[d].vid;
 		ether_addr_copy(e->dir[d].mac, dir[d].dmac);
 		e->dir[d].seen = true;
 	}
@@ -1707,13 +1594,11 @@ void nss_flow_print(struct seq_file *s)
 	while ((e = rhashtable_walk_next(&iter)) != NULL) {
 		if (IS_ERR(e))
 			continue;
-		seq_printf(s, "proto %u %s%s if %d/%d cvid %u/%u prio %u installed %d age %ums fw flow rx %llu tx %llu return rx %llu tx %llu\n",
+		seq_printf(s, "proto %u %s%s if %d/%d prio %u installed %d age %ums fw flow rx %llu tx %llu return rx %llu tx %llu\n",
 			   e->protocol, e->v6 ? "v6" : "v4",
 			   e->bridged ? " bridged" : "",
 			   e->dir[FLOW_OFFLOAD_DIR_ORIGINAL].ifnum,
 			   e->dir[FLOW_OFFLOAD_DIR_REPLY].ifnum,
-			   e->dir[FLOW_OFFLOAD_DIR_ORIGINAL].cvid,
-			   e->dir[FLOW_OFFLOAD_DIR_REPLY].cvid,
 			   e->priority, e->installed,
 			   jiffies_to_msecs(jiffies - e->lastused),
 			   e->cnt[0], e->cnt[1], e->cnt[2], e->cnt[3]);

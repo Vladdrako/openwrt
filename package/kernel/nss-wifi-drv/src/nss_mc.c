@@ -152,30 +152,17 @@ static int nss_mc_fi(u8 family)
 	return family == RTNL_FAMILY_IP6MR;
 }
 
-/* The firmware interface behind @dev, at most one VLAN tag above it,
- * counting a stacked port's conduit tag.
- */
+/* The firmware interface behind @dev, at most one VLAN tag above it. */
 static int nss_mc_port_of(struct nss_core *core, const struct net_device *dev,
 			  u32 *vlan, u32 *mtu)
 {
-	u16 vid = 0, cvid;
-	int ifnum;
-
 	if (is_vlan_dev(dev)) {
 		*vlan = (u32)ntohs(vlan_dev_vlan_proto(dev)) << 16 |
 			vlan_dev_vlan_id(dev);
-		vid = vlan_dev_vlan_id(dev);
 		dev = vlan_dev_real_dev(dev);
 	}
 
-	ifnum = nss_flow_port(core, dev->ifindex, vid, mtu, &cvid);
-	if (ifnum >= 0 && cvid) {
-		if (vid && *vlan >> 16 != ETH_P_8021Q)
-			return -EOPNOTSUPP;
-		*vlan = (u32)ETH_P_8021Q << 16 | cvid;
-	}
-
-	return ifnum;
+	return nss_flow_ifnum(core, dev->ifindex, mtu);
 }
 
 static enum nss_mc_why nss_mc_ingress(struct nss_core *core,
@@ -212,17 +199,11 @@ static enum nss_mc_why nss_mc_member(struct nss_core *core,
 {
 	u32 vlan = NSS_MC_VLAN_NONE, mtu;
 	struct nss_mc_if *m;
-	int i, ifnum;
+	int ifnum;
 
 	ifnum = nss_mc_port_of(core, dev, &vlan, &mtu);
 	if (ifnum < 0)
 		return NSS_MC_OIF;
-	/* Ports of one stacked switch in one bridge share a conduit tag,
-	 * and the switch replicates a single copy, as for the bridge.
-	 */
-	for (i = 0; i < w->n; i++)
-		if (w->m[i].ifnum == ifnum && w->m[i].vlan == vlan)
-			return NSS_MC_OK;
 	if (w->n == NSS_MC_IF_MAX)
 		return NSS_MC_TOO_MANY;
 

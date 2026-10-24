@@ -100,19 +100,17 @@ static int nss_br_check(struct sk_buff *skb, const struct nf_conn *ct,
 			struct nss_flow_br_dir *in)
 {
 	u32 mtu;
-	u16 vid;
 
 	if (ct->status & IPS_NAT_MASK || nfct_help(ct))
 		return NSS_BR_CT;
 	/* The bridge has applied the egress port's tagging by now, and the
-	 * rule carries no bridge tag beyond a stacked port's conduit tag.
+	 * rule carries no bridge tag.
 	 */
 	if (skb_vlan_tag_present(skb))
 		return NSS_BR_VLAN;
-	in->ifnum = nss_flow_port(nss_br_core, state->in->ifindex, 0, &in->mtu,
-				  &in->vid);
+	in->ifnum = nss_flow_ifnum(nss_br_core, state->in->ifindex, &in->mtu);
 	if (in->ifnum < 0 ||
-	    nss_flow_port(nss_br_core, state->out->ifindex, 0, &mtu, &vid) < 0)
+	    nss_flow_ifnum(nss_br_core, state->out->ifindex, &mtu) < 0)
 		return NSS_BR_PORT;
 
 	return NSS_BR_WHY_MAX;
@@ -277,13 +275,11 @@ static int nss_br_keep(struct nss_br_conn *e)
 {
 	unsigned long used;
 	u32 mtu;
-	u16 vid;
 	int d;
 
-	/* Also gone when a stacked port changes bridge or PVID. */
 	for (d = 0; d < IP_CT_DIR_MAX; d++)
-		if (nss_flow_port(nss_br_core, e->ifindex[d], 0, &mtu, &vid) !=
-		    e->dir[d].ifnum || vid != e->dir[d].vid)
+		if (nss_flow_ifnum(nss_br_core, e->ifindex[d], &mtu) !=
+		    e->dir[d].ifnum)
 			return NSS_BR_GONE;
 
 	used = nss_flow_br_used(e->ct);

@@ -534,8 +534,6 @@ void nss_phys_event(struct nss_core *core, unsigned long event,
 void nss_flow_bind(struct nss_core *core);
 bool nss_flow_is_ours(int ifindex);
 int nss_flow_ifnum(struct nss_core *core, int ifindex, u32 *mtu);
-int nss_flow_port(struct nss_core *core, int ifindex, u16 flow_vid, u32 *mtu,
-		  u16 *vid);
 int nss_flow_pppoe_hold(struct nss_core *core, u16 sid, const u8 *server,
 			const u8 *local, int port, u32 mtu, u32 tag);
 void nss_flow_pppoe_drop(struct nss_core *core, int if_num);
@@ -543,13 +541,11 @@ void nss_flow_pppoe_drop(struct nss_core *core, int if_num);
 struct nf_conn;
 
 /* One direction of a bridged connection, indexed by conntrack direction:
- * the port its frames arrive on, with its conduit tag, and the address they
- * are sent to.
+ * the port its frames arrive on and the address they are sent to.
  */
 struct nss_flow_br_dir {
 	int ifnum;
 	u32 mtu;
-	u16 vid;
 	u8 dmac[ETH_ALEN];
 };
 
