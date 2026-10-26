@@ -12,7 +12,6 @@ match that the tagged frames of the flow never hit.
 Set the used_keys bits where the keys are filled.
 
 Fixes: 3e1b0c168f6c ("netfilter: flowtable: add vlan match offload support")
-Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 ---
  net/netfilter/nf_flow_table_offload.c | 5 +++++
