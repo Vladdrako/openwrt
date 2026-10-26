@@ -13,6 +13,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/types.h>
+#include <linux/wait.h>
 #include <linux/io.h>
 #include <net/dsa.h>
 
@@ -1425,6 +1426,51 @@ struct ppe_port_shaper {
 
 #define PPE_SB_EGRESS_TCS	16
 
+/* The queues the AQM watches: every hashed queue of a shaped user port and the
+ * CPU port's download band.
+ */
+#define PPE_AQM_QUEUES		128
+/* a port's own shaper and one per band, and the CPU port's band */
+#define PPE_AQM_GROUPS		(3 * PPE_NUM_PORTS + 1)
+
+/* One queue under the AQM and the bottleneck group it drains through. */
+struct ppe_aqm_queue {
+	u16 queue;
+	u8 group;
+	u8 frame_bufs;
+	u64 squeezes;
+	bool squeezed;
+};
+
+/* A bottleneck: the queues that share one shaper, its rate, and CoDel's
+ * state for the delay a frame entering any of them sees, in nanoseconds.
+ */
+struct ppe_aqm_group {
+	u64 rate_bps;
+	u64 first_above;
+	u64 drop_next;
+	u32 count;
+	u32 lastcount;
+	u64 drops;
+	bool dropping;
+};
+
+struct ppe_aqm {
+	struct task_struct *task;
+	wait_queue_head_t wait;
+	/* Guards the queue list and every write of a unicast queue's
+	 * admission control, which the AQM shares with the qdisc offloads.
+	 */
+	struct mutex lock;
+	u16 nqueues;
+	u8 ngroups;
+	struct ppe_aqm_queue q[PPE_AQM_QUEUES];
+	struct ppe_aqm_group g[PPE_AQM_GROUPS];
+	u64 ticks;
+	u64 squeezes;
+	u64 busy_ns;
+};
+
 struct ppe_sb_occ {
 	u32 cur;
 	u32 max;
@@ -1447,8 +1493,65 @@ struct qca_ppe_priv {
 	struct ppe_res *nexthop;
 	struct ppe_res *my_mac;
 	u16 *host_ref;
+	/* Per flow index: the device a frame the PPE routed to the CPU port
+	 * leaves on, and whether a software shaper stands in front of it.
+	 */
 	int *flow_xdev;
 	atomic_t flow_xmit_drop;
+	/* frames meant for the download shaper that found no device to pass */
+	atomic_t flow_shaper_miss;
+	/* Per flow index: the conntrack an upload frame is handed over with,
+	 * bit 0 set for the reply direction. Written with flow_xdev.
+	 */
+	unsigned long *flow_ct;
+	/* Per flow index: bit 7 and the DSCP its frames are handed over with,
+	 * taken from the conntrack mark when ct_dscp is on. Written with
+	 * flow_xdev.
+	 */
+	u8 *flow_dscp;
+	/* Per flow index: the VLAN a download frame handed to the shaper
+	 * leaves its LAN port tagged with, zero for none.
+	 */
+	u16 *flow_vid;
+	/* Per flow index: one more than the switch port a frame handed to a
+	 * shaper device of this driver leaves by, zero for a device outside
+	 * the switch.
+	 */
+	u8 *flow_port;
+	/* The shaper devices this driver created for a direction, download
+	 * first, NULL for none, and how often one found the conduit's queue
+	 * full and left the frame in its qdisc.
+	 */
+	struct net_device *shaper_dev[2];
+	atomic_t shaper_busy;
+	bool ct_dscp;
+	/* The software shapers offloaded flows are handed to: the ifb carrying
+	 * the download qdisc and the uplink device carrying the upload one, by
+	 * ifindex and by the name they were set by. Zero is none. Written under
+	 * flow_lock, read locklessly on the receive path.
+	 */
+	int dl_shaper;
+	int ul_shaper;
+	char dl_shaper_name[IFNAMSIZ];
+	char ul_shaper_name[IFNAMSIZ];
+	/* The WAN's L3 device, named apart from the shapers so that its path
+	 * is known when only the download is shaped; zero for none, when the
+	 * upload shaper's device stands in for it.
+	 */
+	int uplink_dev;
+	char uplink_name[IFNAMSIZ];
+	/* Where the uplink device meets the switch: the port, and the VLAN and
+	 * PPPoE session on it, zero for none. ul_port is -1 while the path is
+	 * not known. Written under flow_lock.
+	 */
+	int ul_port;
+	u16 ul_vid;
+	u16 ul_sid;
+	/* The PPPoE peer's address and the uplink's own, as u64, for upload
+	 * frames the shaper device builds itself; read locklessly.
+	 */
+	u64 ul_h_dest;
+	u64 ul_h_source;
 	u16 l3_if_ref[PPE_VSI_MAX];
 	struct ppe_uplink uplink[PPE_PPPOE_SESSIONS];
 	struct ppe_pppoe_session pppoe[PPE_PPPOE_SESSIONS];
@@ -1505,6 +1608,11 @@ struct qca_ppe_priv {
 	/* GRED: yellow max/min and red max/min gaps; zero for a colour-blind red. */
 	u16 gred_gap[PPE_L0_UCAST_QUEUES][4];
 	DECLARE_BITMAP(gred_queues, PPE_L0_UCAST_QUEUES);
+	/* Each unicast queue's admission control word 0 as configured, which a
+	 * queue the AQM squeezed returns to.
+	 */
+	u32 ac_w0[PPE_L0_UCAST_QUEUES];
+	struct ppe_aqm aqm;
 	struct dentry *debugfs;
 	struct devlink_region *regions[3];
 	DECLARE_BITMAP(vsi_bitmap, PPE_VSI_MAX);
@@ -1616,6 +1724,8 @@ void ppe_scheduler_exit(struct qca_ppe_priv *priv);
 void ppe_port_queues_enable(struct qca_ppe_priv *priv, int port, bool en);
 void ppe_pause_update(struct qca_ppe_priv *priv);
 u32 ppe_port_queue_drops(struct qca_ppe_priv *priv, int port);
+struct seq_file;
+int ppe_aqm_show(struct seq_file *s, void *unused);
 int ppe_port_qstats(struct qca_ppe_priv *priv, int port, u8 **names,
 		    struct qca_ppe_mib_stats *st);
 int qca_ppe_setup_tc(struct dsa_switch *ds, int port, enum tc_setup_type type,
@@ -1746,6 +1856,18 @@ int ppe_setup_ft_block(struct qca_ppe_priv *priv,
 		       struct flow_block_offload *f);
 int ppe_flow_offload_init(struct qca_ppe_priv *priv);
 bool ppe_flow_xmit(struct dsa_switch *ds, struct sk_buff *skb, u32 flow);
+void ppe_flow_shaper_get(struct qca_ppe_priv *priv, bool upload, char *name);
+void ppe_flow_ct_dscp_set(struct qca_ppe_priv *priv, bool on);
+void ppe_flow_uplink_get(struct qca_ppe_priv *priv, char *name);
+int ppe_flow_uplink_set(struct qca_ppe_priv *priv, const char *name);
+int ppe_flow_shaper_set(struct qca_ppe_priv *priv, bool upload,
+			const char *name);
+
+#define PPE_XDEV_IFINDEX	GENMASK(27, 0)
+/* The PPE built the frame's link headers, PPPoE and VLAN included. */
+#define PPE_XDEV_PUSH		BIT(28)
+#define PPE_XDEV_DL		BIT(29)
+#define PPE_XDEV_UL		BIT(30)
 void ppe_flow_purge_vsi(struct qca_ppe_priv *priv, u32 vsi);
 void ppe_flow_offload_exit(struct qca_ppe_priv *priv);
 

@@ -6,7 +6,8 @@
 #ifndef __QCA_EDMA_H__
 #define __QCA_EDMA_H__
 
-#include <linux/dsa/oob.h>
+#include <linux/dsa/tag_qca.h>
+#include <linux/qca_edma.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/netdevice.h>
@@ -138,8 +139,8 @@
 #define EDMA_REG_RX_INT_CTRL(n)		(0x4900c + (0x1000 * (n)))
 
 #define EDMA_RXDESC_INT_MASK_PKT_INT	0x1
-/* Default moderation: an interrupt per 16 frames, or after 25 us on RX. */
-#define EDMA_RX_COAL_US			25
+/* Default moderation: an interrupt per 16 frames, or after 100 us on RX. */
+#define EDMA_RX_COAL_US			100
 #define EDMA_COAL_FRAMES		16
 
 /* A moderation timer counts 128 cycles of the EDMA clock. */
@@ -425,6 +426,11 @@ struct edma_priv {
 	 * the bridge then does not forward again.
 	 */
 	struct metadata_dst *port_md[EDMA_PORTS];
+	/* The switch behind the conduit and what it provides, set while it
+	 * is bound; read locklessly on the receive path.
+	 */
+	struct dsa_switch *sw_ds;
+	const struct qca_edma_switch_ops *sw_ops;
 };
 
 #endif /* __QCA_EDMA_H__ */

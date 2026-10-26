@@ -20,6 +20,7 @@
 #include <linux/of_platform.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/unaligned.h>
 #include <linux/reset.h>
 #include <linux/soc/qcom/qca_edma.h>
 #include <net/dsa.h>
@@ -620,8 +621,8 @@ static bool edma_rx_flow(struct net_device *netdev, struct sk_buff *skb,
 			 const struct edma_rx_preheader *rxph)
 {
 	u32 pre2 = le32_to_cpu(rxph->rx_pre2);
-	struct dsa_oob_tagger_data *data;
-	struct dsa_port *cpu_dp;
+	struct edma_priv *priv = netdev_priv(netdev);
+	const struct qca_edma_switch_ops *ops;
 
 	if (((pre2 >> EDMA_RXPH_HASH_FLAG_SHIFT) & EDMA_RXPH_HASH_FLAG_MASK) !=
 	    EDMA_RXPH_HASH_FLOW ||
@@ -629,15 +630,42 @@ static bool edma_rx_flow(struct net_device *netdev, struct sk_buff *skb,
 	    FIELD_GET(EDMA_RXPH_CPU_CODE, le32_to_cpu(rxph->rx_pre4)))
 		return false;
 
-	cpu_dp = netdev->dsa_ptr;
-	if (!cpu_dp)
-		return false;
-	data = cpu_dp->ds->tagger_data;
-	if (!data || !data->flow_xmit)
+	ops = READ_ONCE(priv->sw_ops);
+	if (!ops || !ops->flow_xmit)
 		return false;
 
 	skb->dev = netdev;
-	return data->flow_xmit(cpu_dp->ds, skb, pre2 & EDMA_RXPH_HASH_MASK);
+	return ops->flow_xmit(READ_ONCE(priv->sw_ds), skb,
+			      pre2 & EDMA_RXPH_HASH_MASK);
+}
+
+/* A frame the switch trapped to the CPU is the bridge's to forward, so it
+ * goes through the tagger, which leaves it unmarked: it gets the header the
+ * QCA tagger reads its source port from, right behind the addresses, and
+ * skb->data where the tagger expects it, past that header. The tagger pulls
+ * the two bytes there out of a complete checksum, which covered none of
+ * them, so a frame with one is left to software.
+ */
+static bool edma_rx_tag(struct sk_buff *skb, u32 src_port)
+{
+	__be16 *hdr;
+
+	if (unlikely(skb_headroom(skb) < ETH_HLEN + QCA_HDR_LEN))
+		return false;
+
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
+		skb->ip_summed = CHECKSUM_NONE;
+
+	__skb_push(skb, ETH_HLEN + QCA_HDR_LEN);
+	memmove(skb->data, skb->data + QCA_HDR_LEN, 2 * ETH_ALEN);
+	hdr = (__be16 *)(skb->data + 2 * ETH_ALEN);
+	*hdr = htons(FIELD_PREP(QCA_HDR_RECV_VERSION, QCA_HDR_VERSION) |
+		     FIELD_PREP(QCA_HDR_RECV_TYPE, QCA_HDR_RECV_TYPE_NORMAL) |
+		     FIELD_PREP(QCA_HDR_RECV_SOURCE_PORT, src_port));
+	skb_reset_mac_header(skb);
+	__skb_pull(skb, ETH_HLEN);
+
+	return true;
 }
 
 /* Reads a descriptor and hands its frame's lines to the CPU. The preheader
@@ -666,7 +694,6 @@ static u32 edma_clean_rx(struct edma_queue *q, int budget)
 	struct edma_priv *priv = q->priv;
 	struct net_device *netdev = priv->netdev;
 	struct platform_device *pdev = priv->pdev;
-	struct dsa_oob_tag_info *tag_info;
 	struct edma_rx_preheader *rxph;
 	u32 next_addr, next_status;
 	unsigned char *frame;
@@ -748,6 +775,10 @@ static u32 edma_clean_rx(struct edma_queue *q, int budget)
 		skb_reserve(skb, NET_SKB_PAD + EDMA_RX_PREHDR_SIZE);
 		skb_put(skb, pkt_len);
 
+		/* A frame handed to a multiqueue shaper picks its queue by
+		 * the ring, so each ring's CPU feeds a queue of its own.
+		 */
+		skb_record_rx_queue(skb, q->idx);
 		if (edma_rx_flow(netdev, skb, rxph)) {
 			dev_sw_netstats_rx_add(netdev, pkt_len);
 			goto next;
@@ -755,31 +786,26 @@ static u32 edma_clean_rx(struct edma_queue *q, int budget)
 
 		edma_rx_vlan(netdev, skb, rxph);
 		frame = skb->data;
-		skb_record_rx_queue(skb, q->idx);
 		skb->protocol = eth_type_trans(skb, priv->netdev);
 		edma_rx_csum(netdev, skb, rxph, desc_status,
 			     skb->data - frame);
 		edma_rx_hash(netdev, skb, rxph);
 
-		if (src_port < EDMA_PORTS && netdev_uses_dsa(netdev) &&
-		    !FIELD_GET(EDMA_RXPH_CPU_CODE, le32_to_cpu(rxph->rx_pre4))) {
-			skb_dst_set_noref(skb, &priv->port_md[src_port]->dst);
-			dev_sw_netstats_rx_add(priv->netdev, pkt_len);
-			napi_gro_receive(&q->napi, skb);
-			goto next;
-		}
-
-		/* A trapped frame is the bridge's to forward, so it goes
-		 * through the tagger, which leaves it unmarked.
+		/* A forwarded frame names its port in a metadata dst, which
+		 * DSA reads without a tagger; a trapped one carries a tag.
 		 */
-		tag_info = skb_ext_add(skb, SKB_EXT_DSA_OOB);
-		if (unlikely(!tag_info)) {
-			dev_kfree_skb_any(skb);
-			q->stats.rx_no_tag++;
-			DEV_STATS_INC(netdev, rx_dropped);
-			goto next;
+		if (src_port < EDMA_PORTS && netdev_uses_dsa(netdev)) {
+			if (!FIELD_GET(EDMA_RXPH_CPU_CODE,
+				       le32_to_cpu(rxph->rx_pre4))) {
+				skb_dst_set_noref(skb,
+						  &priv->port_md[src_port]->dst);
+			} else if (unlikely(!edma_rx_tag(skb, src_port))) {
+				dev_kfree_skb_any(skb);
+				q->stats.rx_no_tag++;
+				DEV_STATS_INC(netdev, rx_dropped);
+				goto next;
+			}
 		}
-		tag_info->port = src_port;
 
 		dev_sw_netstats_rx_add(priv->netdev, pkt_len);
 		napi_gro_receive(&q->napi, skb);
@@ -935,8 +961,12 @@ static bool edma_tx_map(struct device *dev, struct edma_ring *ring,
 	return true;
 }
 
+/* @dst_info names the switch port the frame leaves by, zero for the switch
+ * to forward it; @tagged says the frame carries the QCA tag that named it,
+ * which comes off once the frame is sure to be taken.
+ */
 static netdev_tx_t edma_ring_xmit(struct edma_queue *q, struct net_device *netdev,
-				  struct sk_buff *skb)
+				  struct sk_buff *skb, u16 dst_info, bool tagged)
 {
 	struct netdev_queue *txq = netdev_get_tx_queue(netdev, q->idx);
 	const struct skb_shared_info *shinfo = skb_shinfo(skb);
@@ -945,10 +975,9 @@ static netdev_tx_t edma_ring_xmit(struct edma_queue *q, struct net_device *netde
 	struct device *dev = &priv->pdev->dev;
 	u16 mask = txdesc_ring->count - 1;
 	struct edma_tx_preheader *txph;
-	struct dsa_oob_tag_info *tag_info;
 	u16 ndesc = edma_tx_ndesc(skb);
 	struct edma_txdesc *txdesc;
-	u16 prod, cons, dst_info, n;
+	u16 prod, cons, n;
 	u32 idx, i, len, bytes, tso;
 	struct sk_buff *seg;
 	dma_addr_t head_dma;
@@ -985,6 +1014,12 @@ static netdev_tx_t edma_ring_xmit(struct edma_queue *q, struct net_device *netde
 	if (taken || ((cons - prod - 1) & mask) < ndesc)
 		goto busy;
 
+	if (tagged) {
+		memmove(skb->data + QCA_HDR_LEN, skb->data, 2 * ETH_ALEN);
+		__skb_pull(skb, QCA_HDR_LEN);
+		skb_reset_mac_header(skb);
+	}
+
 	len = skb_headlen(skb);
 	bytes = skb->len;
 
@@ -992,13 +1027,6 @@ static netdev_tx_t edma_ring_xmit(struct edma_queue *q, struct net_device *netde
 	 * taken while that still points at the MAC header.
 	 */
 	proto = vlan_get_protocol(skb);
-
-	tag_info = skb_ext_find(skb, SKB_EXT_DSA_OOB);
-	if (tag_info)
-		dst_info = (EDMA_DST_PORT_TYPE << 8) |
-			   (tag_info->port & EDMA_DST_PORT_ID_MASK);
-	else
-		dst_info = 0;
 
 	txph = (struct edma_tx_preheader *)skb_push(skb, EDMA_TX_PREHDR_SIZE);
 	memset((void *)txph, 0, EDMA_TX_PREHDR_SIZE);
@@ -2025,13 +2053,38 @@ static void edma_tx_flush(struct edma_queue *q)
 	spin_unlock_bh(&q->tx_lock);
 }
 
-static netdev_tx_t edma_ndo_xmit(struct sk_buff *skb, struct net_device *netdev)
+/* The switch port a frame from DSA leaves by, out of the QCA tag the tagger
+ * put behind its addresses: one port, the lowest named. Zero for a frame
+ * not sent through the switch's ports, which the switch forwards itself.
+ */
+static u16 edma_tx_port(struct sk_buff *skb, struct net_device *netdev,
+			bool *tagged)
+{
+	u16 hdr, ports;
+
+	*tagged = false;
+	if (!netdev_uses_dsa(netdev) || skb_headlen(skb) < ETH_HLEN + QCA_HDR_LEN)
+		return 0;
+
+	hdr = get_unaligned_be16(skb->data + 2 * ETH_ALEN);
+	ports = FIELD_GET(QCA_HDR_XMIT_DP_BIT, hdr);
+	if (FIELD_GET(QCA_HDR_XMIT_VERSION, hdr) != QCA_HDR_VERSION ||
+	    !(hdr & QCA_HDR_XMIT_FROM_CPU) || !ports)
+		return 0;
+
+	*tagged = true;
+	return (EDMA_DST_PORT_TYPE << 8) |
+	       ((ffs(ports) - 1) & EDMA_DST_PORT_ID_MASK);
+}
+
+static netdev_tx_t edma_xmit(struct sk_buff *skb, struct net_device *netdev,
+			     u16 dst_info, bool tagged)
 {
 	struct edma_priv *priv = netdev_priv(netdev);
 	struct edma_queue *q = &priv->q[skb_get_queue_mapping(skb)];
 	const struct edma_soc_data *soc = priv->soc;
 
-	if (skb->len < ETH_HLEN)
+	if (skb->len < ETH_HLEN + (tagged ? QCA_HDR_LEN : 0))
 		goto drop;
 
 	if (edma_tx_needs_linearize(skb) && skb_linearize(skb))
@@ -2040,21 +2093,22 @@ static netdev_tx_t edma_ndo_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* skb_padto() zero-fills the tailroom but leaves the tail where it
 	 * was, so advancing the length by hand puts skb->len past the data a
 	 * later head reallocation copies: the pad would be reallocated
-	 * uninitialised and transmitted.
+	 * uninitialised and transmitted. The tag comes off later, so it does
+	 * not count towards the size.
 	 */
-	if (skb_put_padto(skb, soc->tx_min_size)) {
+	if (skb_put_padto(skb, soc->tx_min_size + (tagged ? QCA_HDR_LEN : 0))) {
 		DEV_STATS_INC(netdev, tx_dropped);
 		edma_tx_flush(q);
 		return NETDEV_TX_OK;
 	}
 
-	/* Only the preheader is written in front of the frame, so a clone whose
-	 * header is released keeps its head.
+	/* Only the preheader is written in front of the frame, and the tag's
+	 * bytes in it, so a clone whose header is released keeps its head.
 	 */
 	if (skb_cow_head(skb, netdev->needed_headroom))
 		goto drop;
 
-	return edma_ring_xmit(q, netdev, skb);
+	return edma_ring_xmit(q, netdev, skb, dst_info, tagged);
 
 drop:
 	dev_kfree_skb_any(skb);
@@ -2063,6 +2117,77 @@ drop:
 
 	return NETDEV_TX_OK;
 }
+
+static netdev_tx_t edma_ndo_xmit(struct sk_buff *skb, struct net_device *netdev)
+{
+	bool tagged;
+	u16 dst_info = edma_tx_port(skb, netdev, &tagged);
+
+	return edma_xmit(skb, netdev, dst_info, tagged);
+}
+
+/**
+ * qca_edma_port_xmit - send a finished frame out of a switch port
+ * @skb: the frame, untagged, on its transmit queue's mapping
+ * @conduit: the EDMA conduit
+ * @port: the switch port
+ *
+ * For the switch's driver, which knows the port without a tagger. Called
+ * with the conduit's transmit queue locked, as its ndo_start_xmit is.
+ *
+ * Return: as ndo_start_xmit; NETDEV_TX_BUSY leaves @skb untouched.
+ */
+netdev_tx_t qca_edma_port_xmit(struct sk_buff *skb, struct net_device *conduit,
+			       unsigned int port)
+{
+	return edma_xmit(skb, conduit, (EDMA_DST_PORT_TYPE << 8) |
+			 (port & EDMA_DST_PORT_ID_MASK), false);
+}
+EXPORT_SYMBOL_GPL(qca_edma_port_xmit);
+
+static const struct net_device_ops edma_netdev_ops;
+
+/**
+ * qca_edma_switch_register - bind the switch behind an EDMA conduit
+ * @conduit: the conduit
+ * @ds: the switch
+ * @ops: what it provides
+ *
+ * Return: 0, or -ENODEV when @conduit is not an EDMA netdev.
+ */
+int qca_edma_switch_register(struct net_device *conduit, struct dsa_switch *ds,
+			     const struct qca_edma_switch_ops *ops)
+{
+	struct edma_priv *priv;
+
+	if (conduit->netdev_ops != &edma_netdev_ops)
+		return -ENODEV;
+	priv = netdev_priv(conduit);
+	WRITE_ONCE(priv->sw_ds, ds);
+	WRITE_ONCE(priv->sw_ops, ops);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(qca_edma_switch_register);
+
+/**
+ * qca_edma_switch_unregister - unbind the switch behind an EDMA conduit
+ * @conduit: the conduit
+ *
+ * Waits until no receive path still calls into the switch.
+ */
+void qca_edma_switch_unregister(struct net_device *conduit)
+{
+	struct edma_priv *priv;
+
+	if (conduit->netdev_ops != &edma_netdev_ops)
+		return;
+	priv = netdev_priv(conduit);
+	WRITE_ONCE(priv->sw_ops, NULL);
+	synchronize_net();
+	WRITE_ONCE(priv->sw_ds, NULL);
+}
+EXPORT_SYMBOL_GPL(qca_edma_switch_unregister);
 
 /* The flow engine is the switch's, so a flowtable bound to one of its user
  * ports, which DSA hands to the conduit, goes on to the switch.
