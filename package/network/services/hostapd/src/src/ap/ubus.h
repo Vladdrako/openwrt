@@ -45,11 +45,13 @@ struct sta_info;
 
 #include <libubox/avl.h>
 #include <libubus.h>
+#include "utils/list.h"
 
 #define UBUS_LMR_TOKEN 1
 
 struct hostapd_ubus_bss {
 	struct ubus_object obj;
+	struct dl_list pending;
 	struct avl_tree banned;
 	int notify_response;
 	bool answer_bss_transition_query;
