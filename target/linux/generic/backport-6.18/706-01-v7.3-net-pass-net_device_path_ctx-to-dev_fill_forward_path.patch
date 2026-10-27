@@ -21,8 +21,6 @@ over IPv6 tunnels.
 Signed-off-by: Lorenzo Bianconi <lorenzo.bianconi@oss.qualcomm.com>
 Reviewed-by: Simon Horman <horms@kernel.org>
 Signed-off-by: Pablo Neira Ayuso <pablo@netfilter.org>
-[ julius: adapt to 6.18, which has no dev_fill_forward_path_release() ]
-Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 ---
  drivers/net/ethernet/airoha/airoha_ppe.c       |  7 ++++++-
  .../net/ethernet/mediatek/mtk_ppe_offload.c    |  7 ++++++-
