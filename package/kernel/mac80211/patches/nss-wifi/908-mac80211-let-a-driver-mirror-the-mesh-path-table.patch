@@ -15,10 +15,8 @@ into the BSS configuration when the mesh starts and when they change.
 Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 ---
-Index: backports-7.2/include/net/mac80211.h
-===================================================================
---- backports-7.2.orig/include/net/mac80211.h
-+++ backports-7.2/include/net/mac80211.h
+--- a/include/net/mac80211.h
++++ b/include/net/mac80211.h
 @@ -146,6 +146,75 @@
  struct device;
  
@@ -166,10 +164,8 @@ Index: backports-7.2/include/net/mac80211.h
 +}
 +#endif
  #endif /* MAC80211_H */
-Index: backports-7.2/net/mac80211/driver-ops.h
-===================================================================
---- backports-7.2.orig/net/mac80211/driver-ops.h
-+++ backports-7.2/net/mac80211/driver-ops.h
+--- a/net/mac80211/driver-ops.h
++++ b/net/mac80211/driver-ops.h
 @@ -1833,4 +1833,18 @@ drv_nan_peer_sched_changed(struct ieee80
  	return ret;
  }
@@ -189,10 +185,8 @@ Index: backports-7.2/net/mac80211/driver-ops.h
 +}
 +
  #endif /* __MAC80211_DRIVER_OPS */
-Index: backports-7.2/net/mac80211/mesh.h
-===================================================================
---- backports-7.2.orig/net/mac80211/mesh.h
-+++ backports-7.2/net/mac80211/mesh.h
+--- a/net/mac80211/mesh.h
++++ b/net/mac80211/mesh.h
 @@ -316,6 +316,12 @@ mesh_path_lookup_by_idx(struct ieee80211
  struct mesh_path *
  mpp_path_lookup_by_idx(struct ieee80211_sub_if_data *sdata, int idx);
@@ -206,10 +200,8 @@ Index: backports-7.2/net/mac80211/mesh.h
  void mesh_path_expire(struct ieee80211_sub_if_data *sdata);
  void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
  			    struct ieee80211_mgmt *mgmt, size_t len);
-Index: backports-7.2/net/mac80211/mesh_pathtbl.c
-===================================================================
---- backports-7.2.orig/net/mac80211/mesh_pathtbl.c
-+++ backports-7.2/net/mac80211/mesh_pathtbl.c
+--- a/net/mac80211/mesh_pathtbl.c
++++ b/net/mac80211/mesh_pathtbl.c
 @@ -15,6 +15,7 @@
  #include "wme.h"
  #include "ieee80211_i.h"
@@ -377,10 +369,8 @@ Index: backports-7.2/net/mac80211/mesh_pathtbl.c
  	ewma_mesh_fail_avg_init(&next_hop->mesh->fail_avg);
  	/* init it at a low value - 0 start is tricky */
  	ewma_mesh_fail_avg_add(&next_hop->mesh->fail_avg, 1);
-Index: backports-7.2/net/mac80211/mesh_hwmp.c
-===================================================================
---- backports-7.2.orig/net/mac80211/mesh_hwmp.c
-+++ backports-7.2/net/mac80211/mesh_hwmp.c
+--- a/net/mac80211/mesh_hwmp.c
++++ b/net/mac80211/mesh_hwmp.c
 @@ -463,7 +463,12 @@ static u32 hwmp_route_info_get(struct ie
  		}
  
@@ -568,10 +558,8 @@ Index: backports-7.2/net/mac80211/mesh_hwmp.c
 +	return ret;
 +}
 +EXPORT_SYMBOL(ieee80211_mesh_path_offld_change_notify);
-Index: backports-7.2/net/mac80211/mesh.c
-===================================================================
---- backports-7.2.orig/net/mac80211/mesh.c
-+++ backports-7.2/net/mac80211/mesh.c
+--- a/net/mac80211/mesh.c
++++ b/net/mac80211/mesh.c
 @@ -1155,6 +1155,16 @@ void ieee80211_mbss_info_change_notify(s
  	wiphy_work_queue(sdata->local->hw.wiphy, &sdata->work);
  }
@@ -597,10 +585,8 @@ Index: backports-7.2/net/mac80211/mesh.c
  	ieee80211_link_info_change_notify(sdata, &sdata->deflink, changed);
  
  	netif_carrier_on(sdata->dev);
-Index: backports-7.2/net/mac80211/cfg.c
-===================================================================
---- backports-7.2.orig/net/mac80211/cfg.c
-+++ backports-7.2/net/mac80211/cfg.c
+--- a/net/mac80211/cfg.c
++++ b/net/mac80211/cfg.c
 @@ -3297,6 +3297,7 @@ static int ieee80211_update_mesh_config(
  	if (_chg_mesh_attr(NL80211_MESHCONF_CONNECTED_TO_AS, mask))
  		conf->dot11MeshConnectedToAuthServer =

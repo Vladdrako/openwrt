@@ -11,11 +11,9 @@ completes. Pass an access point's interface type for a station vdev.
 Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 ---
-diff --git a/drivers/net/wireless/ath/ath11k/mac.c b/drivers/net/wireless/ath/ath11k/mac.c
-index 339fc21..1aa3679 100644
 --- a/drivers/net/wireless/ath/ath11k/mac.c
 +++ b/drivers/net/wireless/ath/ath11k/mac.c
-@@ -6613,11 +6613,12 @@ static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
+@@ -6655,11 +6655,12 @@ static void ath11k_mac_op_tx(struct ieee
  	 * The conversion is the subsystem's own, and it is written for the
  	 * receiving side: it refuses a frame travelling away from the
  	 * distribution system on an access point, which is every frame an
@@ -33,7 +31,7 @@ index 339fc21..1aa3679 100644
  	 */
  	/* A mesh device carries 802.11, without the QoS control the
  	 * hardware inserts itself.
-@@ -6644,6 +6645,8 @@ static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
+@@ -6686,6 +6687,8 @@ static void ath11k_mac_op_tx(struct ieee
  
  		if (!(info_flags & IEEE80211_TX_CTL_HW_80211_ENCAP) &&
  		    ieee80211_data_to_8023(skb, hdr->addr1,

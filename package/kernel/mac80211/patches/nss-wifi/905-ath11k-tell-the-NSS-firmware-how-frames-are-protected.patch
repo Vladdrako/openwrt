@@ -8,6 +8,13 @@ unsaid the encryption is none, and a station that has just installed a
 pairwise key discards every frame that follows. The symptom is an
 association that authenticates and never authorises.
 
+The firmware also drops what a peer it holds unauthorised sends, other
+than the key exchange. The peer is authorised there when mac80211
+authorises the station and unauthorised when mac80211 takes it back to
+associated, so the firmware follows the station's port rather than its
+keys: an open network installs no key, and a station whose 802.1X port
+closes keeps its keys but must stop passing data.
+
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 ---
 --- a/drivers/net/wireless/ath/ath11k/mac.c
@@ -39,7 +46,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  		peer->keys[key->keyidx] = key;
  		if (key->flags & IEEE80211_KEY_FLAG_PAIRWISE) {
  			peer->ucast_keyidx = key->keyidx;
-@@ -4660,6 +4666,36 @@ static int ath11k_mac_op_set_key(struct
+@@ -4660,6 +4666,33 @@ static int ath11k_mac_op_set_key(struct
  
  	spin_unlock_bh(&ab->base_lock);
  
@@ -52,8 +59,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 +	 * protection itself wherever the hardware cannot - every fragment and
 +	 * every message integrity check - and consults a value held per peer,
 +	 * so that one is sent as well, for the pairwise key and the group key
-+	 * alike. A peer the firmware holds unauthorised has its received
-+	 * frames counted and dropped, so it is authorised in the same breath.
++	 * alike.
 +	 */
 +	if (ar->ab->nss_offload && cmd == SET_KEY) {
 +		bool group = !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE);
@@ -66,13 +72,51 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 +		if (!group)
 +			nss_wifi_vdev_security(arvif->nss_ifnum, key->cipher);
 +
-+		if (nss_peer_id) {
++		if (nss_peer_id)
 +			nss_wifi_peer_security(ab->nss_soc, nss_peer_id, group,
 +					       key->cipher, mic);
-+			nss_wifi_peer_authorize(ab->nss_soc, nss_peer_id);
-+		}
 +	}
 +
  exit:
  	mutex_unlock(&ar->conf_mutex);
  	return ret;
+@@ -10091,6 +10124,7 @@ static int ath11k_mac_op_sta_state(struc
+ 	enum ieee80211_ap_reg_power power_type;
+ 	struct cur_regulatory_info *reg_info;
+ 	struct ath11k_peer *peer;
++	u16 peer_id;
+ 	int ret = 0;
+ 
+ 	/* cancel must be done outside the mutex to avoid deadlock */
+@@ -10159,9 +10193,18 @@ static int ath11k_mac_op_sta_state(struc
+ 		peer = ath11k_peer_find(ar->ab, arvif->vdev_id, sta->addr);
+ 		if (peer)
+ 			peer->is_authorized = true;
++		peer_id = peer ? peer->peer_id : 0;
+ 
+ 		spin_unlock_bh(&ar->ab->base_lock);
+ 
++		/* The firmware drops what an unauthorised peer sends, other
++		 * than the key exchange, and follows the station's port rather
++		 * than its keys: an open network installs none, and a key is
++		 * installed before the exchange that proves it has finished.
++		 */
++		if (ar->ab->nss_offload && peer_id)
++			nss_wifi_peer_authorize(ar->ab->nss_soc, peer_id, true);
++
+ 		if (vif->type == NL80211_IFTYPE_STATION && arvif->is_up) {
+ 			ret = ath11k_wmi_set_peer_param(ar, sta->addr,
+ 							arvif->vdev_id,
+@@ -10201,8 +10244,12 @@ static int ath11k_mac_op_sta_state(struc
+ 		peer = ath11k_peer_find(ar->ab, arvif->vdev_id, sta->addr);
+ 		if (peer)
+ 			peer->is_authorized = false;
++		peer_id = peer ? peer->peer_id : 0;
+ 
+ 		spin_unlock_bh(&ar->ab->base_lock);
++
++		if (ar->ab->nss_offload && peer_id)
++			nss_wifi_peer_authorize(ar->ab->nss_soc, peer_id, false);
+ 	} else if (old_state == IEEE80211_STA_ASSOC &&
+ 		   new_state == IEEE80211_STA_AUTH &&
+ 		   (vif->type == NL80211_IFTYPE_AP ||

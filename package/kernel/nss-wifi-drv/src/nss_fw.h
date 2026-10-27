@@ -535,6 +535,7 @@ struct nss_ipv6_msg {
 #define NSS_WIFILI_PEER_SECURITY_TYPE_MSG	21
 #define NSS_WIFILI_RADIO_BUF_CFG		23
 #define NSS_WIFILI_STATS_V2_CFG_MSG		32
+#define NSS_WIFILI_ISOLATION_MSG		39
 #define NSS_WIFILI_PEER_UPDATE_AUTH_FLAG	44
 #define NSS_WIFILI_SEND_MESH_CAPABILITY_INFO	45
 
@@ -643,6 +644,11 @@ struct nss_wifili_peer_update_auth_flag {
 	u16 peer_id;
 	u8 auth_flag;
 	u8 reserved;
+};
+
+struct nss_wifili_peer_isolation_msg {
+	u16 peer_id;
+	u16 isolation;
 };
 
 struct nss_wifili_rx_reo_ring_stats {

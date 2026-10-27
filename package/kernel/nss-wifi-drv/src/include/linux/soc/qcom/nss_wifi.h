@@ -190,7 +190,7 @@ int nss_wifi_vdev_security(int if_num, u32 cipher);
 int nss_wifi_vdev_ap_isolate(int if_num, bool isolate);
 int nss_wifi_peer_security(int soc, u16 peer_id, bool group, u32 cipher,
 			   const u8 *mic_key);
-int nss_wifi_peer_authorize(int soc, u16 peer_id);
+int nss_wifi_peer_authorize(int soc, u16 peer_id, bool authorized);
 int nss_flow_setup_block(struct net_device *dev, struct flow_block_offload *f);
 int nss_wifi_mesh_register(int soc, struct net_device *dev, u8 radio,
 			   u32 vdev_id, const u8 *mac, u8 mode,
@@ -258,7 +258,8 @@ static inline int nss_wifi_peer_security(int soc, u16 peer_id, bool group,
 	return -ENODEV;
 }
 
-static inline int nss_wifi_peer_authorize(int soc, u16 peer_id)
+static inline int nss_wifi_peer_authorize(int soc, u16 peer_id,
+					  bool authorized)
 {
 	return -ENODEV;
 }

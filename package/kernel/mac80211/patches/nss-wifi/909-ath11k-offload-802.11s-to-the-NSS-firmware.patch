@@ -11,10 +11,7 @@ drops duplicates.
 
 The firmware transmits mesh data itself, so the transmit status mac80211
 builds the airtime metric from is taken from the PPDU statistics instead.
-An open mesh installs no key, so a mesh peer is authorised in the firmware
-when the station is.
 
-Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 ---
 --- a/drivers/net/wireless/ath/ath11k/dp_rx.c
@@ -74,7 +71,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  		if (arvif->bcca_zero_sent)
  			arvif->do_not_send_tmpl = true;
  		else
-@@ -6606,6 +6614,26 @@ static void ath11k_mac_op_tx(struct ieee
+@@ -6603,6 +6611,26 @@ static void ath11k_mac_op_tx(struct ieee
  	 * which is what makes the check it performs vacuous rather than
  	 * wrong.
  	 */
@@ -101,7 +98,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  	if (ar->ab->nss_offload && !ath11k_nss_host_tx) {
  		struct sk_buff *orig = skb;
  
-@@ -6985,6 +7013,50 @@ static u8 ath11k_nss_vdev_mode(struct at
+@@ -6982,6 +7010,50 @@ static u8 ath11k_nss_vdev_mode(struct at
  	return ATH11K_HW_TXRX_NATIVE_WIFI;
  }
  
@@ -152,7 +149,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  static void ath11k_nss_vdev_register(struct ath11k_vif *arvif,
  				     struct ieee80211_vif *vif)
  {
-@@ -6996,13 +7068,22 @@ static void ath11k_nss_vdev_register(str
+@@ -6993,13 +7065,22 @@ static void ath11k_nss_vdev_register(str
  	if (!wdev || !wdev->netdev)
  		return;
  
@@ -182,33 +179,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  	if (ret < 0) {
  		ath11k_warn(ar->ab, "failed to give vdev %d to the NSS firmware: %d\n",
  			    arvif->vdev_id, ret);
-@@ -10127,6 +10208,7 @@ static int ath11k_mac_op_sta_state(struc
- 	enum ieee80211_ap_reg_power power_type;
- 	struct cur_regulatory_info *reg_info;
- 	struct ath11k_peer *peer;
-+	u16 peer_id;
- 	int ret = 0;
- 
- 	/* cancel must be done outside the mutex to avoid deadlock */
-@@ -10195,9 +10277,17 @@ static int ath11k_mac_op_sta_state(struc
- 		peer = ath11k_peer_find(ar->ab, arvif->vdev_id, sta->addr);
- 		if (peer)
- 			peer->is_authorized = true;
-+		peer_id = peer ? peer->peer_id : 0;
- 
- 		spin_unlock_bh(&ar->ab->base_lock);
- 
-+		/* An open mesh installs no key, which is where the firmware
-+		 * is otherwise told a peer may pass frames.
-+		 */
-+		if (ar->ab->nss_offload && peer_id &&
-+		    vif->type == NL80211_IFTYPE_MESH_POINT)
-+			nss_wifi_peer_authorize(ar->ab->nss_soc, peer_id);
-+
- 		if (vif->type == NL80211_IFTYPE_STATION && arvif->is_up) {
- 			ret = ath11k_wmi_set_peer_param(ar, sta->addr,
- 							arvif->vdev_id,
-@@ -10283,6 +10373,44 @@ static int ath11k_mac_op_net_setup_tc(st
+@@ -10294,6 +10375,44 @@ static int ath11k_mac_op_net_setup_tc(st
   * The subsystem only asks once it has resolved the destination to a
   * station it holds.
   */
@@ -253,7 +224,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  static int ath11k_mac_op_net_fill_forward_path(struct ieee80211_hw *hw,
  					       struct ieee80211_vif *vif,
  					       struct ieee80211_sta *sta,
-@@ -10339,6 +10467,7 @@ static const struct ieee80211_ops ath11k
+@@ -10350,6 +10469,7 @@ static const struct ieee80211_ops ath11k
  	.flush_sta			= ath11k_mac_op_flush_sta,
  	.sta_statistics			= ath11k_mac_op_sta_statistics,
  	.net_setup_tc			= ath11k_mac_op_net_setup_tc,

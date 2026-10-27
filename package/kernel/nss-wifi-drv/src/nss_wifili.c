@@ -1464,6 +1464,24 @@ static int nss_wifili_peer_msg(struct nss_core *core,
 
 static void nss_wifili_peer_release(struct nss_core *core, int i);
 
+/* The firmware forwards a frame between two stations of a BSS without the
+ * host. A peer it holds isolated is kept off that forward, so its frames
+ * reach the host and pass mac80211's checks: a station that has associated
+ * but not finished its key exchange then reaches no other station.
+ */
+static int nss_wifili_peer_isolate(struct nss_core *core,
+				   struct nss_wifili_soc *soc, u16 peer_id,
+				   bool isolate)
+{
+	struct nss_wifili_peer_isolation_msg im = {
+		.peer_id = peer_id,
+		.isolation = isolate,
+	};
+
+	return nss_wifili_soc_msg(core, soc, NSS_WIFILI_ISOLATION_MSG, &im,
+				  sizeof(im));
+}
+
 int nss_wifi_peer_create(int id, u32 vdev_id, const u8 *mac, u16 peer_id,
 			 u16 hw_ast_idx, u32 tx_ast_hash)
 {
@@ -1542,7 +1560,14 @@ int nss_wifi_peer_create(int id, u32 vdev_id, const u8 *mac, u16 peer_id,
 	nss_wifili_peer_tbl[i].dma = dma;
 	nss_wifili_peer_tbl[i].size = size;
 
-	return 0;
+	/* Isolated until authorised, so a station that has only associated
+	 * cannot reach the others through the firmware's forward.
+	 */
+	ret = nss_wifili_peer_isolate(core, soc, peer_id, true);
+	if (ret)
+		nss_wifili_peer_release(core, i);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nss_wifi_peer_create);
 
@@ -1629,13 +1654,16 @@ int nss_wifi_peer_security(int id, u16 peer_id, bool group, u32 cipher,
 EXPORT_SYMBOL_GPL(nss_wifi_peer_security);
 
 /* A peer the firmware holds unauthorised has its received frames counted and
- * dropped rather than delivered.
+ * dropped rather than delivered, so the flag follows the station's port both
+ * ways: a station mac80211 takes back to associated is unauthorised here too.
+ * Only an authorised peer is let onto the forward between stations.
  */
-int nss_wifi_peer_authorize(int id, u16 peer_id)
+int nss_wifi_peer_authorize(int id, u16 peer_id, bool authorized)
 {
 	struct nss_wifili_peer_update_auth_flag au = {};
 	struct nss_wifili_soc *soc;
 	struct nss_core *core;
+	int ret;
 
 	guard(mutex)(&nss_wifili_lock);
 
@@ -1644,11 +1672,21 @@ int nss_wifi_peer_authorize(int id, u16 peer_id)
 	if (!core || !soc || !soc->started)
 		return -EAGAIN;
 
-	au.peer_id = peer_id;
-	au.auth_flag = 1;
+	if (!authorized) {
+		ret = nss_wifili_peer_isolate(core, soc, peer_id, true);
+		if (ret)
+			return ret;
+	}
 
-	return nss_wifili_soc_msg(core, soc, NSS_WIFILI_PEER_UPDATE_AUTH_FLAG,
-				  &au, sizeof(au));
+	au.peer_id = peer_id;
+	au.auth_flag = authorized;
+
+	ret = nss_wifili_soc_msg(core, soc, NSS_WIFILI_PEER_UPDATE_AUTH_FLAG,
+				 &au, sizeof(au));
+	if (ret || !authorized)
+		return ret;
+
+	return nss_wifili_peer_isolate(core, soc, peer_id, false);
 }
 EXPORT_SYMBOL_GPL(nss_wifi_peer_authorize);
 

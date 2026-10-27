@@ -15,7 +15,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 ---
 --- a/drivers/net/wireless/ath/ath11k/core.h
 +++ b/drivers/net/wireless/ath/ath11k/core.h
-@@ -568,6 +568,12 @@ struct ath11k_sta {
+@@ -569,6 +569,12 @@ struct ath11k_sta {
  	struct rate_info last_txrate;
  	/* set only while the NSS firmware takes the data frames */
  	struct rate_info rxrate;
@@ -95,7 +95,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  		ath11k_nss_wifi_ring(&soc->tcl[i], ab,
 --- a/drivers/net/wireless/ath/ath11k/mac.c
 +++ b/drivers/net/wireless/ath/ath11k/mac.c
-@@ -9699,6 +9699,21 @@ static void ath11k_mac_op_sta_statistics
+@@ -9698,6 +9698,21 @@ static void ath11k_mac_op_sta_statistics
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_RX_BITRATE);
  	}
  

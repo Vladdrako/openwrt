@@ -23,21 +23,26 @@ Sections:
 
 Options:
   -nossid    also hide SSIDs and mesh IDs
+  -strict    also hide SSIDs, mesh IDs and the hostname, and replace every
+             MAC address with a number that only tells them apart
   -h         this help
 
-Keys, passwords, PPPoE credentials and public IP addresses are removed and
-MAC addresses shortened automatically. Read the report before posting it.
+Keys (including 802.11r R0KH/R1KH keys), passwords, PPPoE credentials and
+public IP addresses are removed and MAC addresses shortened automatically.
+Read the report before posting it.
 EOF
 }
 
 SECTIONS=
 HIDE_SSID=0
+STRICT=0
 for a in "$@"; do
 	a=${a#-}
 	a=${a#-}
 	case "$a" in
 	h|help) usage; exit 0 ;;
 	nossid|hide-ssid) HIDE_SSID=1 ;;
+	strict) HIDE_SSID=1; STRICT=1 ;;
 	all) SECTIONS= ;;
 	system|ethernet|switch|offload|nss|wifi|sqm|wan)
 		SECTIONS="$SECTIONS $a" ;;
@@ -125,26 +130,67 @@ uci_get() { uci -q get "$1" 2>/dev/null; }
 
 # Removes secrets and public addresses, and shortens MAC addresses and the
 # link-local addresses derived from them.
+#
+# A secret is recognised by its option name, in uci show, uci export, JSON and
+# hostapd/wpa_supplicant config form alike. The name is matched on what it
+# contains, so an option added later (an 802.11r key holder list, a second
+# EAP password) is caught without being listed; the few non-secret names that
+# contain such a word are listed instead.
 redact() {
-	k='key|key[1-4]|psk|password|passwd|sae_password|wpa_passphrase|wpa_psk'
-	k="$k|auth_secret|acct_secret|dae_secret|secret|private_key|public_key"
-	k="$k|preshared_key|priv_key|username|pin|token|api_key|apikey|duid"
-	k="$k|dhcp_default_duid|clientid|serial"
-	s='ssid|mesh_id'
-	[ "$HIDE_SSID" = 1 ] && k="$k|$s"
-	sed -E \
-		-e "s/^([^= ]*\.($k))=.*/\1='<redacted>'/" \
-		-e "s/^([[:space:]]*(option|list)[[:space:]]+($k))[[:space:]].*/\1 '<redacted>'/" \
-		-e "s/(\"($k)\"[[:space:]]*:[[:space:]]*)\"[^\"]*\"/\1\"<redacted>\"/g" \
-		-e "s/^($k)=.*/\1=<redacted>/" |
-	if [ "$HIDE_SSID" = 1 ]; then
-		sed -E -e 's/(ESSID: ).*/\1"<redacted>"/' \
-			-e 's/^([[:space:]]*ssid )[^ ].*/\1<redacted>/' \
-			-e 's/(Mesh ID: |MESH ID ).*/\1<redacted>/'
-	else
-		cat
-	fi |
-	awk '
+	awk -v hide_ssid="$HIDE_SSID" -v strict="$STRICT" '
+	function secret(n) {
+		n = tolower(n)
+		if (n ~ /^(key_mgmt|wpa_key_mgmt|eapol_key_index_workaround|wpa_disable_eapol_key_retries|disable_eapol_key_retries|ft_psk_generate_local|ppsk|ieee80211w|keyring)$/ || n ~ /(bypass|passthrough)/)
+			return 0
+		if (n ~ /(key|psk|pass|secret|token|r[01]kh|identity|username|duid|clientid|serial)/)
+			return 1
+		if (n == "pin" || n == "wps_pin" || n == "ap_pin")
+			return 1
+		if (n == "hostname" && strict)
+			return 1
+		return hide_ssid && n ~ /^(ssid|mesh_id|meshid)$/
+	}
+	# uci show: cfg.section.name=value
+	match($0, /^[^= \t]+\.[A-Za-z0-9_]+=/) {
+		n = substr($0, 1, RLENGTH - 1)
+		sub(/.*\./, "", n)
+		if (secret(n)) { print substr($0, 1, RLENGTH) "\047<redacted>\047"; next }
+	}
+	# uci export: option name value, list name value
+	/^[ \t]*(option|list)[ \t]+[A-Za-z0-9_]+[ \t]/ {
+		if (secret($2)) {
+			match($0, /^[ \t]*(option|list)[ \t]+[A-Za-z0-9_]+/)
+			print substr($0, 1, RLENGTH) " \047<redacted>\047"
+			next
+		}
+	}
+	# hostapd and wpa_supplicant config: name=value
+	match($0, /^[ \t]*[A-Za-z0-9_]+=/) {
+		n = substr($0, 1, RLENGTH - 1)
+		sub(/^[ \t]*/, "", n)
+		if (secret(n)) { print substr($0, 1, RLENGTH) "<redacted>"; next }
+	}
+	# JSON: "name": "value"
+	{
+		l = $0; out = ""
+		while (match(l, /"[A-Za-z0-9_]+"[ \t]*:[ \t]*"[^"]*"/)) {
+			m = substr(l, RSTART, RLENGTH)
+			n = m; sub(/^"/, "", n); sub(/".*/, "", n)
+			if (secret(n))
+				sub(/:[ \t]*"[^"]*"$/, ": \"<redacted>\"", m)
+			out = out substr(l, 1, RSTART - 1) m
+			l = substr(l, RSTART + RLENGTH)
+		}
+		$0 = out l
+	}
+	hide_ssid {
+		sub(/ESSID: .*/, "ESSID: \"<redacted>\"")
+		if (match($0, /^[ \t]*ssid [^ ]/))
+			$0 = substr($0, 1, RLENGTH - 1) "<redacted>"
+		sub(/(Mesh ID: |MESH ID ).*/, "Mesh ID: <redacted>")
+	}
+	{ print }' |
+	awk -v strict="$STRICT" '
 	function private4(a, b) {
 		return a == 10 || a == 127 || a == 0 || a >= 224 ||
 		       (a == 172 && b >= 16 && b <= 31) ||
@@ -175,6 +221,12 @@ redact() {
 	}
 	function fix(m, kind,    f, c) {
 		if (kind == "mac") {
+			if (strict) {
+				m = tolower(m)
+				if (!(m in macs))
+					macs[m] = sprintf("xx:xx:xx:xx:%02x:%02x", int(++nmac / 256), nmac % 256)
+				return macs[m]
+			}
 			c = split(m, f, ":")
 			return f[1] ":" f[2] ":" f[3] ":xx:xx:" f[6]
 		}
@@ -186,7 +238,7 @@ redact() {
 		}
 		c = split(m, f, ":")
 		if (kind == "ll")
-			return "fe80::x:" f[c]
+			return strict ? "fe80::x" : "fe80::x:" f[c]
 		return f[1] ":x:x::" (c > 2 ? f[c] : "")
 	}
 	{

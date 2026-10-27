@@ -15,7 +15,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 ---
 --- a/drivers/net/wireless/ath/ath11k/mac.c
 +++ b/drivers/net/wireless/ath/ath11k/mac.c
-@@ -6289,8 +6289,11 @@ static int ath11k_mac_mgmt_tx_wmi(struct
+@@ -6286,8 +6286,11 @@ static int ath11k_mac_mgmt_tx_wmi(struct
  	if (peer_in_unassoc_pool)
  		ath11k_cfr_update_unassoc_pool_entry(ar, hdr->addr1);
  
@@ -29,7 +29,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  	if (ret) {
  		ath11k_warn(ar->ab, "failed to send mgmt frame: %d\n", ret);
  		goto err_unmap_buf;
-@@ -6555,6 +6558,19 @@ static int ath11k_mac_mgmt_tx(struct ath
+@@ -6552,6 +6555,19 @@ static int ath11k_mac_mgmt_tx(struct ath
  	return 0;
  }
  
@@ -49,7 +49,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  static void ath11k_mac_op_tx(struct ieee80211_hw *hw,
  			     struct ieee80211_tx_control *control,
  			     struct sk_buff *skb)
-@@ -6581,7 +6597,8 @@ static void ath11k_mac_op_tx(struct ieee
+@@ -6578,7 +6594,8 @@ static void ath11k_mac_op_tx(struct ieee
  
  	if (info_flags & IEEE80211_TX_CTL_HW_80211_ENCAP) {
  		skb_cb->flags |= ATH11K_SKB_HW_80211_ENCAP;

@@ -6,11 +6,8 @@ forwards between the stations of a BSS itself never learns of it. Store
 it in the BSS configuration and report changes with
 BSS_CHANGED_AP_ISOLATE, also on reconfiguration.
 
-Assisted-by: Claude:claude-opus-5-5
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 ---
-diff --git a/include/net/mac80211.h b/include/net/mac80211.h
-index 024ac3c..9be9083 100644
 --- a/include/net/mac80211.h
 +++ b/include/net/mac80211.h
 @@ -443,6 +443,7 @@ struct ieee80211_vif_chanctx_switch {
@@ -45,11 +42,9 @@ index 024ac3c..9be9083 100644
  	/* Multiple BSSID data */
  	bool nontransmitted;
  	struct ieee80211_bss_conf __rcu *tx_bss_conf;
-diff --git a/net/mac80211/cfg.c b/net/mac80211/cfg.c
-index 26e78a3..a95884c 100644
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -3403,6 +3403,8 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
+@@ -3403,6 +3403,8 @@ static int ieee80211_change_bss(struct w
  		else
  			sdata->flags &= ~IEEE80211_SDATA_DONT_BRIDGE_PACKETS;
  		ieee80211_check_fast_rx_iface(sdata);
@@ -58,11 +53,9 @@ index 26e78a3..a95884c 100644
  	}
  
  	if (params->ht_opmode >= 0) {
-diff --git a/net/mac80211/util.c b/net/mac80211/util.c
-index 59f73da..9da3831 100644
 --- a/net/mac80211/util.c
 +++ b/net/mac80211/util.c
-@@ -2186,6 +2186,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
+@@ -2186,6 +2186,9 @@ int ieee80211_reconfig(struct ieee80211_
  			if (sdata->vif.type == NL80211_IFTYPE_AP) {
  				changed |= BSS_CHANGED_AP_PROBE_RESP;
  
