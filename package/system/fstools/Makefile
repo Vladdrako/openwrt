@@ -128,7 +128,7 @@ define Package/block-mount/install
 	$(INSTALL_CONF) ./files/media-change.hotplug  $(1)/etc/hotplug.d/block/00-media-change
 
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/block $(1)/sbin/
-	$(INSTALL_DATA) $(PKG_INSTALL_DIR)/usr/lib/libblkid-tiny.so $(1)/lib/
+	[ ! -f $(PKG_INSTALL_DIR)/usr/lib/libblkid-tiny.so ] || $(INSTALL_DATA) $(PKG_INSTALL_DIR)/usr/lib/libblkid-tiny.so $(1)/lib/
 
 endef
 
