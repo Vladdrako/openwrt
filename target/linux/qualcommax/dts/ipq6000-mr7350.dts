@@ -26,7 +26,7 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
-		bootargs-append = " ubi.block=0,rootfs root=/dev/ubiblock0_0";
+		bootargs-append = " root=/dev/ubiblock0_0";
 	};
 
 	keys {
@@ -434,5 +434,5 @@
 	status = "okay";
 
 	qcom,calibration-variant = "Linksys-MR7350";
-	qcom,ath11k-fw-memory-mode = <2>;
+	qcom,ath11k-fw-memory-mode = <1>;
 };
