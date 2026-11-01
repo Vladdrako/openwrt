@@ -12,8 +12,8 @@ sch_fq does with its timer_slack. The shaper keeps its rate, since it
 sends what it owes once the timer runs. On the same router the shaper
 stops fell to 0.48 per packet and the CPU time per GB forwarded from
 14369 to 10481 ms (100 us slack, 8 flows, 4 runs each), at the same
-throughput. Four packet times is 100 us at 310 Mbit/s, 48 us at 1 Gbit/s
-and 5 us at 10 Gbit/s.
+throughput. Four packet times are 156 us at 310 Mbit/s, where the cap
+applies, 48 us at 1 Gbit/s and 5 us at 10 Gbit/s.
 
 Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 ---
