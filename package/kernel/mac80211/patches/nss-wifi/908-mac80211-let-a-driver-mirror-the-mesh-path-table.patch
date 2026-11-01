@@ -114,7 +114,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  };
  
  #define IEEE80211_NAN_MAX_CHANNELS 3
-@@ -4675,6 +4751,8 @@ struct ieee80211_prep_tx_info {
+@@ -4683,6 +4759,8 @@ struct ieee80211_prep_tx_info {
   *	to use rx decapsulation offload
   * @sta_set_airtime_weight: Called to notify the driver of a change to a
   *	station's airtime fairness weight, so it can be programmed in hardware.
@@ -123,7 +123,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
   * @add_twt_setup: Update hw with TWT agreement parameters received from the peer.
   *	This callback allows the hw to check if requested parameters
   *	are supported and if there is enough room for a new agreement.
-@@ -5092,6 +5170,10 @@ struct ieee80211_ops {
+@@ -5187,6 +5265,10 @@ struct ieee80211_ops {
  	void (*sta_set_airtime_weight)(struct ieee80211_hw *hw,
  				       struct ieee80211_vif *vif,
  				       struct ieee80211_sta *sta, u16 weight);
@@ -134,7 +134,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  	void (*add_twt_setup)(struct ieee80211_hw *hw,
  			      struct ieee80211_sta *sta,
  			      struct ieee80211_twt_setup *twt);
-@@ -8230,4 +8312,29 @@ bool ieee80211_vif_nan_started(struct ie
+@@ -8440,4 +8522,29 @@ bool ieee80211_vif_nan_started(struct ie
   * Return: 0 if success and non-zero on error
   */
  int ieee80211_encrypt_tx_skb(struct sk_buff *skb);
@@ -166,7 +166,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  #endif /* MAC80211_H */
 --- a/net/mac80211/driver-ops.h
 +++ b/net/mac80211/driver-ops.h
-@@ -1833,4 +1833,18 @@ drv_nan_peer_sched_changed(struct ieee80
+@@ -1968,4 +1968,18 @@ drv_nan_peer_sched_changed(struct ieee80
  	return ret;
  }
  
@@ -560,7 +560,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 +EXPORT_SYMBOL(ieee80211_mesh_path_offld_change_notify);
 --- a/net/mac80211/mesh.c
 +++ b/net/mac80211/mesh.c
-@@ -1155,6 +1155,16 @@ void ieee80211_mbss_info_change_notify(s
+@@ -1156,6 +1156,16 @@ void ieee80211_mbss_info_change_notify(s
  	wiphy_work_queue(sdata->local->hw.wiphy, &sdata->work);
  }
  
@@ -577,17 +577,17 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
  {
  	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-@@ -1190,6 +1200,7 @@ int ieee80211_start_mesh(struct ieee8021
+@@ -1191,6 +1201,7 @@ int ieee80211_start_mesh(struct ieee8021
  	}
  
- 	ieee80211_recalc_dtim(sdata, drv_get_tsf(local, sdata));
+ 	ieee80211_recalc_dtim(&sdata->deflink, drv_get_tsf(local, sdata));
 +	ieee80211_mesh_offld_config(sdata);
  	ieee80211_link_info_change_notify(sdata, &sdata->deflink, changed);
  
  	netif_carrier_on(sdata->dev);
 --- a/net/mac80211/cfg.c
 +++ b/net/mac80211/cfg.c
-@@ -3297,6 +3297,7 @@ static int ieee80211_update_mesh_config(
+@@ -3322,6 +3322,7 @@ static int ieee80211_update_mesh_config(
  	if (_chg_mesh_attr(NL80211_MESHCONF_CONNECTED_TO_AS, mask))
  		conf->dot11MeshConnectedToAuthServer =
  			nconf->dot11MeshConnectedToAuthServer;
