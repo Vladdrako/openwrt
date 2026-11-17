@@ -51,8 +51,8 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
 +
  static struct ath11k_hw_params ath11k_hw_params[] = {
  	{
- 		.hw_rev = ATH11K_HW_IPQ8074,
-@@ -2694,6 +2710,28 @@ static int ath11k_init_hw_params(struct
+ 		.hw_rev = ATH11K_HW_IPQ9574,
+@@ -2775,6 +2791,28 @@ static int ath11k_init_hw_params(struct
  
  	ab->hw_params = *hw_params;
  
@@ -94,7 +94,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  
  #define ATH11K_SCAN_TIMEOUT_HZ (20 * HZ)
  
-@@ -998,6 +1002,13 @@ struct ath11k_base {
+@@ -1009,6 +1013,13 @@ struct ath11k_base {
  
  	struct ath11k_hw_params hw_params;
  
@@ -110,7 +110,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  	/* Below regd's are protected by ab->data_lock */
 --- a/drivers/net/wireless/ath/ath11k/dp.c
 +++ b/drivers/net/wireless/ath/ath11k/dp.c
-@@ -62,9 +62,17 @@ int ath11k_dp_peer_setup(struct ath11k *
+@@ -55,9 +55,17 @@ int ath11k_dp_peer_setup(struct ath11k *
  
  	/* NOTE: reo_dest ring id starts from 1 unlike mac_id which starts from 0 */
  	reo_dest = ar->dp.mac_id + 1;
@@ -146,7 +146,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  		rx_ring = &dp->rxdma_mon_buf_ring;
 --- a/drivers/net/wireless/ath/ath11k/mac.c
 +++ b/drivers/net/wireless/ath/ath11k/mac.c
-@@ -6546,6 +6546,17 @@ static void ath11k_mac_op_tx(struct ieee
+@@ -6613,6 +6613,17 @@ static void ath11k_mac_op_tx(struct ieee
  		return;
  	}
  
@@ -166,7 +166,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  
 --- a/drivers/net/wireless/ath/ath11k/hw.c
 +++ b/drivers/net/wireless/ath/ath11k/hw.c
-@@ -115,6 +115,15 @@ static void ath11k_hw_ipq8074_reo_setup(
+@@ -126,6 +126,15 @@ static void ath11k_hw_ipq8074_reo_setup(
  		HAL_HASH_ROUTING_RING_SW2 << 15 |
  		HAL_HASH_ROUTING_RING_SW3 << 18 |
  		HAL_HASH_ROUTING_RING_SW4 << 21;
@@ -182,7 +182,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  
  	val = ath11k_hif_read32(ab, reo_base + HAL_REO1_GEN_ENABLE);
  
-@@ -136,7 +145,7 @@ static void ath11k_hw_ipq8074_reo_setup(
+@@ -147,7 +156,7 @@ static void ath11k_hw_ipq8074_reo_setup(
  
  	ath11k_hif_write32(ab, reo_base + HAL_REO1_DEST_RING_CTRL_IX_0,
  			   FIELD_PREP(HAL_REO_DEST_RING_CTRL_HASH_RING_MAP,

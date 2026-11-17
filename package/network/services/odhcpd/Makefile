@@ -28,7 +28,6 @@ define Package/odhcpd/default
   SECTION:=net
   CATEGORY:=Network
   DEPENDS:=+libjson-c +libubox +libuci +libubus +libnl-tiny
-  USERID:=odhcpd=455:odhcpd=455
 endef
 
 define Package/odhcpd/default/description
@@ -80,10 +79,6 @@ define Package/odhcpd/install
 	$(INSTALL_BIN) ./files/odhcpd-update $(1)/usr/sbin/
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/odhcpd.init $(1)/etc/init.d/odhcpd
-	$(INSTALL_DIR) $(1)/etc/capabilities
-	$(INSTALL_DATA) ./files/odhcpd.capabilities $(1)/etc/capabilities/odhcpd.json
-	$(INSTALL_DIR) $(1)/usr/share/acl.d
-	$(INSTALL_DATA) ./files/odhcpd_acl.json $(1)/usr/share/acl.d/odhcpd.json
 	$(INSTALL_DIR) $(1)/etc/uci-defaults
 	$(INSTALL_BIN) ./files/odhcpd.defaults $(1)/etc/uci-defaults/15_odhcpd
 endef

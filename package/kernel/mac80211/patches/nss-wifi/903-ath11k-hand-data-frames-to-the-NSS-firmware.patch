@@ -81,7 +81,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  		     HTT_RX_FILTER_TLV_FLAGS_PPDU_END_STATUS_DONE,
  	.pkt_filter_flags0 = HTT_RX_FP_MGMT_FILTER_FLAGS0,
  	.pkt_filter_flags1 = HTT_RX_FP_MGMT_FILTER_FLAGS1,
-@@ -6546,14 +6548,57 @@ static void ath11k_mac_op_tx(struct ieee
+@@ -6613,14 +6615,57 @@ static void ath11k_mac_op_tx(struct ieee
  		return;
  	}
  
@@ -147,7 +147,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  		return;
  	}
  
-@@ -6881,6 +6926,61 @@ static int ath11k_mac_setup_vdev_create_
+@@ -6949,6 +6994,61 @@ static int ath11k_mac_setup_vdev_create_
  	return 0;
  }
  
@@ -209,7 +209,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  static void ath11k_mac_op_update_vif_offload(struct ieee80211_hw *hw,
  					     struct ieee80211_vif *vif)
  {
-@@ -7127,6 +7227,7 @@ static int ath11k_mac_op_add_interface(s
+@@ -7195,6 +7295,7 @@ static int ath11k_mac_op_add_interface(s
  
  	arvif->ar = ar;
  	arvif->vif = vif;
@@ -217,7 +217,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  
  	INIT_LIST_HEAD(&arvif->list);
  	INIT_WORK(&arvif->bcn_tx_work, ath11k_mac_bcn_tx_work);
-@@ -7212,6 +7313,12 @@ static int ath11k_mac_op_add_interface(s
+@@ -7280,6 +7381,12 @@ static int ath11k_mac_op_add_interface(s
  
  	ath11k_mac_op_update_vif_offload(hw, vif);
  
@@ -230,7 +230,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  	nss = get_num_chains(ar->cfg_tx_chainmask) ? : 1;
  	ret = ath11k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
  					    WMI_VDEV_PARAM_NSS, nss);
-@@ -7394,6 +7501,17 @@ static void ath11k_mac_op_remove_interfa
+@@ -7462,6 +7569,17 @@ static void ath11k_mac_op_remove_interfa
  				    arvif->vdev_id, ret);
  	}
  
@@ -248,7 +248,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  	ret = ath11k_mac_vdev_delete(ar, arvif);
  	if (ret) {
  		ath11k_warn(ab, "failed to delete vdev %d: %d\n",
-@@ -9469,6 +9587,11 @@ static void ath11k_mac_op_sta_statistics
+@@ -9536,6 +9654,11 @@ static void ath11k_mac_op_sta_statistics
  		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_TX_BITRATE);
  	}
  
@@ -275,7 +275,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  MODULE_PARM_DESC(nss_keep_mask, "Leave the ring mask alone while offloading");
 --- a/drivers/net/wireless/ath/ath11k/dp.c
 +++ b/drivers/net/wireless/ath/ath11k/dp.c
-@@ -994,6 +994,7 @@ static void ath11k_nss_wifi_describe(str
+@@ -996,6 +996,7 @@ static void ath11k_nss_wifi_describe(str
  	soc->priv = ab;
  	soc->reset = ath11k_nss_reset;
  	soc->link_desc_return = ath11k_nss_link_desc_return;
@@ -285,7 +285,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  		ath11k_nss_wifi_ring(&soc->tcl[i], ab,
 --- a/drivers/net/wireless/ath/ath11k/dp_rx.c
 +++ b/drivers/net/wireless/ath/ath11k/dp_rx.c
-@@ -2506,6 +2506,55 @@ static void ath11k_dp_rx_deliver_msdu(st
+@@ -2511,6 +2511,55 @@ static void ath11k_dp_rx_deliver_msdu(st
  	ieee80211_rx_napi(ar->hw, pubsta, msdu, napi);
  }
  
@@ -341,7 +341,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  static bool ath11k_dp_rx_check_nwifi_hdr_len_valid(struct ath11k_base *ab,
  						   struct hal_rx_desc *rx_desc,
  						   struct sk_buff *msdu)
-@@ -2784,6 +2833,68 @@ exit:
+@@ -2789,6 +2838,68 @@ exit:
  	return total_msdu_reaped;
  }
  
@@ -410,7 +410,7 @@ Signed-off-by: Julius Bairaktaris <julius@bairaktaris.de>
  static void ath11k_dp_rx_update_peer_stats(struct ath11k_sta *arsta,
  					   struct hal_rx_mon_ppdu_info *ppdu_info)
  {
-@@ -5345,6 +5456,8 @@ int ath11k_dp_rx_process_mon_status(stru
+@@ -5350,6 +5461,8 @@ int ath11k_dp_rx_process_mon_status(stru
  		}
  
  		arsta = ath11k_sta_to_arsta(peer->sta);
