@@ -1,0 +1,51 @@
+From 6c1dd1b21521495110e0c828ded7b9cc00e1eed0 Mon Sep 17 00:00:00 2001
+From: Alexey Immoreev <github@luixo.me>
+Date: Wed, 18 Nov 2026 20:35:50 +0000
+Subject: [PATCH] soc: qcom: mdt_loader: free user PD DMA staging on errors
+
+The second allocation, the firmware read and the synchronous SCM call
+can fail after staging memory has been allocated. The early returns skip
+the corresponding frees.
+
+Unwind only the allocations that succeeded, including after an SCM error.
+Return the load or SCM result after cleanup; do not issue the SCM call
+when loading the firmware segment fails.
+
+---
+--- a/drivers/soc/qcom/mdt_loader.c
++++ b/drivers/soc/qcom/mdt_loader.c
+@@ -136,7 +136,8 @@ static int mdt_load_split_segment_dma(in
+ 				 GFP_KERNEL | GFP_DMA);
+ 	if (!ptr) {
+ 		dev_err(dev, "Error in dma alloc ptr: %u\n", phdr->p_filesz);
+-		return -ENOMEM;
++		ret = -ENOMEM;
++		goto free_args;
+ 	}
+ 
+ 	args->addr = cpu_to_le64(dma_addrs);
+@@ -147,19 +148,19 @@ static int mdt_load_split_segment_dma(in
+ 	ret = mdt_load_split_segment(ptr, phdrs, segment, fw_name, dev);
+ 	if (ret < 0) {
+ 		dev_err(dev, "Error in mdt_load_split_segment: %d\n", ret);
+-		return ret;
++		goto free_ptr;
+ 	}
+ 
+ 	ret = qcom_scm_pas_load_segment(pas_id, segment, dma_args, 1);
+-	if (ret < 0) {
++	if (ret < 0)
+ 		dev_err(dev, "Error in qcom_scm_pas_load_segment: %d\n", ret);
+-		return ret;
+-	}
+ 
++free_ptr:
+ 	dma_free_coherent(dev, phdr->p_filesz, ptr, dma_ptr);
++free_args:
+ 	dma_free_coherent(dev, sizeof(*args) + sizeof(*addrs), args, dma_args);
+ 
+-	return 0;
++	return ret;
+ }
+ 
+ /**
