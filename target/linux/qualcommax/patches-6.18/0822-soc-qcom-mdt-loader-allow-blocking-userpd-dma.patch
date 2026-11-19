@@ -21,7 +21,7 @@ formats while touching the allocation sites.
  
 -	args = dma_alloc_coherent(dev, sizeof(*args) + sizeof(*addrs), &dma_args, GFP_DMA);
 +	args = dma_alloc_coherent(dev, sizeof(*args) + sizeof(*addrs), &dma_args,
-+				  GFP_KERNEL | GFP_DMA);
++				  GFP_KERNEL);
  	if (!args) {
 -		dev_err(dev, "Error in dma alloc regin: %ld\n", sizeof(*args));
 +		dev_err(dev, "Error in dma alloc region: %zu\n", sizeof(*args));

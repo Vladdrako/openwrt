@@ -34,7 +34,7 @@ when loading the firmware segment fails.
  
  	ret = qcom_scm_pas_load_segment(pas_id, segment, dma_args, 1);
 -	if (ret < 0) {
-+	if (ret < 0)
++	if (ret)
  		dev_err(dev, "Error in qcom_scm_pas_load_segment: %d\n", ret);
 -		return ret;
 -	}
